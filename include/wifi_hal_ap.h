@@ -3539,6 +3539,25 @@ typedef INT(* wifi_wpsEvent_callback)(INT apIndex, wifi_wps_ev_t event);
  */
 INT wifi_wpsEvent_callback_register(wifi_wpsEvent_callback callback);
 
+/**
+ * @brief Configures whether to suppress the Disassociation Imminent flag and its associated
+ *        disassociation timer in outgoing BTM (BSS Transition Management) Request frames,
+ *        per access point (VAP).
+ *
+ * When set to true, the HAL will not set the Disassociation Imminent flag in outgoing
+ * BTM Request frames for this VAP and will not arm the corresponding disassociation timer.
+ * The setting applies only to the specified VAP identified by apIndex.
+ *
+ * @param[in] apIndex Index of the access point (VAP).
+ * @param[in] ignoreBTMDisassocTimer  Boolean value indicating whether to ignore (true) or
+ *                    honor (false) the Disassociation Imminent flag and its associated timer.
+ *
+ * @returns The status of the operation.
+ * @retval WIFI_HAL_SUCCESS If successful.
+ * @retval WIFI_HAL_ERROR   If any error is detected.
+ */
+INT wifi_setApIgnoreBTMDisassocTimer(INT apIndex, BOOL ignoreBTMDisassocTimer);
+
 /** @} */  //END OF GROUP WIFI_HAL_APIS
 
 #ifdef __cplusplus
