@@ -1900,6 +1900,49 @@ typedef INT ( * wifi_device_deauthenticated_callback)(int ap_index, char *src_ma
  * @param callback_proc Pointer to the callback function to register.
  */
 void wifi_apDeAuthEvent_callback_register(wifi_apDeAuthEvent_callback callback_proc);
+/** @} */  //END OF GROUP WIFI_HAL_APIS
+
+/**
+ * @addtogroup WIFI_HAL_TYPES
+ * @{
+ */
+/* wifi_apFrameDropUnencrypted_callback() function */
+/**
+* @brief Callback invoked when the AP drops an unencrypted data frame received
+* from an associated STA on a security-enforced BSS (FC_WEP bit not set after
+* EAPOL has completed).  The STA has likely lost its PTK/GTK and the consumer
+* is expected to disassociate it so a fresh 4-way handshake takes place.
+*
+* @param[in] ap_index   Access Point Index
+* @param[in] src_mac    MAC address of the STA that sent the unprotected frame
+* @param[in] ether_type Ethertype of the dropped frame in host byte order
+*
+* @returns The status of the operation
+* @retval WIFI_HAL_SUCCESS If successful
+* @retval WIFI_HAL_ERROR   If any error is detected
+*
+* @note This function must not suspend and must not invoke any blocking system
+* calls.  It should send a message to a driver event handler task which is
+* responsible for performing the actual disassociation.
+*/
+typedef INT ( * wifi_apFrameDropUnencrypted_callback)(int ap_index, char *src_mac, unsigned short ether_type);
+
+/** @} */  //END OF GROUP WIFI_HAL_TYPES
+
+/**
+ * @addtogroup WIFI_HAL_APIS
+ * @{
+ */
+/**
+ * @brief Registers a callback function for unprotected-frame drop events.
+ *
+ * The callback is invoked when the driver reports that an unencrypted data
+ * frame was dropped on a secured AP BSS for an associated STA.  The consumer
+ * is expected to react by disassociating the offending STA.
+ *
+ * @param callback_proc Pointer to the callback function to register.
+ */
+void wifi_apFrameDropUnencrypted_callback_register(wifi_apFrameDropUnencrypted_callback callback_proc);
 
 /**
  * @brief Sets the interworking access network type for an Access Point.
