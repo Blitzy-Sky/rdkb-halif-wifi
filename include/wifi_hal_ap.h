@@ -436,39 +436,63 @@ typedef enum
 } wifi_eapol_type_t;
 
 /**
- * @brief 802.1x frame.
+ * @brief Identifies which message of the WPA four-way handshake is being reported.
+ *
+ * The four EAPOL-Key messages M1 to M4 are exchanged in order, so this value tells a
+ * caller how far a client progressed before a handshake stalled.
  */
-
 typedef enum {
-    EAPOL_MSG_NONE = 0,
-    EAPOL_MSG_M1,
-    EAPOL_MSG_M2,
-    EAPOL_MSG_M3,
-    EAPOL_MSG_M4
+    EAPOL_MSG_NONE = 0, /**< No handshake message; the exchange has not started. */
+    EAPOL_MSG_M1,       /**< M1: ANonce sent by the authenticator. */
+    EAPOL_MSG_M2,       /**< M2: SNonce and MIC returned by the supplicant. */
+    EAPOL_MSG_M3,       /**< M3: GTK and MIC sent by the authenticator. */
+    EAPOL_MSG_M4        /**< M4: final acknowledgement from the supplicant. */
 } eapol_msg_type_t;
 
+/**
+ * @brief Identifies which management exchange an EAPOL handshake belongs to.
+ *
+ * A four-way handshake follows either an initial association or a reassociation, and
+ * the two are counted separately.
+ */
 typedef enum {
-    EAPOL_FRAME_UNKNOWN = 0,
-    EAPOL_FRAME_ASSOC,
-    EAPOL_FRAME_REASSOC
+    EAPOL_FRAME_UNKNOWN = 0, /**< The originating exchange could not be determined. */
+    EAPOL_FRAME_ASSOC,       /**< The handshake followed an association request. */
+    EAPOL_FRAME_REASSOC      /**< The handshake followed a reassociation request. */
 } eapol_frame_type_t;
 
+/**
+ * @brief Index into per-message EAPOL handshake statistics.
+ *
+ * Combines the handshake message with the exchange it belongs to, giving one counter
+ * slot per message-and-exchange pair. `EAPOL_STATUS_TYPE_MAX` is the element count
+ * and is not itself a valid index.
+ */
 typedef enum {
-    M1_ASSOC = 0,
-    M1_REASSOC,
-    M2_ASSOC,
-    M2_REASSOC,
-    M3_ASSOC,
-    M3_REASSOC,
-    EAPOL_STATUS_TYPE_MAX
+    M1_ASSOC = 0,          /**< M1 seen during an association exchange. */
+    M1_REASSOC,            /**< M1 seen during a reassociation exchange. */
+    M2_ASSOC,              /**< M2 seen during an association exchange. */
+    M2_REASSOC,            /**< M2 seen during a reassociation exchange. */
+    M3_ASSOC,              /**< M3 seen during an association exchange. */
+    M3_REASSOC,            /**< M3 seen during a reassociation exchange. */
+    EAPOL_STATUS_TYPE_MAX  /**< Number of index values; not a valid index itself. */
 } eapol_status_type_idx_t;
 
+/**
+ * @brief IEEE 802.1X frame header followed by its payload.
+ *
+ * The `data` member is a zero-length array, so an instance is only meaningful when it
+ * overlays a buffer of at least `sizeof(wifi_8021x_frame_t) + len` bytes; `len` gives
+ * the payload length that follows the header. The structure is packed to match the
+ * on-the-wire layout, so it must not be copied field-by-field into a padded
+ * equivalent.
+ */
 typedef struct
 {
-    unsigned char version; /**< Version. */
-    unsigned char type; /**< Type. */
-    unsigned short len; /**< Length of the data. */
-    unsigned char data[0]; /**< Data. */
+    unsigned char version; /**< IEEE 802.1X protocol version from the frame header. */
+    unsigned char type; /**< EAPOL packet type; see `wifi_eapol_type_t`. */
+    unsigned short len; /**< Length in bytes of the payload that follows this header. */
+    unsigned char data[0]; /**< Start of the payload; `len` bytes, not counted in this structure's size. */
 } __attribute__((__packed__)) wifi_8021x_frame_t;
 
 /**
@@ -548,6 +572,13 @@ typedef enum
     WIFI_EAP_TYPE_EXPANDED = 254   /**< EAP-Expanded (RFC 3748). */
 } wifi_eap_t;
 
+/**
+ * @brief Inner (phase 2) authentication method used inside a tunnelled EAP method.
+ *
+ * Applies where the outer method is tunnelled, such as `WIFI_EAP_TYPE_PEAP` or
+ * `WIFI_EAP_TYPE_TTLS`, and selects how the client's credentials are carried inside
+ * that tunnel.
+ */
 typedef enum {
     WIFI_EAP_PHASE2_EAP,        /**< Enterprise EAP. */
     WIFI_EAP_PHASE2_MSCHAPV2,   /**< Enterprise MSCHAPV2. */
@@ -566,12 +597,31 @@ typedef enum {
 /**
  * @brief Gets detailed traffic statistics for a specific Access Point (AP).
  *
- * @param[in] apIndex        Index of the Access Point.
- * @param[out] output_struct Pointer to a structure to store the traffic statistics.
+ * @param[in] apIndex  Index of the Access Point, in the range `AP_INDEX_1` to
+ *                     `AP_INDEX_24`.
+ * @param[out] output_struct  Caller-allocated `wifi_trafficStats_t` that receives the
+ *                            packet and error counters for this Access Point. The caller
+ *                            allocates and releases it; the `HAL` writes into it and
+ *                            retains no reference to it after returning.
+ *
+ * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
+ *      in `docs/pages/halSpec.md`. A call made beforehand fails with `WIFI_HAL_ERROR` and
+ *      writes nothing to the output.
+ * @post On success the output holds a full set of counters; on failure the output is left
+ *       unspecified, so a caller must not read it unless the call succeeded.
  *
  * @returns The status of the operation.
- * @retval WIFI_HAL_SUCCESS If successful.
- * @retval WIFI_HAL_ERROR   If any error is detected.
+ * @retval WIFI_HAL_SUCCESS The counters were retrieved.
+ * @retval WIFI_HAL_ERROR   `apIndex` is out of range, a required output pointer is NULL,
+ *                          or the vendor layer could not supply the value. The caller
+ *                          should validate its arguments; a failure that persists across
+ *                          retries should be logged and the value treated as unavailable.
+ *
+ * @note The counters are cumulative since the last vendor reset, so a caller measuring a
+ *       rate must difference two samples itself; this interface defines no reset call.
+ * @note This call does not block, per `Blocking calls` in `docs/pages/halSpec.md`.
+ * @note The `HAL` is expected to be thread safe, per `Threading Model` in
+ *       `docs/pages/halSpec.md`.
  */
 INT wifi_getWifiTrafficStats(INT apIndex, wifi_trafficStats_t *output_struct);
 
@@ -581,50 +631,110 @@ INT wifi_getWifiTrafficStats(INT apIndex, wifi_trafficStats_t *output_struct);
  *
  * Retrieves a list of MAC addresses for devices associated with the specified AP.
  *
- * @param[in] ap_index                  Index of the Access Point.
- * @param[out] output_deviceMacAddressArray  Pointer to an array to store the MAC addresses of associated devices.
- * @param[in] maxNumDevices             Maximum number of devices that can be stored in the array.
- * @param[out] output_numDevices         Pointer to a variable to store the actual number of devices returned in the array.
+ * @param[in] ap_index  Index of the Access Point, in the range `AP_INDEX_1` to
+ *                      `AP_INDEX_24`.
+ * @param[out] output_deviceMacAddressArray  Caller-allocated array of at least
+ *                                           `maxNumDevices` `mac_address_t` elements that
+ *                                           receives the MAC address of each associated
+ *                                           device. The caller allocates and releases it;
+ *                                           the `HAL` writes into it and retains no
+ *                                           reference to it after returning. Only the
+ *                                           first `*output_numDevices` elements are
+ *                                           written.
+ * @param[in] maxNumDevices  Number of elements the array can hold. `ASSOC_MAC_ARRAY_MAX`
+ *                           is the largest associated-device population this interface
+ *                           names, so an array sized to that constant cannot overflow. A
+ *                           value of 0 is not useful and the interface does not define
+ *                           its effect.
+ * @param[out] output_numDevices  Caller-allocated variable that receives the number of
+ *                                elements actually written, never more than
+ *                                `maxNumDevices`. The caller allocates and releases it;
+ *                                the `HAL` writes into it and retains no reference to it
+ *                                after returning.
+ *
+ * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
+ *      in `docs/pages/halSpec.md`. A call made beforehand fails with `WIFI_HAL_ERROR` and
+ *      writes nothing to the output.
+ * @post On success the output holds `*output_numDevices` MAC addresses in the array, and
+ *       the remaining elements are left untouched; on failure the output is left
+ *       unspecified, so a caller must not read it unless the call succeeded.
  *
  * @returns The status of the operation.
- * @retval WIFI_HAL_SUCCESS If successful.
- * @retval WIFI_HAL_ERROR   If any error is detected.
+ * @retval WIFI_HAL_SUCCESS The list was retrieved. A value of 0 in `*output_numDevices`
+ *                          is a success with no associated devices, not an error.
+ * @retval WIFI_HAL_ERROR   `ap_index` is out of range, a required output pointer is NULL,
+ *                          or the array is too small for the current population. The
+ *                          caller should validate its arguments; a failure that persists
+ *                          across retries should be logged and the value treated as
+ *                          unavailable.
+ *
+ * @note This interface does not state whether the call truncates or fails when more than
+ *       `maxNumDevices` devices are associated, so a caller should size the array from
+ *       `wifi_getApNumDevicesAssociated()` or from `ASSOC_MAC_ARRAY_MAX` rather than
+ *       relying on either behaviour.
+ * @note This call does not block, per `Blocking calls` in `docs/pages/halSpec.md`.
+ * @note The `HAL` is expected to be thread safe, per `Threading Model` in
+ *       `docs/pages/halSpec.md`.
+ * @see wifi_getApNumDevicesAssociated
  */
 INT wifi_getApAssociatedDevice(INT ap_index, mac_address_t *output_deviceMacAddressArray, UINT maxNumDevices, UINT *output_numDevices);
 #endif
+/**
+ * @brief Outcome of a RADIUS or EAP authentication, as reported to a callback.
+ *
+ * The values are the RADIUS and EAP packet codes themselves rather than a dense
+ * sequence, which is why they are not consecutive.
+ */
 typedef enum {
-    WIFI_ACCESS_ACCEPT_STATUS = 0,
-    WIFI_EAP_SUCCESS_STATUS = 3,
-    WIFI_EAP_FAILURE_STATUS = 23
+    WIFI_ACCESS_ACCEPT_STATUS = 0, /**< RADIUS Access-Accept: the server authorised the client. */
+    WIFI_EAP_SUCCESS_STATUS = 3,   /**< EAP-Success: the EAP exchange completed successfully. */
+    WIFI_EAP_FAILURE_STATUS = 23   /**< EAP-Failure: the EAP exchange was rejected. */
 } wifi_eap_status_code_t;
 
+/**
+ * @brief IEEE 802.11 reason codes carried by deauthentication and disassociation
+ *        frames.
+ *
+ * The subset this interface names is the one a caller can act on: the codes that
+ * distinguish a wrong credential from a cipher mismatch from a deliberate
+ * disconnect. Each value is the reason code as it appears on the wire, so the set is
+ * deliberately sparse.
+ */
 typedef enum {
-    WIFI_REASON_UNSPECIFIED = 1,
-    WIFI_REASON_PREV_AUTH_NOT_VALID = 2,
-    WIFI_REASON_DEAUTH_LEAVING = 3,
-    WIFI_REASON_STA_REQ_ASSOC_WITHOUT_AUTH = 9,
-    WIFI_REASON_INVALID_IE = 13,
-    WIFI_REASON_MICHAEL_MIC_FAILURE = 14,
-    WIFI_REASON_4WAY_HANDSHAKE_TIMEOUT = 15,
-    WIFI_REASON_GROUP_KEY_UPDATE_TIMEOUT = 16,
-    WIFI_REASON_IE_IN_4WAY_DIFFERS = 17,
-    WIFI_REASON_GROUP_CIPHER_NOT_VALID = 18,
-    WIFI_REASON_PAIRWISE_CIPHER_NOT_VALID = 19,
-    WIFI_REASON_AKMP_NOT_VALID = 20,
-    WIFI_REASON_UNSUPPORTED_RSN_IE_VERSION = 21,
-    WIFI_REASON_INVALID_RSN_IE_CAPAB = 22,
-    WIFI_REASON_IEEE_802_1X_AUTH_FAILED = 23,
-    WIFI_REASON_CIPHER_SUITE_REJECTED = 24,
-    WIFI_REASON_INVALID_PMKID = 49
+    WIFI_REASON_UNSPECIFIED = 1,                 /**< No specific reason was given. */
+    WIFI_REASON_PREV_AUTH_NOT_VALID = 2,         /**< Previous authentication is no longer valid; the usual code for an incorrect passphrase. */
+    WIFI_REASON_DEAUTH_LEAVING = 3,              /**< The station is leaving or has left the BSS. */
+    WIFI_REASON_STA_REQ_ASSOC_WITHOUT_AUTH = 9,  /**< The station associated without first authenticating. */
+    WIFI_REASON_INVALID_IE = 13,                 /**< An information element was malformed. */
+    WIFI_REASON_MICHAEL_MIC_FAILURE = 14,        /**< A TKIP Michael MIC check failed. */
+    WIFI_REASON_4WAY_HANDSHAKE_TIMEOUT = 15,     /**< The four-way handshake did not complete in time. */
+    WIFI_REASON_GROUP_KEY_UPDATE_TIMEOUT = 16,   /**< The group key handshake did not complete in time. */
+    WIFI_REASON_IE_IN_4WAY_DIFFERS = 17,         /**< An information element in the four-way handshake differed from the one advertised. */
+    WIFI_REASON_GROUP_CIPHER_NOT_VALID = 18,     /**< The requested group cipher is not supported. */
+    WIFI_REASON_PAIRWISE_CIPHER_NOT_VALID = 19,  /**< The requested pairwise cipher is not supported. */
+    WIFI_REASON_AKMP_NOT_VALID = 20,             /**< The requested authentication and key management suite is not supported. */
+    WIFI_REASON_UNSUPPORTED_RSN_IE_VERSION = 21, /**< The RSN information element version is not supported. */
+    WIFI_REASON_INVALID_RSN_IE_CAPAB = 22,       /**< The RSN information element capabilities field is invalid. */
+    WIFI_REASON_IEEE_802_1X_AUTH_FAILED = 23,    /**< IEEE 802.1X authentication failed. */
+    WIFI_REASON_CIPHER_SUITE_REJECTED = 24,      /**< The cipher suite was rejected by local policy. */
+    WIFI_REASON_INVALID_PMKID = 49               /**< The supplied PMKID does not match a cached PMKSA. */
 } wifi_reason_code_t;
 
+/**
+ * @brief IEEE 802.11 status codes carried by authentication, association and
+ *        reassociation response frames.
+ *
+ * A status code says why a request was refused, where a reason code says why an
+ * established link was torn down. Each value is the status code as it appears on the
+ * wire, so the set is deliberately sparse.
+ */
 typedef enum {
-    WIFI_STATUS_UNSPECIFIED_FAILURE = 1,
-    WIFI_STATUS_AUTH_TIMEOUT = 16,
-    WIFI_STATUS_ASSOC_REJECTED_TEMPORARILY = 30,
-    WIFI_STATUS_ROBUST_MGMT_FRAME_POLICY_VIOLATION = 31,
-    WIFI_STATUS_AKMP_NOT_VALID = 43,
-    WIFI_STATUS_INVALID_PMKID = 53
+    WIFI_STATUS_UNSPECIFIED_FAILURE = 1,                 /**< The request failed for an unstated reason. */
+    WIFI_STATUS_AUTH_TIMEOUT = 16,                       /**< Authentication did not complete within the allowed time. */
+    WIFI_STATUS_ASSOC_REJECTED_TEMPORARILY = 30,         /**< Association was refused for now; the client may retry after the indicated interval. */
+    WIFI_STATUS_ROBUST_MGMT_FRAME_POLICY_VIOLATION = 31, /**< The request violated the robust management frame protection policy. */
+    WIFI_STATUS_AKMP_NOT_VALID = 43,                     /**< The requested authentication and key management suite is not supported. */
+    WIFI_STATUS_INVALID_PMKID = 53                       /**< The supplied PMKID does not match a cached PMKSA. */
 } wifi_status_code_t;
 
 /**
@@ -634,25 +744,62 @@ typedef enum {
  * to their factory default values, without affecting other APs or radio
  * parameters. It does not require a Wi-Fi reboot.
  *
- * @param[in] apIndex Index of the Access Point.
+ * @param[in] apIndex  Index of the Access Point, in the range `AP_INDEX_1` to
+ *                     `AP_INDEX_24`.
+ *
+ * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
+ *      in `docs/pages/halSpec.md`. A call made beforehand fails with `WIFI_HAL_ERROR`
+ *      without performing the action.
+ * @post On success every parameter of this Access Point holds its factory default, while
+ *       other Access Points and all radio parameters are untouched and no Wi-Fi reboot is
+ *       required. On failure no part of the configuration is changed.
  *
  * @returns The status of the operation.
- * @retval WIFI_HAL_SUCCESS If successful.
- * @retval WIFI_HAL_ERROR   If any error is detected.
+ * @retval WIFI_HAL_SUCCESS The Access Point was reset.
+ * @retval WIFI_HAL_ERROR   `apIndex` is out of range or the vendor layer could not
+ *                          complete the reset. The caller should read the Access Point
+ *                          back with `wifi_getRadioVapInfoMap()` to establish the actual
+ *                          state before retrying, because a partial reset is not excluded
+ *                          by this interface.
+ *
+ * @note This call does not block, per `Blocking calls` in `docs/pages/halSpec.md`.
+ * @note The `HAL` is expected to be thread safe, per `Threading Model` in
+ *       `docs/pages/halSpec.md`.
+ * @warning This discards the Access Point's configuration, including its security settings.
+ *          Any configuration the caller needs to keep must be read out first.
+ * @see wifi_setApSecurityReset
  */
 INT wifi_factoryResetAP(int apIndex);
 
 /**
- * @brief Deletes an Access Point.
+ * @brief Removes an Access Point and releases the state held for it.
  *
- * This function deletes the specified Access Point (AP) entry on the
- * hardware and clears all internal variables associated with it.
+ * This function deletes the specified Access Point (AP) entry from the hardware and
+ * clears every internal variable the `HAL` holds for it, so the index carries no
+ * configuration until a Virtual Access Point is created on it again.
  *
- * @param[in] apIndex Index of the Access Point.
+ * @param[in] apIndex  Index of the Access Point, in the range `AP_INDEX_1` to
+ *                     `AP_INDEX_24`.
+ *
+ * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
+ *      in `docs/pages/halSpec.md`. A call made beforehand fails with `WIFI_HAL_ERROR`
+ *      without performing the action.
+ * @post On success the Access Point entry is removed from the hardware and the internal
+ *       variables associated with it are cleared. On failure no part of the configuration
+ *       is changed.
  *
  * @returns The status of the operation.
- * @retval WIFI_HAL_SUCCESS If successful.
- * @retval WIFI_HAL_ERROR   If any error is detected.
+ * @retval WIFI_HAL_SUCCESS The Access Point was deleted.
+ * @retval WIFI_HAL_ERROR   `apIndex` is out of range or the vendor layer could not delete
+ *                          the entry. The caller should treat the Access Point's state as
+ *                          unknown and re-read it rather than assuming it still exists.
+ *
+ * @note A deleted Access Point must be recreated with `wifi_createVAP()` before any other
+ *       call referring to its index is meaningful.
+ * @note This call does not block, per `Blocking calls` in `docs/pages/halSpec.md`.
+ * @note The `HAL` is expected to be thread safe, per `Threading Model` in
+ *       `docs/pages/halSpec.md`.
+ * @see wifi_createVAP
  */
 INT wifi_deleteAp(INT apIndex);
 
@@ -663,12 +810,30 @@ INT wifi_deleteAp(INT apIndex);
  * The output string buffer must be pre-allocated by the caller with a size of
  * at least 16 bytes.
  *
- * @param[in] apIndex        Index of the Access Point.
- * @param[out] output_string Pointer to a buffer to store the AP name.
+ * @param[in] apIndex  Index of the Access Point, in the range `AP_INDEX_1` to
+ *                     `AP_INDEX_24`.
+ * @param[out] output_string  Caller-allocated buffer of at least 16 bytes that receives
+ *                            the NUL-terminated Access Point name. The caller allocates
+ *                            and releases it; the `HAL` writes into it and retains no
+ *                            reference to it after returning.
+ *
+ * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
+ *      in `docs/pages/halSpec.md`. A call made beforehand fails with `WIFI_HAL_ERROR` and
+ *      writes nothing to the output.
+ * @post On success `output_string` holds the NUL-terminated name; on failure its contents
+ *       are undefined.
  *
  * @returns The status of the operation.
- * @retval WIFI_HAL_SUCCESS If successful.
- * @retval WIFI_HAL_ERROR   If any error is detected.
+ * @retval WIFI_HAL_SUCCESS The name was retrieved.
+ * @retval WIFI_HAL_ERROR   `apIndex` is out of range, `output_string` is NULL, or the
+ *                          vendor layer could not supply the name. The caller should
+ *                          validate its arguments; a failure that persists across retries
+ *                          should be logged and the name treated as unavailable.
+ *
+ * @note This call does not block, per `Blocking calls` in `docs/pages/halSpec.md`.
+ * @note The `HAL` is expected to be thread safe, per `Threading Model` in
+ *       `docs/pages/halSpec.md`.
+ * @see wifi_getApStatus
  */
 INT wifi_getApName(INT apIndex, CHAR *output_string);
 
@@ -679,12 +844,34 @@ INT wifi_getApName(INT apIndex, CHAR *output_string);
  * RTS/CTS (Request to Send/Clear to Send) backoff rules on the specified
  * Access Point (AP).
  *
- * @param[in] apIndex    Index of the Access Point.
- * @param[in] threshold  Packet size threshold in bytes.
+ * @param[in] apIndex  Index of the Access Point, in the range `AP_INDEX_1` to
+ *                     `AP_INDEX_24`.
+ * @param[in] threshold  Packet size threshold in bytes above which RTS/CTS backoff is
+ *                       applied. This interface does not state the accepted range, so a
+ *                       caller should confirm the value was taken by reading the Access
+ *                       Point back rather than assuming any bound.
+ *
+ * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
+ *      in `docs/pages/halSpec.md`. A call made beforehand fails with `WIFI_HAL_ERROR` and
+ *      leaves the configuration unchanged.
+ * @post On success frames larger than `threshold` use RTS/CTS backoff. On failure no part
+ *       of the configuration is changed.
  *
  * @returns The status of the operation.
- * @retval WIFI_HAL_SUCCESS If successful.
- * @retval WIFI_HAL_ERROR   If any error is detected.
+ * @retval WIFI_HAL_SUCCESS The threshold was applied.
+ * @retval WIFI_HAL_ERROR   `apIndex` is out of range, the vendor layer rejected
+ *                          `threshold`, or it could not apply the change. This interface
+ *                          does not state the accepted values for `threshold`, so a caller
+ *                          must not infer a bound from the failure; it should report the
+ *                          failure rather than retrying with the same argument.
+ *
+ * @note `wifi_getAPCapabilities()` reports whether this Access Point supports an RTS/CTS
+ *       threshold at all, through `rtsThresholdSupported`; a caller should check that
+ *       before treating a failure here as unexpected.
+ * @note This call does not block, per `Blocking calls` in `docs/pages/halSpec.md`.
+ * @note The `HAL` is expected to be thread safe, per `Threading Model` in
+ *       `docs/pages/halSpec.md`.
+ * @see wifi_getAPCapabilities
  */
 INT wifi_setApRtsThreshold(INT apIndex, UINT threshold);
 
@@ -694,11 +881,29 @@ INT wifi_setApRtsThreshold(INT apIndex, UINT threshold);
  * This function deletes the internal security variable settings for the
  * specified Access Point (AP).
  *
- * @param[in] apIndex Index of the Access Point.
+ * @param[in] apIndex  Index of the Access Point, in the range `AP_INDEX_1` to
+ *                     `AP_INDEX_24`.
+ *
+ * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
+ *      in `docs/pages/halSpec.md`. A call made beforehand fails with `WIFI_HAL_ERROR`
+ *      without performing the action.
+ * @post On success the internal security variable settings for this Access Point are
+ *       deleted. On failure no part of the configuration is changed.
  *
  * @returns The status of the operation.
- * @retval WIFI_HAL_SUCCESS If successful.
- * @retval WIFI_HAL_ERROR   If any error is detected.
+ * @retval WIFI_HAL_SUCCESS The settings were removed.
+ * @retval WIFI_HAL_ERROR   `apIndex` is out of range or the vendor layer could not remove
+ *                          the settings. The caller should read the security
+ *                          configuration back with `wifi_getApSecurity()` before relying
+ *                          on it.
+ *
+ * @note This call does not block, per `Blocking calls` in `docs/pages/halSpec.md`.
+ * @note The `HAL` is expected to be thread safe, per `Threading Model` in
+ *       `docs/pages/halSpec.md`.
+ * @warning Removing the security variables leaves the Access Point without the credentials
+ *          clients authenticate against, so it must be reconfigured with
+ *          `wifi_setApSecurity()` before it is usable again.
+ * @see wifi_setApSecurity
  */
 INT wifi_removeApSecVaribles(INT apIndex);
 
@@ -708,11 +913,28 @@ INT wifi_removeApSecVaribles(INT apIndex);
  * This function changes the hardware settings to disable encryption on the
  * specified Access Point (AP).
  *
- * @param[in] apIndex Index of the Access Point.
+ * @param[in] apIndex  Index of the Access Point, in the range `AP_INDEX_1` to
+ *                     `AP_INDEX_24`.
+ *
+ * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
+ *      in `docs/pages/halSpec.md`. A call made beforehand fails with `WIFI_HAL_ERROR`
+ *      without performing the action.
+ * @post On success the hardware no longer encrypts traffic on this Access Point. On
+ *       failure no part of the configuration is changed.
  *
  * @returns The status of the operation.
- * @retval WIFI_HAL_SUCCESS If successful.
- * @retval WIFI_HAL_ERROR   If any error is detected.
+ * @retval WIFI_HAL_SUCCESS Encryption was disabled.
+ * @retval WIFI_HAL_ERROR   `apIndex` is out of range or the vendor layer could not change
+ *                          the hardware setting. The caller should read the security
+ *                          configuration back with `wifi_getApSecurity()` rather than
+ *                          assuming either state.
+ *
+ * @note This call does not block, per `Blocking calls` in `docs/pages/halSpec.md`.
+ * @note The `HAL` is expected to be thread safe, per `Threading Model` in
+ *       `docs/pages/halSpec.md`.
+ * @warning An Access Point with encryption disabled carries traffic in the clear. This is
+ *          intended for controlled test and bring-up use, not for a deployed network.
+ * @see wifi_setApSecurity
  */
 INT wifi_disableApEncryption(INT apIndex);
 
@@ -722,12 +944,34 @@ INT wifi_disableApEncryption(INT apIndex);
  * This function retrieves the number of stations currently associated with
  * the specified Access Point (AP).
  *
- * @param[in] apIndex        Index of the Access Point.
- * @param[out] output_ulong  Pointer to a variable to store the number of associated stations.
+ * @param[in] apIndex  Index of the Access Point, in the range `AP_INDEX_1` to
+ *                     `AP_INDEX_24`.
+ * @param[out] output_ulong  Caller-allocated variable that receives the number of
+ *                           stations currently associated. The caller allocates and
+ *                           releases it; the `HAL` writes into it and retains no
+ *                           reference to it after returning.
+ *
+ * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
+ *      in `docs/pages/halSpec.md`. A call made beforehand fails with `WIFI_HAL_ERROR` and
+ *      writes nothing to the output.
+ * @post On success the output holds the current associated-station count; on failure the
+ *       output is left unspecified, so a caller must not read it unless the call
+ *       succeeded.
  *
  * @returns The status of the operation.
- * @retval WIFI_HAL_SUCCESS If successful.
- * @retval WIFI_HAL_ERROR   If any error is detected.
+ * @retval WIFI_HAL_SUCCESS The count was retrieved. Zero is a valid count, not an error.
+ * @retval WIFI_HAL_ERROR   `apIndex` is out of range, a required output pointer is NULL,
+ *                          or the vendor layer could not supply the value. The caller
+ *                          should validate its arguments; a failure that persists across
+ *                          retries should be logged and the value treated as unavailable.
+ *
+ * @note The count can change between this call and any later call that enumerates the
+ *       devices, so a caller sizing an array from it should allow headroom or size from
+ *       `ASSOC_MAC_ARRAY_MAX`.
+ * @note This call does not block, per `Blocking calls` in `docs/pages/halSpec.md`.
+ * @note The `HAL` is expected to be thread safe, per `Threading Model` in
+ *       `docs/pages/halSpec.md`.
+ * @see wifi_getApAssociatedDevice
  */
 INT wifi_getApNumDevicesAssociated(INT apIndex, ULONG *output_ulong);
 
@@ -738,12 +982,33 @@ INT wifi_getApNumDevicesAssociated(INT apIndex, ULONG *output_ulong);
  * This function manually removes any active Wi-Fi association between the
  * specified client device and the Access Point (AP).
  *
- * @param[in] apIndex     Index of the Access Point.
- * @param[in] client_mac  MAC address of the client device to disassociate.
+ * @param[in] apIndex  Index of the Access Point, in the range `AP_INDEX_1` to
+ *                     `AP_INDEX_24`.
+ * @param[in] client_mac  MAC address of the client to disassociate, passed by value as a
+ *                        `mac_address_t`, so no caller storage is retained.
+ *
+ * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
+ *      in `docs/pages/halSpec.md`. A call made beforehand fails with `WIFI_HAL_ERROR`
+ *      without performing the action.
+ * @post On success any active association between that client and this Access Point is
+ *       removed. On failure no part of the configuration is changed.
  *
  * @returns The status of the operation.
- * @retval WIFI_HAL_SUCCESS If successful.
- * @retval WIFI_HAL_ERROR   If any error is detected.
+ * @retval WIFI_HAL_SUCCESS The disassociation was issued.
+ * @retval WIFI_HAL_ERROR   `apIndex` is out of range, the client is not associated, or
+ *                          the vendor layer could not issue the disassociation. The
+ *                          caller should confirm the client is present with
+ *                          `wifi_getApAssociatedDevice()` before treating this as a
+ *                          fault.
+ *
+ * @note Nothing prevents the client from associating again immediately. To keep it off the
+ *       Access Point, add it to the Access Control List with `wifi_addApAclDevice()` and
+ *       set a blacklist filter mode first.
+ * @note This call does not block, per `Blocking calls` in `docs/pages/halSpec.md`.
+ * @note The `HAL` is expected to be thread safe, per `Threading Model` in
+ *       `docs/pages/halSpec.md`.
+ * @see wifi_addApAclDevice
+ * @see wifi_kickApAclAssociatedDevices
  */
 INT wifi_kickApAssociatedDevice(INT apIndex, mac_address_t client_mac);
 #endif
@@ -754,12 +1019,32 @@ INT wifi_kickApAssociatedDevice(INT apIndex, mac_address_t client_mac);
  * This function retrieves the index of the radio associated with the
  * specified Access Point (AP).
  *
- * @param[in] apIndex     Index of the Access Point.
- * @param[out] output_int Pointer to a variable to store the radio index.
+ * @param[in] apIndex  Index of the Access Point, in the range `AP_INDEX_1` to
+ *                     `AP_INDEX_24`.
+ * @param[out] output_int  Caller-allocated variable that receives the index of the radio
+ *                         hosting this Access Point. The caller allocates and releases
+ *                         it; the `HAL` writes into it and retains no reference to it
+ *                         after returning.
+ *
+ * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
+ *      in `docs/pages/halSpec.md`. A call made beforehand fails with `WIFI_HAL_ERROR` and
+ *      writes nothing to the output.
+ * @post On success the output holds the hosting radio's index; on failure the output is
+ *       left unspecified, so a caller must not read it unless the call succeeded.
  *
  * @returns The status of the operation.
- * @retval WIFI_HAL_SUCCESS If successful.
- * @retval WIFI_HAL_ERROR   If any error is detected.
+ * @retval WIFI_HAL_SUCCESS The radio index was retrieved.
+ * @retval WIFI_HAL_ERROR   `apIndex` is out of range, a required output pointer is NULL,
+ *                          or the vendor layer could not supply the value. The caller
+ *                          should validate its arguments; a failure that persists across
+ *                          retries should be logged and the value treated as unavailable.
+ *
+ * @note The value is a radio index in the range `RADIO_INDEX_1` to `RADIO_INDEX_3`, bounded
+ *       by `MAX_NUM_RADIOS`, which is 2 or 3 depending on whether `WIFI_HAL_VERSION_3` is
+ *       defined.
+ * @note This call does not block, per `Blocking calls` in `docs/pages/halSpec.md`.
+ * @note The `HAL` is expected to be thread safe, per `Threading Model` in
+ *       `docs/pages/halSpec.md`.
  */
 INT wifi_getApRadioIndex(INT apIndex, INT *output_int);
 
@@ -770,14 +1055,43 @@ INT wifi_getApRadioIndex(INT apIndex, INT *output_int);
  * This function retrieves the list of MAC addresses in the Access Control List (ACL)
  * for the specified Access Point (AP).
  *
- * @param[in] apIndex          Index of the Access Point.
- * @param[out] macArray       Pointer to an array to store the MAC addresses.
- * @param[in] maxArraySize    Maximum number of MAC addresses that can be stored in the array.
- * @param[out] output_numEntries Pointer to a variable to store the actual number of MAC addresses returned in the array.
+ * @param[in] apIndex  Index of the Access Point, in the range `AP_INDEX_1` to
+ *                     `AP_INDEX_24`.
+ * @param[out] macArray  Caller-allocated array of at least `maxArraySize` `mac_address_t`
+ *                       elements that receives the Access Control List entries. The
+ *                       caller allocates and releases it; the `HAL` writes into it and
+ *                       retains no reference to it after returning. Only the first
+ *                       `*output_numEntries` elements are written.
+ * @param[in] maxArraySize  Number of elements the array can hold. `ACL_MAC_ARRAY_MAX` is
+ *                          the largest Access Control List this interface names, so an
+ *                          array sized to that constant cannot overflow.
+ * @param[out] output_numEntries  Caller-allocated variable that receives the number of
+ *                                elements actually written, never more than
+ *                                `maxArraySize`. The caller allocates and releases it;
+ *                                the `HAL` writes into it and retains no reference to it
+ *                                after returning.
+ *
+ * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
+ *      in `docs/pages/halSpec.md`. A call made beforehand fails with `WIFI_HAL_ERROR` and
+ *      writes nothing to the output.
+ * @post On success the output holds `*output_numEntries` MAC addresses in the array, with
+ *       the remaining elements untouched; on failure the output is left unspecified, so a
+ *       caller must not read it unless the call succeeded.
  *
  * @returns The status of the operation.
- * @retval WIFI_HAL_SUCCESS If successful.
- * @retval WIFI_HAL_ERROR   If any error is detected.
+ * @retval WIFI_HAL_SUCCESS The list was retrieved. Zero entries is a success, meaning the
+ *                          list is empty.
+ * @retval WIFI_HAL_ERROR   `apIndex` is out of range, a required output pointer is NULL,
+ *                          or the array is too small for the current list. The caller
+ *                          should validate its arguments; a failure that persists across
+ *                          retries should be logged and the value treated as unavailable.
+ *
+ * @note Size the array from `wifi_getApAclDeviceNum()` or from `ACL_MAC_ARRAY_MAX`: this
+ *       interface does not state whether an undersized array truncates or fails.
+ * @note This call does not block, per `Blocking calls` in `docs/pages/halSpec.md`.
+ * @note The `HAL` is expected to be thread safe, per `Threading Model` in
+ *       `docs/pages/halSpec.md`.
+ * @see wifi_getApAclDeviceNum
  */
 INT wifi_getApAclDevices(INT apIndex, mac_address_t *macArray, UINT maxArraySize, UINT* output_numEntries);
 #endif
@@ -788,12 +1102,35 @@ INT wifi_getApAclDevices(INT apIndex, mac_address_t *macArray, UINT maxArraySize
  *
  * This function adds the specified MAC address to the filter list for the given Access Point (AP).
  *
- * @param[in] apIndex           Index of the Access Point.
- * @param[in] DeviceMacAddress  MAC address of the device to add to the ACL.
+ * @param[in] apIndex  Index of the Access Point, in the range `AP_INDEX_1` to
+ *                     `AP_INDEX_24`.
+ * @param[in] DeviceMacAddress  MAC address of the device, passed by value as a
+ *                              `mac_address_t`, so no caller storage is retained by the
+ *                              callee.
+ *
+ * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
+ *      in `docs/pages/halSpec.md`. A call made beforehand fails with `WIFI_HAL_ERROR` and
+ *      leaves the configuration unchanged.
+ * @post On success the address is present in this Access Point's Access Control List. On
+ *       failure no part of the configuration is changed.
  *
  * @returns The status of the operation.
- * @retval WIFI_HAL_SUCCESS If successful.
- * @retval WIFI_HAL_ERROR   If any error is detected.
+ * @retval WIFI_HAL_SUCCESS The address was added.
+ * @retval WIFI_HAL_ERROR   `apIndex` is out of range, the list is full, or the vendor
+ *                          layer rejected the address. The caller should read the entry
+ *                          count with `wifi_getApAclDeviceNum()` before retrying, since a
+ *                          full list is not a transient condition.
+ *
+ * @note Adding an address changes who may associate only while a filter mode is active; the
+ *       mode is set by `wifi_setApMacAddressControlMode()` and determines whether the list
+ *       acts as a whitelist or a blacklist.
+ * @note This interface does not state whether adding an address already present succeeds or
+ *       fails, so a caller should not depend on either.
+ * @note This call does not block, per `Blocking calls` in `docs/pages/halSpec.md`.
+ * @note The `HAL` is expected to be thread safe, per `Threading Model` in
+ *       `docs/pages/halSpec.md`.
+ * @see wifi_setApMacAddressControlMode
+ * @see wifi_delApAclDevice
  */
 INT wifi_addApAclDevice(INT apIndex, mac_address_t DeviceMacAddress);
 #endif
@@ -805,12 +1142,32 @@ INT wifi_addApAclDevice(INT apIndex, mac_address_t DeviceMacAddress);
  * This function removes the specified device's MAC address from the ACL for the given Access Point (AP).
  * This function must not block or invoke any long-running tasks.
  *
- * @param[in] apIndex           Index of the Access Point.
- * @param[in] deviceMacAddress  MAC address of the device to remove from the ACL.
+ * @param[in] apIndex  Index of the Access Point, in the range `AP_INDEX_1` to
+ *                     `AP_INDEX_24`.
+ * @param[in] deviceMacAddress  MAC address of the device, passed by value as a
+ *                              `mac_address_t`, so no caller storage is retained by the
+ *                              callee.
+ *
+ * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
+ *      in `docs/pages/halSpec.md`. A call made beforehand fails with `WIFI_HAL_ERROR` and
+ *      leaves the configuration unchanged.
+ * @post On success the address is absent from this Access Point's Access Control List. On
+ *       failure no part of the configuration is changed.
  *
  * @returns The status of the operation.
- * @retval WIFI_HAL_SUCCESS If successful.
- * @retval WIFI_HAL_ERROR   If any error is detected.
+ * @retval WIFI_HAL_SUCCESS The address was removed.
+ * @retval WIFI_HAL_ERROR   `apIndex` is out of range, the address is not in the list, or
+ *                          the vendor layer could not remove it. The caller should read
+ *                          the list back with `wifi_getApAclDevices()` rather than
+ *                          assuming the entry is gone.
+ *
+ * @note Removing an address from a blacklist does not disconnect a client that is already
+ *       associated, nor does removing it from a whitelist; use
+ *       `wifi_kickApAssociatedDevice()` for that.
+ * @note The `HAL` is expected to be thread safe, per `Threading Model` in
+ *       `docs/pages/halSpec.md`.
+ * @see wifi_addApAclDevice
+ * @see wifi_delApAclDevices
  */
 INT wifi_delApAclDevice(INT apIndex, mac_address_t deviceMacAddress);
 #endif
@@ -820,11 +1177,28 @@ INT wifi_delApAclDevice(INT apIndex, mac_address_t deviceMacAddress);
  *
  * This function removes all device MAC addresses from the ACL for the given Access Point (AP).
  *
- * @param[in] apIndex  Index of the Access Point.
+ * @param[in] apIndex  Index of the Access Point, in the range `AP_INDEX_1` to
+ *                     `AP_INDEX_24`.
+ *
+ * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
+ *      in `docs/pages/halSpec.md`. A call made beforehand fails with `WIFI_HAL_ERROR` and
+ *      leaves the configuration unchanged.
+ * @post On success this Access Point's Access Control List is empty. On failure no part
+ *       of the configuration is changed.
  *
  * @returns The status of the operation.
- * @retval WIFI_HAL_SUCCESS If successful.
- * @retval WIFI_HAL_ERROR   If any error is detected.
+ * @retval WIFI_HAL_SUCCESS The list was cleared.
+ * @retval WIFI_HAL_ERROR   `apIndex` is out of range or the vendor layer could not clear
+ *                          the list. The caller should read the entry count back with
+ *                          `wifi_getApAclDeviceNum()`, because a partial clear is not
+ *                          excluded by this interface.
+ *
+ * @note This call does not block, per `Blocking calls` in `docs/pages/halSpec.md`.
+ * @note The `HAL` is expected to be thread safe, per `Threading Model` in
+ *       `docs/pages/halSpec.md`.
+ * @warning With an empty list and a whitelist filter mode active, no client can associate.
+ *          Set the filter mode before or with clearing the list if that is not intended.
+ * @see wifi_setApMacAddressControlMode
  */
 INT wifi_delApAclDevices(INT apIndex);
 
@@ -834,12 +1208,31 @@ INT wifi_delApAclDevices(INT apIndex);
  * This function retrieves the number of devices in the filter list for the specified Access Point (AP).
  * This function must not block or invoke any long-running tasks.
  *
- * @param[in] apIndex      Index of the Access Point.
- * @param[out] output_uint Pointer to a variable to store the number of devices in the ACL.
+ * @param[in] apIndex  Index of the Access Point, in the range `AP_INDEX_1` to
+ *                     `AP_INDEX_24`.
+ * @param[out] output_uint  Caller-allocated variable that receives the number of entries
+ *                          in the Access Control List. The caller allocates and releases
+ *                          it; the `HAL` writes into it and retains no reference to it
+ *                          after returning.
+ *
+ * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
+ *      in `docs/pages/halSpec.md`. A call made beforehand fails with `WIFI_HAL_ERROR` and
+ *      writes nothing to the output.
+ * @post On success the output holds the current entry count; on failure the output is
+ *       left unspecified, so a caller must not read it unless the call succeeded.
  *
  * @returns The status of the operation.
- * @retval WIFI_HAL_SUCCESS If successful.
- * @retval WIFI_HAL_ERROR   If any error is detected.
+ * @retval WIFI_HAL_SUCCESS The count was retrieved. Zero is a valid count.
+ * @retval WIFI_HAL_ERROR   `apIndex` is out of range, a required output pointer is NULL,
+ *                          or the vendor layer could not supply the value. The caller
+ *                          should validate its arguments; a failure that persists across
+ *                          retries should be logged and the value treated as unavailable.
+ *
+ * @note Use this to size the array passed to `wifi_getApAclDevices()`, bounded by
+ *       `ACL_MAC_ARRAY_MAX`.
+ * @note The `HAL` is expected to be thread safe, per `Threading Model` in
+ *       `docs/pages/halSpec.md`.
+ * @see wifi_getApAclDevices
  */
 INT wifi_getApAclDeviceNum(INT apIndex, UINT *output_uint);
 
@@ -850,12 +1243,33 @@ INT wifi_getApAclDeviceNum(INT apIndex, UINT *output_uint);
  * for the specified Access Point (AP) should be actively kicked (disassociated).
  * This function must not block or invoke any long-running tasks.
  *
- * @param[in] apIndex  Index of the Access Point.
- * @param[in] enable   Boolean value indicating whether to enable (true) or disable (false) the kick feature.
+ * @param[in] apIndex  Index of the Access Point, in the range `AP_INDEX_1` to
+ *                     `AP_INDEX_24`.
+ * @param[in] enable  true to disassociate clients that appear on the Access Control List
+ *                    blacklist, false to leave them associated.
+ *
+ * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
+ *      in `docs/pages/halSpec.md`. A call made beforehand fails with `WIFI_HAL_ERROR` and
+ *      leaves the configuration unchanged.
+ * @post On success blacklisted clients are actively disassociated when `enable` is true,
+ *       and left alone when it is false. On failure no part of the configuration is
+ *       changed.
  *
  * @returns The status of the operation.
- * @retval WIFI_HAL_SUCCESS If successful.
- * @retval WIFI_HAL_ERROR   If any error is detected.
+ * @retval WIFI_HAL_SUCCESS The setting was applied.
+ * @retval WIFI_HAL_ERROR   `apIndex` is out of range, or the vendor layer could not apply
+ *                          the requested state. Every value of `enable` is accepted, so a
+ *                          failure reflects the index or the vendor layer rather than the
+ *                          argument; the caller should confirm the Access Point is present
+ *                          with `wifi_getApStatus()` rather than retrying with the same
+ *                          argument.
+ *
+ * @note This governs enforcement against already-associated clients only. Whether a client
+ *       may associate in the first place is governed by the filter mode set with
+ *       `wifi_setApMacAddressControlMode()`.
+ * @note The `HAL` is expected to be thread safe, per `Threading Model` in
+ *       `docs/pages/halSpec.md`.
+ * @see wifi_setApMacAddressControlMode
  */
 INT wifi_kickApAclAssociatedDevices(INT apIndex, BOOL enable);
 
@@ -870,12 +1284,31 @@ INT wifi_kickApAclAssociatedDevices(INT apIndex, BOOL enable);
  *
  * This function must not suspend and must not invoke any blocking system calls.
  *
- * @param[in] apIndex     Index of the Access Point.
- * @param[in] filterMode  MAC address filter control mode.
+ * @param[in] apIndex  Index of the Access Point, in the range `AP_INDEX_1` to
+ *                     `AP_INDEX_24`.
+ * @param[in] filterMode  MAC address filter control mode: 0 disables filtering, 1 treats
+ *                        the Access Control List as a whitelist, and 2 treats it as a
+ *                        blacklist. No other value is defined by this interface.
+ *
+ * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
+ *      in `docs/pages/halSpec.md`. A call made beforehand fails with `WIFI_HAL_ERROR` and
+ *      leaves the configuration unchanged.
+ * @post On success the Access Point applies the requested filter mode. On failure no part
+ *       of the configuration is changed.
  *
  * @returns The status of the operation.
- * @retval WIFI_HAL_SUCCESS If successful.
- * @retval WIFI_HAL_ERROR   If any error is detected.
+ * @retval WIFI_HAL_SUCCESS The mode was applied.
+ * @retval WIFI_HAL_ERROR   `apIndex` is out of range, `filterMode` is not 0, 1 or 2, or
+ *                          the vendor layer rejected the change. The caller should
+ *                          correct the mode value rather than retrying with the same
+ *                          argument.
+ *
+ * @note The `HAL` is expected to be thread safe, per `Threading Model` in
+ *       `docs/pages/halSpec.md`.
+ * @warning Selecting whitelist mode while the Access Control List is empty prevents every
+ *          client from associating.
+ * @see wifi_getApMacAddressControlMode
+ * @see wifi_getApAclDevices
  */
 INT wifi_setApMacAddressControlMode(INT apIndex, INT filterMode);
 
@@ -890,12 +1323,29 @@ INT wifi_setApMacAddressControlMode(INT apIndex, INT filterMode);
  *
  * This function must not suspend and must not invoke any blocking system calls.
  *
- * @param[in] apIndex            Index of the Access Point.
- * @param[out] output_filterMode Pointer to a variable to store the MAC address control mode.
+ * @param[in] apIndex  Index of the Access Point, in the range `AP_INDEX_1` to
+ *                     `AP_INDEX_24`.
+ * @param[out] output_filterMode  Caller-allocated variable that receives the current
+ *                                filter mode: 0 disabled, 1 whitelist, 2 blacklist. The
+ *                                caller allocates and releases it; the `HAL` writes into
+ *                                it and retains no reference to it after returning.
+ *
+ * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
+ *      in `docs/pages/halSpec.md`. A call made beforehand fails with `WIFI_HAL_ERROR` and
+ *      writes nothing to the output.
+ * @post On success the output holds the current filter mode; on failure the output is
+ *       left unspecified, so a caller must not read it unless the call succeeded.
  *
  * @returns The status of the operation.
- * @retval WIFI_HAL_SUCCESS If successful.
- * @retval WIFI_HAL_ERROR   If any error is detected.
+ * @retval WIFI_HAL_SUCCESS The mode was retrieved.
+ * @retval WIFI_HAL_ERROR   `apIndex` is out of range, a required output pointer is NULL,
+ *                          or the vendor layer could not supply the value. The caller
+ *                          should validate its arguments; a failure that persists across
+ *                          retries should be logged and the value treated as unavailable.
+ *
+ * @note The `HAL` is expected to be thread safe, per `Threading Model` in
+ *       `docs/pages/halSpec.md`.
+ * @see wifi_setApMacAddressControlMode
  */
 INT wifi_getApMacAddressControlMode(INT apIndex, INT *output_filterMode);
 
@@ -906,12 +1356,31 @@ INT wifi_getApMacAddressControlMode(INT apIndex, INT *output_filterMode);
  * The VLAN ID is stored in an internal environment variable.
  * This function must not suspend and must not invoke any blocking system calls.
  *
- * @param[in] apIndex  Index of the Access Point.
- * @param[in] vlanId   VLAN ID to set.
+ * @param[in] apIndex  Index of the Access Point, in the range `AP_INDEX_1` to
+ *                     `AP_INDEX_24`.
+ * @param[in] vlanId  VLAN identifier to associate with this Access Point. This interface
+ *                    does not state the accepted range, so a caller should not assume the
+ *                    full IEEE 802.1Q range is available.
+ *
+ * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
+ *      in `docs/pages/halSpec.md`. A call made beforehand fails with `WIFI_HAL_ERROR` and
+ *      leaves the configuration unchanged.
+ * @post On success the VLAN identifier is recorded in the internal environment variable
+ *       that carries it. On failure no part of the configuration is changed.
  *
  * @returns The status of the operation.
- * @retval WIFI_HAL_SUCCESS If successful.
- * @retval WIFI_HAL_ERROR   If any error is detected.
+ * @retval WIFI_HAL_SUCCESS The VLAN identifier was set.
+ * @retval WIFI_HAL_ERROR   `apIndex` is out of range, the vendor layer rejected `vlanId`,
+ *                          or it could not apply the change. This interface does not state
+ *                          the accepted values for `vlanId`, so a caller must not infer a
+ *                          bound from the failure; it should report the failure rather than
+ *                          retrying with the same argument.
+ *
+ * @note The value is stored in an internal environment variable, so this interface does not
+ *       state whether it takes effect immediately or at the next Access Point restart.
+ * @note The `HAL` is expected to be thread safe, per `Threading Model` in
+ *       `docs/pages/halSpec.md`.
+ * @see wifi_resetApVlanCfg
  */
 INT wifi_setApVlanID(INT apIndex, INT vlanId);
 
@@ -921,11 +1390,25 @@ INT wifi_setApVlanID(INT apIndex, INT vlanId);
  * This function resets the VLAN configuration for the specified Access Point (AP).
  * This function must not suspend and must not invoke any blocking system calls.
  *
- * @param[in] apIndex Index of the Access Point.
+ * @param[in] apIndex  Index of the Access Point, in the range `AP_INDEX_1` to
+ *                     `AP_INDEX_24`.
+ *
+ * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
+ *      in `docs/pages/halSpec.md`. A call made beforehand fails with `WIFI_HAL_ERROR`
+ *      without performing the action.
+ * @post On success the Access Point's VLAN configuration is back at its default. On
+ *       failure no part of the configuration is changed.
  *
  * @returns The status of the operation.
- * @retval WIFI_HAL_SUCCESS If successful.
- * @retval WIFI_HAL_ERROR   If any error is detected.
+ * @retval WIFI_HAL_SUCCESS The VLAN configuration was reset.
+ * @retval WIFI_HAL_ERROR   `apIndex` is out of range or the vendor layer could not reset
+ *                          the configuration. The caller should not assume the previous
+ *                          VLAN identifier survived, and should set it again explicitly
+ *                          if it is needed.
+ *
+ * @note The `HAL` is expected to be thread safe, per `Threading Model` in
+ *       `docs/pages/halSpec.md`.
+ * @see wifi_setApVlanID
  */
 INT wifi_resetApVlanCfg(INT apIndex);
 
@@ -935,12 +1418,35 @@ INT wifi_resetApVlanCfg(INT apIndex);
  * This function sets the enable status variable for the specified Access Point (AP).
  * This function must not suspend and must not invoke any blocking system calls.
  *
- * @param[in] apIndex  Index of the Access Point.
- * @param[in] enable   Boolean value indicating whether to enable (true) or disable (false) the AP.
+ * @param[in] apIndex  Index of the Access Point, in the range `AP_INDEX_1` to
+ *                     `AP_INDEX_24`.
+ * @param[in] enable  true to bring the Access Point into service, false to take it out of
+ *                    service.
+ *
+ * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
+ *      in `docs/pages/halSpec.md`. A call made beforehand fails with `WIFI_HAL_ERROR` and
+ *      leaves the configuration unchanged.
+ * @post On success the internal enable variable holds the requested value. On failure no
+ *       part of the configuration is changed.
  *
  * @returns The status of the operation.
- * @retval WIFI_HAL_SUCCESS If successful.
- * @retval WIFI_HAL_ERROR   If any error is detected.
+ * @retval WIFI_HAL_SUCCESS The enable state was set.
+ * @retval WIFI_HAL_ERROR   `apIndex` is out of range, or the vendor layer could not apply
+ *                          the requested state. Every value of `enable` is accepted, so a
+ *                          failure reflects the index or the vendor layer rather than the
+ *                          argument; the caller should read the setting back with
+ *                          `wifi_getApEnable()` before relying on it rather than retrying
+ *                          with the same argument.
+ *
+ * @note This sets the requested state. Whether the Access Point has actually reached it is
+ *       reported by `wifi_getApStatus()`, and a transition is notified through
+ *       `wifi_vapstatus_callback_register()`; `wifi_getApEnable()` reads back only what was
+ *       requested here.
+ * @note The `HAL` is expected to be thread safe, per `Threading Model` in
+ *       `docs/pages/halSpec.md`.
+ * @see wifi_getApEnable
+ * @see wifi_getApStatus
+ * @see wifi_vapstatus_callback_register
  */
 INT wifi_setApEnable(INT apIndex, BOOL enable);
 
@@ -951,12 +1457,32 @@ INT wifi_setApEnable(INT apIndex, BOOL enable);
  * for the specified Access Point (AP), which is set by the `wifi_setApEnable()` function.
  * This function must not suspend and must not invoke any blocking system calls.
  *
- * @param[in] apIndex     Index of the Access Point.
- * @param[out] output_bool Pointer to a variable to store the AP enable status.
+ * @param[in] apIndex  Index of the Access Point, in the range `AP_INDEX_1` to
+ *                     `AP_INDEX_24`.
+ * @param[out] output_bool  Caller-allocated variable that receives the requested enable
+ *                          state previously set by `wifi_setApEnable()`. The caller
+ *                          allocates and releases it; the `HAL` writes into it and
+ *                          retains no reference to it after returning.
+ *
+ * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
+ *      in `docs/pages/halSpec.md`. A call made beforehand fails with `WIFI_HAL_ERROR` and
+ *      writes nothing to the output.
+ * @post On success the output holds the requested enable state; on failure the output is
+ *       left unspecified, so a caller must not read it unless the call succeeded.
  *
  * @returns The status of the operation.
- * @retval WIFI_HAL_SUCCESS If successful.
- * @retval WIFI_HAL_ERROR   If any error is detected.
+ * @retval WIFI_HAL_SUCCESS The state was retrieved.
+ * @retval WIFI_HAL_ERROR   `apIndex` is out of range, a required output pointer is NULL,
+ *                          or the vendor layer could not supply the value. The caller
+ *                          should validate its arguments; a failure that persists across
+ *                          retries should be logged and the value treated as unavailable.
+ *
+ * @note This reports the requested state, not the operational one. Use `wifi_getApStatus()`
+ *       to find out whether the Access Point is actually up.
+ * @note The `HAL` is expected to be thread safe, per `Threading Model` in
+ *       `docs/pages/halSpec.md`.
+ * @see wifi_setApEnable
+ * @see wifi_getApStatus
  */
 INT wifi_getApEnable(INT apIndex, BOOL *output_bool);
 
@@ -967,12 +1493,34 @@ INT wifi_getApEnable(INT apIndex, BOOL *output_bool);
  * from the driver. The output string will be set to either "Enabled" or "Disabled".
  * This function must not suspend and must not invoke any blocking system calls.
  *
- * @param[in] apIndex        Index of the Access Point.
- * @param[out] output_string Pointer to a buffer to store the AP status string.
+ * @param[in] apIndex  Index of the Access Point, in the range `AP_INDEX_1` to
+ *                     `AP_INDEX_24`.
+ * @param[out] output_string  Caller-allocated buffer of at least 32 bytes that receives
+ *                            the operational status as reported by the driver, either
+ *                            `"Enabled"` or `"Disabled"`, NUL-terminated. The caller
+ *                            allocates and releases it; the `HAL` writes into it and
+ *                            retains no reference to it after returning.
+ *
+ * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
+ *      in `docs/pages/halSpec.md`. A call made beforehand fails with `WIFI_HAL_ERROR` and
+ *      writes nothing to the output.
+ * @post On success the output holds one of the two status strings; on failure the output
+ *       is left unspecified, so a caller must not read it unless the call succeeded.
  *
  * @returns The status of the operation.
- * @retval WIFI_HAL_SUCCESS If successful.
- * @retval WIFI_HAL_ERROR   If any error is detected.
+ * @retval WIFI_HAL_SUCCESS The status was retrieved.
+ * @retval WIFI_HAL_ERROR   `apIndex` is out of range, a required output pointer is NULL,
+ *                          or the vendor layer could not supply the value. The caller
+ *                          should validate its arguments; a failure that persists across
+ *                          retries should be logged and the value treated as unavailable.
+ *
+ * @note This interface names only `"Enabled"` and `"Disabled"`, so a caller should compare
+ *       against both rather than testing for one and inferring the other.
+ * @note This reads the driver's operational state, which can differ from the requested
+ *       state returned by `wifi_getApEnable()` while a transition is in progress.
+ * @note The `HAL` is expected to be thread safe, per `Threading Model` in
+ *       `docs/pages/halSpec.md`.
+ * @see wifi_getApEnable
  */
 INT wifi_getApStatus(INT apIndex, CHAR *output_string);
 
@@ -984,12 +1532,29 @@ INT wifi_getApStatus(INT apIndex, CHAR *output_string);
  * It returns true if SSID advertisement is enabled, and false otherwise.
  * This function must not suspend and must not invoke any blocking system calls.
  *
- * @param[in] apIndex     Index of the Access Point.
- * @param[out] output_bool Pointer to a variable to store the SSID advertisement status.
+ * @param[in] apIndex  Index of the Access Point, in the range `AP_INDEX_1` to
+ *                     `AP_INDEX_24`.
+ * @param[out] output_bool  Caller-allocated variable that receives true when beacons
+ *                          carry the SSID and false when the SSID is hidden. The caller
+ *                          allocates and releases it; the `HAL` writes into it and
+ *                          retains no reference to it after returning.
+ *
+ * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
+ *      in `docs/pages/halSpec.md`. A call made beforehand fails with `WIFI_HAL_ERROR` and
+ *      writes nothing to the output.
+ * @post On success the output holds the SSID advertisement state; on failure the output
+ *       is left unspecified, so a caller must not read it unless the call succeeded.
  *
  * @returns The status of the operation.
- * @retval WIFI_HAL_SUCCESS If successful.
- * @retval WIFI_HAL_ERROR   If any error is detected.
+ * @retval WIFI_HAL_SUCCESS The state was retrieved.
+ * @retval WIFI_HAL_ERROR   `apIndex` is out of range, a required output pointer is NULL,
+ *                          or the vendor layer could not supply the value. The caller
+ *                          should validate its arguments; a failure that persists across
+ *                          retries should be logged and the value treated as unavailable.
+ *
+ * @note The `HAL` is expected to be thread safe, per `Threading Model` in
+ *       `docs/pages/halSpec.md`.
+ * @see wifi_setApSsidAdvertisementEnable
  */
 INT wifi_getApSsidAdvertisementEnable(INT apIndex, BOOL *output_bool);
 
@@ -1000,12 +1565,30 @@ INT wifi_getApSsidAdvertisementEnable(INT apIndex, BOOL *output_bool);
  * Access Point (AP) includes the SSID name in its beacon frames.
  * This function must not suspend and must not invoke any blocking system calls.
  *
- * @param[in] apIndex  Index of the Access Point.
- * @param[in] enable   Boolean value indicating whether to enable (true) or disable (false) SSID advertisement.
+ * @param[in] apIndex  Index of the Access Point, in the range `AP_INDEX_1` to
+ *                     `AP_INDEX_24`.
+ * @param[in] enable  true to include the SSID in beacon frames, false to omit it.
+ *
+ * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
+ *      in `docs/pages/halSpec.md`. A call made beforehand fails with `WIFI_HAL_ERROR` and
+ *      leaves the configuration unchanged.
+ * @post On success the internal variable controlling SSID advertisement holds the
+ *       requested value. On failure no part of the configuration is changed.
  *
  * @returns The status of the operation.
- * @retval WIFI_HAL_SUCCESS If successful.
- * @retval WIFI_HAL_ERROR   If any error is detected.
+ * @retval WIFI_HAL_SUCCESS The state was set.
+ * @retval WIFI_HAL_ERROR   `apIndex` is out of range, or the vendor layer could not apply
+ *                          the requested state. Every value of `enable` is accepted, so a
+ *                          failure reflects the index or the vendor layer rather than the
+ *                          argument; the caller should read the setting back with
+ *                          `wifi_getApSsidAdvertisementEnable()` before relying on it
+ *                          rather than retrying with the same argument.
+ *
+ * @note Hiding the SSID keeps it out of beacons but does not conceal it from a client that
+ *       already knows it, so it is not a security control.
+ * @note The `HAL` is expected to be thread safe, per `Threading Model` in
+ *       `docs/pages/halSpec.md`.
+ * @see wifi_getApSsidAdvertisementEnable
  */
 INT wifi_setApSsidAdvertisementEnable(INT apIndex, BOOL enable);
 
@@ -1017,12 +1600,30 @@ INT wifi_setApSsidAdvertisementEnable(INT apIndex, BOOL enable);
  * `dot11ShortRetryLimit`.
  * This function must not suspend and must not invoke any blocking system calls.
  *
- * @param[in] apIndex  Index of the Access Point.
- * @param[out] output  Pointer to a variable to store the retry limit.
+ * @param[in] apIndex  Index of the Access Point, in the range `AP_INDEX_1` to
+ *                     `AP_INDEX_24`.
+ * @param[out] output  Caller-allocated variable that receives the maximum number of
+ *                     retransmissions allowed for one packet, the IEEE 802.11
+ *                     `dot11ShortRetryLimit`. The caller allocates and releases it; the
+ *                     `HAL` writes into it and retains no reference to it after
+ *                     returning.
+ *
+ * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
+ *      in `docs/pages/halSpec.md`. A call made beforehand fails with `WIFI_HAL_ERROR` and
+ *      writes nothing to the output.
+ * @post On success the output holds the current retry limit; on failure the output is
+ *       left unspecified, so a caller must not read it unless the call succeeded.
  *
  * @returns The status of the operation.
- * @retval WIFI_HAL_SUCCESS If successful.
- * @retval WIFI_HAL_ERROR   If any error is detected.
+ * @retval WIFI_HAL_SUCCESS The limit was retrieved.
+ * @retval WIFI_HAL_ERROR   `apIndex` is out of range, a required output pointer is NULL,
+ *                          or the vendor layer could not supply the value. The caller
+ *                          should validate its arguments; a failure that persists across
+ *                          retries should be logged and the value treated as unavailable.
+ *
+ * @note The `HAL` is expected to be thread safe, per `Threading Model` in
+ *       `docs/pages/halSpec.md`.
+ * @see wifi_setApRetryLimit
  */
 INT wifi_getApRetryLimit(INT apIndex, UINT *output);
 
@@ -1034,12 +1635,33 @@ INT wifi_getApRetryLimit(INT apIndex, UINT *output);
  * `dot11ShortRetryLimit`.
  * This function must not suspend and must not invoke any blocking system calls.
  *
- * @param[in] apIndex Index of the Access Point.
- * @param[in] number  Retry limit to set.
+ * @param[in] apIndex  Index of the Access Point, in the range `AP_INDEX_1` to
+ *                     `AP_INDEX_24`.
+ * @param[in] number  Maximum number of retransmissions for one packet, the IEEE 802.11
+ *                    `dot11ShortRetryLimit`. This interface does not state the accepted
+ *                    range, so a caller should read the value back rather than assuming
+ *                    any bound was accepted.
+ *
+ * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
+ *      in `docs/pages/halSpec.md`. A call made beforehand fails with `WIFI_HAL_ERROR` and
+ *      leaves the configuration unchanged.
+ * @post On success the Access Point retransmits a packet at most `number` times. On
+ *       failure no part of the configuration is changed.
  *
  * @returns The status of the operation.
- * @retval WIFI_HAL_SUCCESS If successful.
- * @retval WIFI_HAL_ERROR   If any error is detected.
+ * @retval WIFI_HAL_SUCCESS The limit was applied.
+ * @retval WIFI_HAL_ERROR   `apIndex` is out of range, the vendor layer rejected `number`,
+ *                          or it could not apply the change. This interface does not state
+ *                          the accepted values for `number`, so a caller must not infer a
+ *                          bound from the failure; it should report the failure and read
+ *                          the setting back with `wifi_getApRetryLimit()` rather than
+ *                          retrying with the same argument.
+ *
+ * @note A high limit trades airtime for reliability, and a limit of 0 disables
+ *       retransmission entirely; neither bound is validated by this interface.
+ * @note The `HAL` is expected to be thread safe, per `Threading Model` in
+ *       `docs/pages/halSpec.md`.
+ * @see wifi_getApRetryLimit
  */
 INT wifi_setApRetryLimit(INT apIndex, UINT number);
 
@@ -1051,12 +1673,32 @@ INT wifi_setApRetryLimit(INT apIndex, UINT number);
  * indicated in the AP's beacon frames.
  * This function must not suspend and must not invoke any blocking system calls.
  *
- * @param[in] apIndex  Index of the Access Point.
- * @param[out] output  Pointer to a variable to store the WMM enable status.
+ * @param[in] apIndex  Index of the Access Point, in the range `AP_INDEX_1` to
+ *                     `AP_INDEX_24`.
+ * @param[out] output  Caller-allocated variable that receives true when Wi-Fi Multimedia
+ *                     is enabled and advertised in beacons, false when it is not. The
+ *                     caller allocates and releases it; the `HAL` writes into it and
+ *                     retains no reference to it after returning.
+ *
+ * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
+ *      in `docs/pages/halSpec.md`. A call made beforehand fails with `WIFI_HAL_ERROR` and
+ *      writes nothing to the output.
+ * @post On success the output holds the WMM enable state; on failure the output is left
+ *       unspecified, so a caller must not read it unless the call succeeded.
  *
  * @returns The status of the operation.
- * @retval WIFI_HAL_SUCCESS If successful.
- * @retval WIFI_HAL_ERROR   If any error is detected.
+ * @retval WIFI_HAL_SUCCESS The state was retrieved.
+ * @retval WIFI_HAL_ERROR   `apIndex` is out of range, a required output pointer is NULL,
+ *                          or the vendor layer could not supply the value. The caller
+ *                          should validate its arguments; a failure that persists across
+ *                          retries should be logged and the value treated as unavailable.
+ *
+ * @note `wifi_getAPCapabilities()` reports through `WMMSupported` whether this Access Point
+ *       can support WMM at all.
+ * @note The `HAL` is expected to be thread safe, per `Threading Model` in
+ *       `docs/pages/halSpec.md`.
+ * @see wifi_setApWmmEnable
+ * @see wifi_getAPCapabilities
  */
 INT wifi_getApWmmEnable(INT apIndex, BOOL *output);   
 
@@ -1067,12 +1709,31 @@ INT wifi_getApWmmEnable(INT apIndex, BOOL *output);
  * hardware for the specified Access Point (AP).
  * This function must not suspend and must not invoke any blocking system calls.
  *
- * @param[in] apIndex  Index of the Access Point.
- * @param[in] enable   Boolean value indicating whether to enable (true) or disable (false) WMM.
+ * @param[in] apIndex  Index of the Access Point, in the range `AP_INDEX_1` to
+ *                     `AP_INDEX_24`.
+ * @param[in] enable  true to enable Wi-Fi Multimedia in hardware, false to disable it.
+ *
+ * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
+ *      in `docs/pages/halSpec.md`. A call made beforehand fails with `WIFI_HAL_ERROR` and
+ *      leaves the configuration unchanged.
+ * @post On success the hardware has WMM in the requested state and beacons reflect it. On
+ *       failure no part of the configuration is changed.
  *
  * @returns The status of the operation.
- * @retval WIFI_HAL_SUCCESS If successful.
- * @retval WIFI_HAL_ERROR   If any error is detected.
+ * @retval WIFI_HAL_SUCCESS The state was applied.
+ * @retval WIFI_HAL_ERROR   `apIndex` is out of range, or the vendor layer could not apply
+ *                          the requested state. Every value of `enable` is accepted, so a
+ *                          failure reflects the index or the vendor layer rather than the
+ *                          argument; the caller should read the setting back with
+ *                          `wifi_getApWmmEnable()` before relying on it rather than
+ *                          retrying with the same argument.
+ *
+ * @note The `HAL` is expected to be thread safe, per `Threading Model` in
+ *       `docs/pages/halSpec.md`.
+ * @warning Disabling WMM also disables U-APSD, which cannot be enabled without it. A caller
+ *          that needs U-APSD must enable WMM first.
+ * @see wifi_setApWmmUapsdEnable
+ * @see wifi_getApWmmEnable
  */
 INT wifi_setApWmmEnable(INT apIndex, BOOL enable);
 
@@ -1085,12 +1746,33 @@ INT wifi_setApWmmEnable(INT apIndex, BOOL enable);
  * Note that U-APSD can only be enabled if Wi-Fi Multimedia (WMM) is also enabled.
  * This function must not suspend and must not invoke any blocking system calls.
  *
- * @param[in] apIndex  Index of the Access Point.
- * @param[out] output  Pointer to a variable to store the U-APSD enable status.
+ * @param[in] apIndex  Index of the Access Point, in the range `AP_INDEX_1` to
+ *                     `AP_INDEX_24`.
+ * @param[out] output  Caller-allocated variable that receives true when Unscheduled
+ *                     Automatic Power Save Delivery is enabled and advertised in beacons,
+ *                     false when it is not. The caller allocates and releases it; the
+ *                     `HAL` writes into it and retains no reference to it after
+ *                     returning.
+ *
+ * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
+ *      in `docs/pages/halSpec.md`. A call made beforehand fails with `WIFI_HAL_ERROR` and
+ *      writes nothing to the output.
+ * @post On success the output holds the U-APSD enable state; on failure the output is
+ *       left unspecified, so a caller must not read it unless the call succeeded.
  *
  * @returns The status of the operation.
- * @retval WIFI_HAL_SUCCESS If successful.
- * @retval WIFI_HAL_ERROR   If any error is detected.
+ * @retval WIFI_HAL_SUCCESS The state was retrieved.
+ * @retval WIFI_HAL_ERROR   `apIndex` is out of range, a required output pointer is NULL,
+ *                          or the vendor layer could not supply the value. The caller
+ *                          should validate its arguments; a failure that persists across
+ *                          retries should be logged and the value treated as unavailable.
+ *
+ * @note `wifi_getAPCapabilities()` reports through `UAPSDSupported` whether this Access
+ *       Point can support U-APSD at all.
+ * @note The `HAL` is expected to be thread safe, per `Threading Model` in
+ *       `docs/pages/halSpec.md`.
+ * @see wifi_setApWmmUapsdEnable
+ * @see wifi_getAPCapabilities
  */
 INT wifi_getApWmmUapsdEnable(INT apIndex, BOOL *output);
 
@@ -1101,12 +1783,29 @@ INT wifi_getApWmmUapsdEnable(INT apIndex, BOOL *output);
  * (U-APSD) on the hardware for the specified Access Point (AP).
  * This function must not suspend and must not invoke any blocking system calls.
  *
- * @param[in] apIndex  Index of the Access Point.
- * @param[in] enable   Boolean value indicating whether to enable (true) or disable (false) U-APSD.
+ * @param[in] apIndex  Index of the Access Point, in the range `AP_INDEX_1` to
+ *                     `AP_INDEX_24`.
+ * @param[in] enable  true to enable U-APSD in hardware, false to disable it. Enabling
+ *                    requires WMM to be enabled already.
+ *
+ * @pre `wifi_init()` must have completed successfully, and WMM must already be enabled on
+ *      this Access Point before U-APSD can be enabled; see `Initialization and Startup`
+ *      in `docs/pages/halSpec.md`. A call made before initialisation, or an attempt to
+ *      enable U-APSD while WMM is disabled, fails with `WIFI_HAL_ERROR` and leaves the
+ *      configuration unchanged.
+ * @post On success the hardware has U-APSD in the requested state. On failure no part of
+ *       the configuration is changed.
  *
  * @returns The status of the operation.
- * @retval WIFI_HAL_SUCCESS If successful.
- * @retval WIFI_HAL_ERROR   If any error is detected.
+ * @retval WIFI_HAL_SUCCESS The state was applied.
+ * @retval WIFI_HAL_ERROR   `apIndex` is out of range, WMM is disabled while `enable` is
+ *                          true, or the vendor layer rejected the change. The caller
+ *                          should enable WMM with `wifi_setApWmmEnable()` and retry
+ *                          rather than repeating the same call.
+ *
+ * @note The `HAL` is expected to be thread safe, per `Threading Model` in
+ *       `docs/pages/halSpec.md`.
+ * @see wifi_setApWmmEnable
  */
 INT wifi_setApWmmUapsdEnable(INT apIndex, BOOL enable);
 
@@ -1118,13 +1817,35 @@ INT wifi_setApWmmUapsdEnable(INT apIndex, BOOL enable);
  * An `ackPolicy` of false means do not acknowledge, and true means acknowledge.
  * This function must not suspend and must not invoke any blocking system calls.
  *
- * @param[in] apIndex   Index of the Access Point.
- * @param[in] class     Class of service.
- * @param[in] ackPolicy Acknowledgement policy.
+ * @param[in] apIndex  Index of the Access Point, in the range `AP_INDEX_1` to
+ *                     `AP_INDEX_24`.
+ * @param[in] cla  WMM class of service the policy applies to, identifying the access
+ *                 category. This interface does not enumerate the accepted values, so a
+ *                 caller should not assume they match `wifi_data_priority_t`.
+ * @param[in] ackPolicy  false to leave frames in that class unacknowledged, true to
+ *                       acknowledge them.
+ *
+ * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
+ *      in `docs/pages/halSpec.md`. A call made beforehand fails with `WIFI_HAL_ERROR` and
+ *      leaves the configuration unchanged.
+ * @post On success the hardware applies the requested acknowledgement policy to that
+ *       class of service. On failure no part of the configuration is changed.
  *
  * @returns The status of the operation.
- * @retval WIFI_HAL_SUCCESS If successful.
- * @retval WIFI_HAL_ERROR   If any error is detected.
+ * @retval WIFI_HAL_SUCCESS The policy was applied.
+ * @retval WIFI_HAL_ERROR   `apIndex` is out of range, the vendor layer rejected `cla`, or
+ *                          it could not apply the change. This interface does not state the
+ *                          accepted values for `cla`, so a caller must not infer a bound
+ *                          from the failure; it should report the failure rather than
+ *                          retrying with the same argument.
+ *
+ * @note The second parameter is named `cla` rather than `class` because this header is
+ *       compiled under `extern "C"` by C++ consumers, where `class` is a reserved word. The
+ *       short name is deliberate and must not be "corrected".
+ *
+ * @note The `HAL` is expected to be thread safe, per `Threading Model` in
+ *       `docs/pages/halSpec.md`.
+ * @see wifi_setApWmmEnable
  */
 INT wifi_setApWmmOgAckPolicy(INT apIndex, INT cla, BOOL ackPolicy);
 
@@ -1136,12 +1857,30 @@ INT wifi_setApWmmOgAckPolicy(INT apIndex, INT cla, BOOL ackPolicy);
  * within the home network (as is typical for a wireless hotspot).
  * This function must not suspend and must not invoke any blocking system calls.
  *
- * @param[in] apIndex  Index of the Access Point.
- * @param[out] output  Pointer to a variable to store the isolation enable status.
+ * @param[in] apIndex  Index of the Access Point, in the range `AP_INDEX_1` to
+ *                     `AP_INDEX_24`.
+ * @param[out] output  Caller-allocated variable that receives true when clients on this
+ *                     Access Point are isolated from other devices on the home network,
+ *                     false when they are not. The caller allocates and releases it; the
+ *                     `HAL` writes into it and retains no reference to it after
+ *                     returning.
+ *
+ * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
+ *      in `docs/pages/halSpec.md`. A call made beforehand fails with `WIFI_HAL_ERROR` and
+ *      writes nothing to the output.
+ * @post On success the output holds the isolation state; on failure the output is left
+ *       unspecified, so a caller must not read it unless the call succeeded.
  *
  * @returns The status of the operation.
- * @retval WIFI_HAL_SUCCESS If successful.
- * @retval WIFI_HAL_ERROR   If any error is detected.
+ * @retval WIFI_HAL_SUCCESS The state was retrieved.
+ * @retval WIFI_HAL_ERROR   `apIndex` is out of range, a required output pointer is NULL,
+ *                          or the vendor layer could not supply the value. The caller
+ *                          should validate its arguments; a failure that persists across
+ *                          retries should be logged and the value treated as unavailable.
+ *
+ * @note The `HAL` is expected to be thread safe, per `Threading Model` in
+ *       `docs/pages/halSpec.md`.
+ * @see wifi_setApIsolationEnable
  */
 INT wifi_getApIsolationEnable(INT apIndex, BOOL *output);
 
@@ -1154,12 +1893,30 @@ INT wifi_getApIsolationEnable(INT apIndex, BOOL *output);
  * the case for a wireless hotspot.
  * This function must not suspend and must not invoke any blocking system calls.
  *
- * @param[in] apIndex  Index of the Access Point.
- * @param[in] enable   Boolean value indicating whether to enable (true) or disable (false) isolation.
+ * @param[in] apIndex  Index of the Access Point, in the range `AP_INDEX_1` to
+ *                     `AP_INDEX_24`.
+ * @param[in] enable  true to isolate clients on this Access Point from other devices on
+ *                    the home network, as a wireless hotspot does; false to let them
+ *                    reach each other.
+ *
+ * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
+ *      in `docs/pages/halSpec.md`. A call made beforehand fails with `WIFI_HAL_ERROR` and
+ *      leaves the configuration unchanged.
+ * @post On success clients on this Access Point are isolated as requested. On failure no
+ *       part of the configuration is changed.
  *
  * @returns The status of the operation.
- * @retval WIFI_HAL_SUCCESS If successful.
- * @retval WIFI_HAL_ERROR   If any error is detected.
+ * @retval WIFI_HAL_SUCCESS The state was applied.
+ * @retval WIFI_HAL_ERROR   `apIndex` is out of range, or the vendor layer could not apply
+ *                          the requested state. Every value of `enable` is accepted, so a
+ *                          failure reflects the index or the vendor layer rather than the
+ *                          argument; the caller should read the setting back with
+ *                          `wifi_getApIsolationEnable()` before relying on it rather than
+ *                          retrying with the same argument.
+ *
+ * @note The `HAL` is expected to be thread safe, per `Threading Model` in
+ *       `docs/pages/halSpec.md`.
+ * @see wifi_getApIsolationEnable
  */
 INT wifi_setApIsolationEnable(INT apIndex, BOOL enable);
 
@@ -1169,12 +1926,35 @@ INT wifi_setApIsolationEnable(INT apIndex, BOOL enable);
  * This function sets the beacon transmission rate for the specified Access Point (AP).
  * This function must not suspend and must not invoke any blocking system calls.
  *
- * @param[in] apIndex      Index of the Access Point (valid values: 0, 2, 4, 6, 8, 10, 12, 14 for 2.4 GHz).
- * @param[in] sBeaconRate  Beacon rate string (valid values: "1Mbps", "5.5Mbps", "6Mbps", "2Mbps", "11Mbps", "12Mbps", "24Mbps").
+ * @param[in] apIndex  Index of the Access Point, in the range `AP_INDEX_1` to
+ *                     `AP_INDEX_24`.
+ * @param[in] sBeaconRate  NUL-terminated string giving the beacon transmission rate. The
+ *                         values this interface names are `"1Mbps"`, `"2Mbps"`,
+ *                         `"5.5Mbps"`, `"6Mbps"`, `"11Mbps"`, `"12Mbps"` and `"24Mbps"`,
+ *                         and no other string is defined. The caller owns the storage;
+ *                         the `HAL` reads it during the call and must not retain the
+ *                         pointer afterwards, so the caller may pass a stack buffer.
+ *
+ * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
+ *      in `docs/pages/halSpec.md`. A call made beforehand fails with `WIFI_HAL_ERROR` and
+ *      leaves the configuration unchanged.
+ * @post On success the Access Point transmits beacons at the requested rate. On failure
+ *       no part of the configuration is changed.
  *
  * @returns The status of the operation.
- * @retval WIFI_HAL_SUCCESS If successful.
- * @retval WIFI_HAL_ERROR   If any error is detected.
+ * @retval WIFI_HAL_SUCCESS The rate was applied.
+ * @retval WIFI_HAL_ERROR   `apIndex` is out of range, `sBeaconRate` is NULL or not one of
+ *                          the named strings, or the rate is not legal on the hosting
+ *                          radio's band. The caller should correct the string rather than
+ *                          retrying, and should check the radio's band with
+ *                          `wifi_getApRadioIndex()` because the legal set differs between
+ *                          2.4 GHz and 5 GHz.
+ *
+ * @note Only the rates this interface names may be passed. A lower beacon rate reaches
+ *       further but consumes more airtime.
+ * @note The `HAL` is expected to be thread safe, per `Threading Model` in
+ *       `docs/pages/halSpec.md`.
+ * @see wifi_getApBeaconRate
  */
 INT wifi_setApBeaconRate(INT apIndex, char *sBeaconRate);
 
@@ -1184,12 +1964,30 @@ INT wifi_setApBeaconRate(INT apIndex, char *sBeaconRate);
  * This function retrieves the beacon transmission rate for the specified Access Point (AP).
  * This function must not suspend and must not invoke any blocking system calls.
  *
- * @param[in] apIndex            Index of the Access Point.
- * @param[out] output_BeaconRate Pointer to a buffer to store the beacon rate string.
+ * @param[in] apIndex  Index of the Access Point, in the range `AP_INDEX_1` to
+ *                     `AP_INDEX_24`.
+ * @param[out] output_BeaconRate  Caller-allocated buffer of at least 32 bytes that
+ *                                receives the current beacon rate as one of the strings
+ *                                named by `wifi_setApBeaconRate()`, NUL-terminated. The
+ *                                caller allocates and releases it; the `HAL` writes into
+ *                                it and retains no reference to it after returning.
+ *
+ * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
+ *      in `docs/pages/halSpec.md`. A call made beforehand fails with `WIFI_HAL_ERROR` and
+ *      writes nothing to the output.
+ * @post On success the output holds the beacon rate string; on failure the output is left
+ *       unspecified, so a caller must not read it unless the call succeeded.
  *
  * @returns The status of the operation.
- * @retval WIFI_HAL_SUCCESS If successful.
- * @retval WIFI_HAL_ERROR   If any error is detected.
+ * @retval WIFI_HAL_SUCCESS The rate was retrieved.
+ * @retval WIFI_HAL_ERROR   `apIndex` is out of range, a required output pointer is NULL,
+ *                          or the vendor layer could not supply the value. The caller
+ *                          should validate its arguments; a failure that persists across
+ *                          retries should be logged and the value treated as unavailable.
+ *
+ * @note The `HAL` is expected to be thread safe, per `Threading Model` in
+ *       `docs/pages/halSpec.md`.
+ * @see wifi_setApBeaconRate
  */
 INT wifi_getApBeaconRate(INT apIndex, char *output_BeaconRate);
 
@@ -1201,12 +1999,31 @@ INT wifi_getApBeaconRate(INT apIndex, char *output_BeaconRate);
  * there is no specific limit on the number of associated devices.
  * This function must not suspend and must not invoke any blocking system calls.
  *
- * @param[in] apIndex  Index of the Access Point.
- * @param[out] output  Pointer to a variable to store the maximum number of associated devices.
+ * @param[in] apIndex  Index of the Access Point, in the range `AP_INDEX_1` to
+ *                     `AP_INDEX_24`.
+ * @param[out] output  Caller-allocated variable that receives the maximum number of
+ *                     simultaneously associated devices, where 0 means no limit is
+ *                     imposed. The caller allocates and releases it; the `HAL` writes
+ *                     into it and retains no reference to it after returning.
+ *
+ * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
+ *      in `docs/pages/halSpec.md`. A call made beforehand fails with `WIFI_HAL_ERROR` and
+ *      writes nothing to the output.
+ * @post On success the output holds the configured maximum, or 0 for no limit; on failure
+ *       the output is left unspecified, so a caller must not read it unless the call
+ *       succeeded.
  *
  * @returns The status of the operation.
- * @retval WIFI_HAL_SUCCESS If successful.
- * @retval WIFI_HAL_ERROR   If any error is detected.
+ * @retval WIFI_HAL_SUCCESS The maximum was retrieved.
+ * @retval WIFI_HAL_ERROR   `apIndex` is out of range, a required output pointer is NULL,
+ *                          or the vendor layer could not supply the value. The caller
+ *                          should validate its arguments; a failure that persists across
+ *                          retries should be logged and the value treated as unavailable.
+ *
+ * @note A returned 0 means unlimited, not none. Do not treat it as a closed Access Point.
+ * @note The `HAL` is expected to be thread safe, per `Threading Model` in
+ *       `docs/pages/halSpec.md`.
+ * @see wifi_setApMaxAssociatedDevices
  */
 INT wifi_getApMaxAssociatedDevices(INT apIndex, UINT *output);
 
@@ -1218,12 +2035,35 @@ INT wifi_getApMaxAssociatedDevices(INT apIndex, UINT *output);
  * there is no specific limit on the number of associated devices.
  * This function must not suspend and must not invoke any blocking system calls.
  *
- * @param[in] apIndex  Index of the Access Point.
- * @param[in] number   Maximum number of associated devices to allow.
+ * @param[in] apIndex  Index of the Access Point, in the range `AP_INDEX_1` to
+ *                     `AP_INDEX_24`.
+ * @param[in] number  Maximum number of simultaneously associated devices, or 0 to impose
+ *                    no limit. `ASSOC_MAC_ARRAY_MAX` is the largest population this
+ *                    interface names.
+ *
+ * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
+ *      in `docs/pages/halSpec.md`. A call made beforehand fails with `WIFI_HAL_ERROR` and
+ *      leaves the configuration unchanged.
+ * @post On success the Access Point admits at most `number` simultaneous clients, or an
+ *       unlimited number when `number` is 0. On failure no part of the configuration is
+ *       changed.
  *
  * @returns The status of the operation.
- * @retval WIFI_HAL_SUCCESS If successful.
- * @retval WIFI_HAL_ERROR   If any error is detected.
+ * @retval WIFI_HAL_SUCCESS The maximum was applied.
+ * @retval WIFI_HAL_ERROR   `apIndex` is out of range, the supplied value is outside the
+ *                          accepted set, or the vendor layer rejected the value. The
+ *                          caller should validate the value against the range given above
+ *                          and report the failure rather than retrying with the same
+ *                          argument.
+ *
+ * @note This interface does not state what happens to clients already associated when the
+ *       new maximum is below the current count, so a caller must not rely on either
+ *       outcome.
+ * @note A client refused because the Access Point is at capacity is reported through
+ *       `wifi_apMaxClientRejection_callback`.
+ * @note The `HAL` is expected to be thread safe, per `Threading Model` in
+ *       `docs/pages/halSpec.md`.
+ * @see wifi_getApMaxAssociatedDevices
  */
 INT wifi_setApMaxAssociatedDevices(INT apIndex, UINT number);
 
@@ -1235,11 +2075,29 @@ INT wifi_setApMaxAssociatedDevices(INT apIndex, UINT number);
  * `PreSharedKey`, and `KeyPassphrase`.
  * This function must not suspend and must not invoke any blocking system calls.
  *
- * @param[in] apIndex  Index of the Access Point.
+ * @param[in] apIndex  Index of the Access Point, in the range `AP_INDEX_1` to
+ *                     `AP_INDEX_24`.
+ *
+ * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
+ *      in `docs/pages/halSpec.md`. A call made beforehand fails with `WIFI_HAL_ERROR`
+ *      without performing the action.
+ * @post On success `ModeEnabled`, `WEPKey`, `PreSharedKey` and `KeyPassphrase` hold their
+ *       factory defaults for this Access Point. On failure no part of the configuration
+ *       is changed.
  *
  * @returns The status of the operation.
- * @retval WIFI_HAL_SUCCESS If successful.
- * @retval WIFI_HAL_ERROR   If any error is detected.
+ * @retval WIFI_HAL_SUCCESS The security settings were reset.
+ * @retval WIFI_HAL_ERROR   `apIndex` is out of range or the vendor layer could not
+ *                          complete the reset. The caller should read the settings back
+ *                          with `wifi_getApSecurity()`, because a partial reset is not
+ *                          excluded by this interface.
+ *
+ * @note The `HAL` is expected to be thread safe, per `Threading Model` in
+ *       `docs/pages/halSpec.md`.
+ * @warning This discards the Access Point's credentials, so associated clients will fail to
+ *          reauthenticate until it is reconfigured.
+ * @see wifi_setApSecurity
+ * @see wifi_factoryResetAP
  */
 INT wifi_setApSecurityReset(INT apIndex);
 
@@ -1250,13 +2108,35 @@ INT wifi_setApSecurityReset(INT apIndex);
  * for the specified Access Point (AP).
  * This function must not suspend and must not invoke any blocking system calls.
  *
- * @param[in] apIndex         Index of the Access Point.
- * @param[out] output_string  Pointer to a pre-allocated buffer (at least 64 bytes) to store the MFP configuration string.
- *                            Valid output strings are: "Disabled", "Optional", "Required".
+ * @param[in] apIndex  Index of the Access Point, in the range `AP_INDEX_1` to
+ *                     `AP_INDEX_24`.
+ * @param[out] output_string  Caller-allocated buffer of at least 64 bytes that receives
+ *                            the Management Frame Protection setting as one of
+ *                            `"Disabled"`, `"Optional"` or `"Required"`, NUL-terminated.
+ *                            The caller allocates and releases it; the `HAL` writes into
+ *                            it and retains no reference to it after returning.
+ *
+ * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
+ *      in `docs/pages/halSpec.md`. A call made beforehand fails with `WIFI_HAL_ERROR` and
+ *      writes nothing to the output.
+ * @post On success the output holds one of the three named strings; on failure the output
+ *       is left unspecified, so a caller must not read it unless the call succeeded.
  *
  * @returns The status of the operation.
- * @retval WIFI_HAL_SUCCESS If successful.
- * @retval WIFI_HAL_ERROR   If any error is detected.
+ * @retval WIFI_HAL_SUCCESS The setting was retrieved.
+ * @retval WIFI_HAL_ERROR   `apIndex` is out of range, a required output pointer is NULL,
+ *                          or the vendor layer could not supply the value. The caller
+ *                          should validate its arguments; a failure that persists across
+ *                          retries should be logged and the value treated as unavailable.
+ *
+ * @note Only the three named strings are defined, so a caller should compare against all
+ *       three rather than testing one and inferring the rest.
+ * @note Where `WIFI_HAL_VERSION_3` is defined the same three states are also available as
+ *       the `wifi_mfp_cfg_t` enumeration inside `wifi_vap_security_t`.
+ * @note The `HAL` is expected to be thread safe, per `Threading Model` in
+ *       `docs/pages/halSpec.md`.
+ * @see wifi_setApSecurityMFPConfig
+ * @see wifi_mfp_cfg_t
  */
 INT wifi_getApSecurityMFPConfig(INT apIndex, CHAR *output_string);
 
@@ -1269,13 +2149,34 @@ INT wifi_getApSecurityMFPConfig(INT apIndex, CHAR *output_string);
  * or VAP restart. The configuration must also be applied immediately.
  * This function must not suspend and must not invoke any blocking system calls.
  *
- * @param[in] apIndex    Index of the Access Point.
- * @param[in] MfpConfig  MFP configuration string.
- *                       Valid values are: "Disabled", "Optional", "Required".
+ * @param[in] apIndex  Index of the Access Point, in the range `AP_INDEX_1` to
+ *                     `AP_INDEX_24`.
+ * @param[in] MfpConfig  NUL-terminated string giving the Management Frame Protection
+ *                       setting, which must be exactly `"Disabled"`, `"Optional"` or
+ *                       `"Required"`. The caller owns the storage; the `HAL` reads it
+ *                       during the call and must not retain the pointer afterwards, so
+ *                       the caller may pass a stack buffer.
+ *
+ * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
+ *      in `docs/pages/halSpec.md`. A call made beforehand fails with `WIFI_HAL_ERROR` and
+ *      leaves the configuration unchanged.
+ * @post On success the setting is applied immediately and is stored persistently, so it
+ *       is reapplied after a Wi-Fi or VAP restart. On failure no part of the
+ *       configuration is changed.
  *
  * @returns The status of the operation.
- * @retval WIFI_HAL_SUCCESS If successful.
- * @retval WIFI_HAL_ERROR   If any error is detected.
+ * @retval WIFI_HAL_SUCCESS The setting was applied and persisted.
+ * @retval WIFI_HAL_ERROR   `apIndex` is out of range, `MfpConfig` is NULL or not one of
+ *                          the three named strings, or the vendor layer could not persist
+ *                          the value. The caller should correct the string rather than
+ *                          retrying, and should read the value back to confirm it
+ *                          persisted.
+ *
+ * @note `"Required"` will prevent clients that do not support protected management frames
+ *       from associating at all.
+ * @note The `HAL` is expected to be thread safe, per `Threading Model` in
+ *       `docs/pages/halSpec.md`.
+ * @see wifi_getApSecurityMFPConfig
  */
 INT wifi_setApSecurityMFPConfig(INT apIndex, CHAR *MfpConfig);
 
@@ -1286,14 +2187,42 @@ INT wifi_setApSecurityMFPConfig(INT apIndex, CHAR *MfpConfig);
  * server used for WLAN security on the specified Access Point (AP).
  * This function must not suspend and must not invoke any blocking system calls.
  *
- * @param[in] apIndex              Index of the Access Point.
- * @param[out] IP_output            Pointer to a buffer (at least 64 bytes) to store the RADIUS server IP address.
- * @param[out] Port_output          Pointer to a variable to store the RADIUS server port number.
- * @param[out] RadiusSecret_output  Pointer to a buffer (at least 64 bytes) to store the RADIUS server secret.
+ * @param[in] apIndex  Index of the Access Point, in the range `AP_INDEX_1` to
+ *                     `AP_INDEX_24`.
+ * @param[out] IP_output  Caller-allocated buffer of at least 64 bytes that receives the
+ *                        server's IP address as a NUL-terminated string, NUL-terminated.
+ *                        The caller allocates and releases it; the `HAL` writes into it
+ *                        and retains no reference to it after returning.
+ * @param[out] Port_output  Caller-allocated variable that receives the server's UDP port
+ *                          number. The caller allocates and releases it; the `HAL` writes
+ *                          into it and retains no reference to it after returning.
+ * @param[out] RadiusSecret_output  Caller-allocated buffer of at least 64 bytes that
+ *                                  receives the shared secret as a NUL-terminated string,
+ *                                  NUL-terminated. The caller allocates and releases it;
+ *                                  the `HAL` writes into it and retains no reference to
+ *                                  it after returning.
+ *
+ * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
+ *      in `docs/pages/halSpec.md`. A call made beforehand fails with `WIFI_HAL_ERROR` and
+ *      writes nothing to the output.
+ * @post On success the output holds the primary RADIUS server's address, port and secret;
+ *       on failure the output is left unspecified, so a caller must not read it unless
+ *       the call succeeded.
  *
  * @returns The status of the operation.
- * @retval WIFI_HAL_SUCCESS If successful.
- * @retval WIFI_HAL_ERROR   If any error is detected.
+ * @retval WIFI_HAL_SUCCESS The settings were retrieved.
+ * @retval WIFI_HAL_ERROR   `apIndex` is out of range, a required output pointer is NULL,
+ *                          or no primary RADIUS server is configured. The caller should
+ *                          validate its arguments; a failure that persists across retries
+ *                          should be logged and the value treated as unavailable.
+ *
+ * @note This interface does not state what the output holds when no server is configured,
+ *       so a caller must not treat an empty address string as a defined result unless the
+ *       call succeeded.
+ * @note The `HAL` is expected to be thread safe, per `Threading Model` in
+ *       `docs/pages/halSpec.md`.
+ * @warning The RADIUS secret is a credential. A caller that logs or traces these arguments
+ *          must redact it, and should clear its own copy once the call returns.
  */
 INT wifi_getApSecurityRadiusServer(INT apIndex, CHAR *IP_output, UINT *Port_output, CHAR *RadiusSecret_output); 
 
@@ -1304,14 +2233,40 @@ INT wifi_getApSecurityRadiusServer(INT apIndex, CHAR *IP_output, UINT *Port_outp
  * server used for WLAN security on the specified Access Point (AP).
  * This function must not suspend and must not invoke any blocking system calls.
  *
- * @param[in] apIndex       Index of the Access Point.
- * @param[in] IPAddress     IP address of the RADIUS server.
- * @param[in] port          Port number of the RADIUS server.
- * @param[in] RadiusSecret  Secret used for authentication with the RADIUS server.
+ * @param[in] apIndex  Index of the Access Point, in the range `AP_INDEX_1` to
+ *                     `AP_INDEX_24`.
+ * @param[in] IPAddress  NUL-terminated string giving the primary RADIUS server's IP
+ *                       address, at most 63 characters plus the terminator. The caller
+ *                       owns the storage; the `HAL` reads it during the call and must not
+ *                       retain the pointer afterwards, so the caller may pass a stack
+ *                       buffer.
+ * @param[in] port  UDP port the server listens on. This interface does not state a
+ *                  default, so the caller must supply the deployment's port.
+ * @param[in] RadiusSecret  NUL-terminated string giving the shared secret used to
+ *                          authenticate with the server, at most 63 characters plus the
+ *                          terminator. The caller owns the storage; the `HAL` reads it
+ *                          during the call and must not retain the pointer afterwards, so
+ *                          the caller may pass a stack buffer.
+ *
+ * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
+ *      in `docs/pages/halSpec.md`. A call made beforehand fails with `WIFI_HAL_ERROR` and
+ *      leaves the configuration unchanged.
+ * @post On success the Access Point authenticates against the primary RADIUS server at
+ *       the given address and port using the given secret. On failure no part of the
+ *       configuration is changed.
  *
  * @returns The status of the operation.
- * @retval WIFI_HAL_SUCCESS If successful.
- * @retval WIFI_HAL_ERROR   If any error is detected.
+ * @retval WIFI_HAL_SUCCESS The settings were applied.
+ * @retval WIFI_HAL_ERROR   `apIndex` is out of range, a string argument is NULL or
+ *                          malformed, or the vendor layer rejected the settings. The
+ *                          caller should validate the address and secret before retrying,
+ *                          and must not assume a partial update was avoided without
+ *                          reading the settings back.
+ *
+ * @note The `HAL` is expected to be thread safe, per `Threading Model` in
+ *       `docs/pages/halSpec.md`.
+ * @warning The RADIUS secret is a credential. A caller that logs or traces these arguments
+ *          must redact it, and should clear its own copy once the call returns.
  */
 INT wifi_setApSecurityRadiusServer(INT apIndex, CHAR *IPAddress, UINT port, CHAR *RadiusSecret);
 
@@ -1322,14 +2277,42 @@ INT wifi_setApSecurityRadiusServer(INT apIndex, CHAR *IPAddress, UINT port, CHAR
  * secondary RADIUS server used for WLAN security on the specified Access Point (AP).
  * This function must not suspend and must not invoke any blocking system calls.
  *
- * @param[in] apIndex              Index of the Access Point.
- * @param[out] IP_output            Pointer to a buffer (at least 64 bytes) to store the RADIUS server IP address.
- * @param[out] Port_output          Pointer to a variable to store the RADIUS server port number.
- * @param[out] RadiusSecret_output  Pointer to a buffer (at least 64 bytes) to store the RADIUS server secret.
+ * @param[in] apIndex  Index of the Access Point, in the range `AP_INDEX_1` to
+ *                     `AP_INDEX_24`.
+ * @param[out] IP_output  Caller-allocated buffer of at least 64 bytes that receives the
+ *                        server's IP address as a NUL-terminated string, NUL-terminated.
+ *                        The caller allocates and releases it; the `HAL` writes into it
+ *                        and retains no reference to it after returning.
+ * @param[out] Port_output  Caller-allocated variable that receives the server's UDP port
+ *                          number. The caller allocates and releases it; the `HAL` writes
+ *                          into it and retains no reference to it after returning.
+ * @param[out] RadiusSecret_output  Caller-allocated buffer of at least 64 bytes that
+ *                                  receives the shared secret as a NUL-terminated string,
+ *                                  NUL-terminated. The caller allocates and releases it;
+ *                                  the `HAL` writes into it and retains no reference to
+ *                                  it after returning.
+ *
+ * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
+ *      in `docs/pages/halSpec.md`. A call made beforehand fails with `WIFI_HAL_ERROR` and
+ *      writes nothing to the output.
+ * @post On success the output holds the secondary RADIUS server's address, port and
+ *       secret; on failure the output is left unspecified, so a caller must not read it
+ *       unless the call succeeded.
  *
  * @returns The status of the operation.
- * @retval WIFI_HAL_SUCCESS If successful.
- * @retval WIFI_HAL_ERROR   If any error is detected.
+ * @retval WIFI_HAL_SUCCESS The settings were retrieved.
+ * @retval WIFI_HAL_ERROR   `apIndex` is out of range, a required output pointer is NULL,
+ *                          or no secondary RADIUS server is configured. The caller should
+ *                          validate its arguments; a failure that persists across retries
+ *                          should be logged and the value treated as unavailable.
+ *
+ * @note This interface does not state what the output holds when no server is configured,
+ *       so a caller must not treat an empty address string as a defined result unless the
+ *       call succeeded.
+ * @note The `HAL` is expected to be thread safe, per `Threading Model` in
+ *       `docs/pages/halSpec.md`.
+ * @warning The RADIUS secret is a credential. A caller that logs or traces these arguments
+ *          must redact it, and should clear its own copy once the call returns.
  */
 INT wifi_getApSecuritySecondaryRadiusServer(INT apIndex, CHAR *IP_output, UINT *Port_output, CHAR *RadiusSecret_output);
 
@@ -1340,14 +2323,40 @@ INT wifi_getApSecuritySecondaryRadiusServer(INT apIndex, CHAR *IP_output, UINT *
  * used for WLAN security on the specified Access Point (AP).
  * This function must not suspend and must not invoke any blocking system calls.
  *
- * @param[in] apIndex      Index of the Access Point.
- * @param[in] IPAddress    IP address of the RADIUS server.
- * @param[in] port         Port number of the RADIUS server.
- * @param[in] RadiusSecret Secret used for authentication with the RADIUS server.
+ * @param[in] apIndex  Index of the Access Point, in the range `AP_INDEX_1` to
+ *                     `AP_INDEX_24`.
+ * @param[in] IPAddress  NUL-terminated string giving the secondary RADIUS server's IP
+ *                       address, at most 63 characters plus the terminator. The caller
+ *                       owns the storage; the `HAL` reads it during the call and must not
+ *                       retain the pointer afterwards, so the caller may pass a stack
+ *                       buffer.
+ * @param[in] port  UDP port the server listens on. This interface does not state a
+ *                  default, so the caller must supply the deployment's port.
+ * @param[in] RadiusSecret  NUL-terminated string giving the shared secret used to
+ *                          authenticate with the server, at most 63 characters plus the
+ *                          terminator. The caller owns the storage; the `HAL` reads it
+ *                          during the call and must not retain the pointer afterwards, so
+ *                          the caller may pass a stack buffer.
+ *
+ * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
+ *      in `docs/pages/halSpec.md`. A call made beforehand fails with `WIFI_HAL_ERROR` and
+ *      leaves the configuration unchanged.
+ * @post On success the Access Point authenticates against the secondary RADIUS server at
+ *       the given address and port using the given secret. On failure no part of the
+ *       configuration is changed.
  *
  * @returns The status of the operation.
- * @retval WIFI_HAL_SUCCESS If successful.
- * @retval WIFI_HAL_ERROR   If any error is detected.
+ * @retval WIFI_HAL_SUCCESS The settings were applied.
+ * @retval WIFI_HAL_ERROR   `apIndex` is out of range, a string argument is NULL or
+ *                          malformed, or the vendor layer rejected the settings. The
+ *                          caller should validate the address and secret before retrying,
+ *                          and must not assume a partial update was avoided without
+ *                          reading the settings back.
+ *
+ * @note The `HAL` is expected to be thread safe, per `Threading Model` in
+ *       `docs/pages/halSpec.md`.
+ * @warning The RADIUS secret is a credential. A caller that logs or traces these arguments
+ *          must redact it, and should clear its own copy once the call returns.
  */
 INT wifi_setApSecuritySecondaryRadiusServer(INT apIndex, CHAR *IPAddress, UINT port, CHAR *RadiusSecret);
 
@@ -1358,14 +2367,43 @@ INT wifi_setApSecuritySecondaryRadiusServer(INT apIndex, CHAR *IPAddress, UINT p
  * RADIUS DAS server used for WLAN security on the specified Access Point (AP).
  * This function must not suspend and must not invoke any blocking system calls.
  *
- * @param[in] apIndex               Index of the Access Point.
- * @param[out] IP_output            Pointer to a buffer to store the RADIUS server IP address.
- * @param[out] Port_output          Pointer to a variable to store the RADIUS server port number.
- * @param[out] RadiusdasSecret_output Pointer to a buffer to store the RADIUS DAS server secret.
+ * @param[in] apIndex  Index of the Access Point, in the range `AP_INDEX_1` to
+ *                     `AP_INDEX_24`.
+ * @param[out] IP_output  Caller-allocated buffer of at least 64 bytes that receives the
+ *                        server's IP address as a NUL-terminated string, NUL-terminated.
+ *                        The caller allocates and releases it; the `HAL` writes into it
+ *                        and retains no reference to it after returning.
+ * @param[out] Port_output  Caller-allocated variable that receives the server's UDP port
+ *                          number. The caller allocates and releases it; the `HAL` writes
+ *                          into it and retains no reference to it after returning.
+ * @param[out] RadiusdasSecret_output  Caller-allocated buffer of at least 64 bytes that
+ *                                     receives the shared secret as a NUL-terminated
+ *                                     string, NUL-terminated. The caller allocates and
+ *                                     releases it; the `HAL` writes into it and retains
+ *                                     no reference to it after returning.
+ *
+ * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
+ *      in `docs/pages/halSpec.md`. A call made beforehand fails with `WIFI_HAL_ERROR` and
+ *      writes nothing to the output.
+ * @post On success the output holds the RADIUS Dynamic Authorization Server server's
+ *       address, port and secret; on failure the output is left unspecified, so a caller
+ *       must not read it unless the call succeeded.
  *
  * @returns The status of the operation.
- * @retval WIFI_HAL_SUCCESS If successful.
- * @retval WIFI_HAL_ERROR   If any error is detected.
+ * @retval WIFI_HAL_SUCCESS The settings were retrieved.
+ * @retval WIFI_HAL_ERROR   `apIndex` is out of range, a required output pointer is NULL,
+ *                          or no RADIUS Dynamic Authorization Server server is
+ *                          configured. The caller should validate its arguments; a
+ *                          failure that persists across retries should be logged and the
+ *                          value treated as unavailable.
+ *
+ * @note This interface does not state what the output holds when no server is configured,
+ *       so a caller must not treat an empty address string as a defined result unless the
+ *       call succeeded.
+ * @note The `HAL` is expected to be thread safe, per `Threading Model` in
+ *       `docs/pages/halSpec.md`.
+ * @warning The RADIUS secret is a credential. A caller that logs or traces these arguments
+ *          must redact it, and should clear its own copy once the call returns.
  */
 INT wifi_getApDASRadiusServer(INT apIndex, CHAR *IP_output, UINT *Port_output, CHAR *RadiusdasSecret_output);
 
@@ -1376,14 +2414,40 @@ INT wifi_getApDASRadiusServer(INT apIndex, CHAR *IP_output, UINT *Port_output, C
  * server used for WLAN security on the specified Access Point (AP).
  * This function must not suspend and must not invoke any blocking system calls.
  *
- * @param[in] apIndex         Index of the Access Point.
- * @param[in] IPAddress      IP address of the RADIUS DAS server.
- * @param[in] port           Port number of the RADIUS DAS server.
- * @param[in] RadiusdasSecret Secret used for authentication with the RADIUS DAS server.
+ * @param[in] apIndex  Index of the Access Point, in the range `AP_INDEX_1` to
+ *                     `AP_INDEX_24`.
+ * @param[in] IPAddress  NUL-terminated string giving the RADIUS Dynamic Authorization
+ *                       Server server's IP address, at most 63 characters plus the
+ *                       terminator. The caller owns the storage; the `HAL` reads it
+ *                       during the call and must not retain the pointer afterwards, so
+ *                       the caller may pass a stack buffer.
+ * @param[in] port  UDP port the server listens on. This interface does not state a
+ *                  default, so the caller must supply the deployment's port.
+ * @param[in] RadiusdasSecret  NUL-terminated string giving the shared secret used to
+ *                             authenticate with the server, at most 63 characters plus
+ *                             the terminator. The caller owns the storage; the `HAL`
+ *                             reads it during the call and must not retain the pointer
+ *                             afterwards, so the caller may pass a stack buffer.
+ *
+ * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
+ *      in `docs/pages/halSpec.md`. A call made beforehand fails with `WIFI_HAL_ERROR` and
+ *      leaves the configuration unchanged.
+ * @post On success the Access Point authenticates against the RADIUS Dynamic
+ *       Authorization Server server at the given address and port using the given secret.
+ *       On failure no part of the configuration is changed.
  *
  * @returns The status of the operation.
- * @retval WIFI_HAL_SUCCESS If successful.
- * @retval WIFI_HAL_ERROR   If any error is detected.
+ * @retval WIFI_HAL_SUCCESS The settings were applied.
+ * @retval WIFI_HAL_ERROR   `apIndex` is out of range, a string argument is NULL or
+ *                          malformed, or the vendor layer rejected the settings. The
+ *                          caller should validate the address and secret before retrying,
+ *                          and must not assume a partial update was avoided without
+ *                          reading the settings back.
+ *
+ * @note The `HAL` is expected to be thread safe, per `Threading Model` in
+ *       `docs/pages/halSpec.md`.
+ * @warning The RADIUS secret is a credential. A caller that logs or traces these arguments
+ *          must redact it, and should clear its own copy once the call returns.
  */
 INT wifi_setApDASRadiusServer(INT apIndex, CHAR *IPAddress, UINT port, CHAR *RadiusdasSecret);
 
@@ -1394,12 +2458,29 @@ INT wifi_setApDASRadiusServer(INT apIndex, CHAR *IPAddress, UINT port, CHAR *Rad
  * applicable Virtual Access Points (VAPs).
  * This function must not suspend and must not invoke any blocking system calls.
  *
- * @param[in] enable  Boolean value indicating whether to enable (true) or
- *                    disable (false) greylist access control.
+ * @param[in] enable  true to enable greylist access control on every applicable Virtual
+ *                    Access Point, false to disable it on all of them.
+ *
+ * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
+ *      in `docs/pages/halSpec.md`. A call made beforehand fails with `WIFI_HAL_ERROR` and
+ *      leaves the configuration unchanged.
+ * @post On success greylist access control is in the requested state on every applicable
+ *       Virtual Access Point. On failure no part of the configuration is changed.
  *
  * @returns The status of the operation.
- * @retval WIFI_HAL_SUCCESS If successful.
- * @retval WIFI_HAL_ERROR   If any error is detected.
+ * @retval WIFI_HAL_SUCCESS The setting was applied to all applicable Virtual Access
+ *                          Points.
+ * @retval WIFI_HAL_ERROR   The vendor layer could not apply the setting. Because this
+ *                          call is device-wide, a failure may leave some Virtual Access
+ *                          Points changed and others not: the caller should read each one
+ *                          back rather than assuming the call was atomic.
+ *
+ * @note This call takes no Access Point index: it applies device-wide, unlike every other
+ *       access-control call in this header.
+ * @note The per-Virtual-Access-Point counterpart is the `network_initiated_greylist` member
+ *       of `wifi_front_haul_bss_t`.
+ * @note The `HAL` is expected to be thread safe, per `Threading Model` in
+ *       `docs/pages/halSpec.md`.
  */
 INT wifi_enableGreylistAccessControl(BOOL enable);
 
@@ -1409,12 +2490,36 @@ INT wifi_enableGreylistAccessControl(BOOL enable);
  * This function retrieves the RADIUS settings for the specified Access Point (AP).
  * This function must not suspend and must not invoke any blocking system calls.
  *
- * @param[in] apIndex  Index of the Access Point.
- * @param[out] output  Pointer to a `wifi_radius_setting_t` structure to store the RADIUS settings.
+ * @param[in] apIndex  Index of the Access Point, in the range `AP_INDEX_1` to
+ *                     `AP_INDEX_24`.
+ * @param[out] output  Caller-allocated `wifi_radius_setting_t` that receives the RADIUS
+ *                     timing, retry and caching parameters. The caller allocates and
+ *                     releases it; the `HAL` writes into it and retains no reference to
+ *                     it after returning.
+ *
+ * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
+ *      in `docs/pages/halSpec.md`. A call made beforehand fails with `WIFI_HAL_ERROR` and
+ *      writes nothing to the output.
+ * @post On success the output holds a full set of RADIUS parameters; on failure the
+ *       output is left unspecified, so a caller must not read it unless the call
+ *       succeeded.
  *
  * @returns The status of the operation.
- * @retval WIFI_HAL_SUCCESS If successful.
- * @retval WIFI_HAL_ERROR   If any error is detected.
+ * @retval WIFI_HAL_SUCCESS The settings were retrieved.
+ * @retval WIFI_HAL_ERROR   `apIndex` is out of range, a required output pointer is NULL,
+ *                          or the vendor layer could not supply the value. The caller
+ *                          should validate its arguments; a failure that persists across
+ *                          retries should be logged and the value treated as unavailable.
+ *
+ * @note This reports the RADIUS behaviour parameters -- retries, timeouts, PMK lifetime and
+ *       caching, blacklisting -- and not the server address or secret, which
+ *       `wifi_getApSecurityRadiusServer()` reports.
+ * @note The structure's commented-out `RadiusSecret` member is deliberately absent: the
+ *       secret is never returned through this call.
+ * @note The `HAL` is expected to be thread safe, per `Threading Model` in
+ *       `docs/pages/halSpec.md`.
+ * @see wifi_setApSecurityRadiusSettings
+ * @see wifi_getApSecurityRadiusServer
  */
 INT wifi_getApSecurityRadiusSettings(INT apIndex, wifi_radius_setting_t *output);
 
@@ -1424,12 +2529,33 @@ INT wifi_getApSecurityRadiusSettings(INT apIndex, wifi_radius_setting_t *output)
  * This function sets the RADIUS settings for the specified Access Point (AP).
  * This function must not suspend and must not invoke any blocking system calls.
  *
- * @param[in] apIndex  Index of the Access Point.
- * @param[in] input    Pointer to a `wifi_radius_setting_t` structure containing the RADIUS settings to apply.
+ * @param[in] apIndex  Index of the Access Point, in the range `AP_INDEX_1` to
+ *                     `AP_INDEX_24`.
+ * @param[in] input  Fully populated `wifi_radius_setting_t` to apply. The caller owns the
+ *                   structure; the `HAL` reads it during the call and must not retain the
+ *                   pointer afterwards. Every member is applied, so a caller should read
+ *                   the current settings first and modify them rather than passing a
+ *                   partially filled structure.
+ *
+ * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
+ *      in `docs/pages/halSpec.md`. A call made beforehand fails with `WIFI_HAL_ERROR` and
+ *      leaves the configuration unchanged.
+ * @post On success all the RADIUS parameters in the structure are in force. On failure no
+ *       part of the configuration is changed.
  *
  * @returns The status of the operation.
- * @retval WIFI_HAL_SUCCESS If successful.
- * @retval WIFI_HAL_ERROR   If any error is detected.
+ * @retval WIFI_HAL_SUCCESS The settings were applied.
+ * @retval WIFI_HAL_ERROR   `apIndex` is out of range, `input` is NULL, or a parameter is
+ *                          outside the range the vendor layer accepts. The caller should
+ *                          read the settings back to establish which values took effect,
+ *                          since this interface does not state that the update is atomic.
+ *
+ * @note Setting `MaxAuthenticationAttempts` to 0 disables client blacklisting, and 0 in
+ *       `IdentityRequestRetryInterval` or `QuietPeriodAfterFailedAuthentication` disables
+ *       that behaviour, as the structure's own member documentation states.
+ * @note The `HAL` is expected to be thread safe, per `Threading Model` in
+ *       `docs/pages/halSpec.md`.
+ * @see wifi_getApSecurityRadiusSettings
  */
 INT wifi_setApSecurityRadiusSettings(INT apIndex, wifi_radius_setting_t *input);
 
@@ -1443,12 +2569,31 @@ INT wifi_setApSecurityRadiusSettings(INT apIndex, wifi_radius_setting_t *input);
  * The output string will be set to either "Not configured" or "Configured".
  * This function must not suspend and must not invoke any blocking system calls.
  *
- * @param[in] apIndex        Index of the Access Point.
- * @param[out] output_string Pointer to a buffer (at least 32 bytes) to store the WPS configuration state.
+ * @param[in] apIndex  Index of the Access Point, in the range `AP_INDEX_1` to
+ *                     `AP_INDEX_24`.
+ * @param[out] output_string  Caller-allocated buffer of at least 32 bytes that receives
+ *                            the WPS configuration state, either `"Not configured"` or
+ *                            `"Configured"`, NUL-terminated. The caller allocates and
+ *                            releases it; the `HAL` writes into it and retains no
+ *                            reference to it after returning.
+ *
+ * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
+ *      in `docs/pages/halSpec.md`. A call made beforehand fails with `WIFI_HAL_ERROR` and
+ *      writes nothing to the output.
+ * @post On success the output holds one of the two named strings; on failure the output
+ *       is left unspecified, so a caller must not read it unless the call succeeded.
  *
  * @returns The status of the operation.
- * @retval WIFI_HAL_SUCCESS If successful.
- * @retval WIFI_HAL_ERROR   If any error is detected.
+ * @retval WIFI_HAL_SUCCESS The state was retrieved.
+ * @retval WIFI_HAL_ERROR   `apIndex` is out of range, a required output pointer is NULL,
+ *                          or the vendor layer could not supply the value. The caller
+ *                          should validate its arguments; a failure that persists across
+ *                          retries should be logged and the value treated as unavailable.
+ *
+ * @note Only the two named strings are defined by this interface.
+ * @note The `HAL` is expected to be thread safe, per `Threading Model` in
+ *       `docs/pages/halSpec.md`.
+ * @see wifi_getApWpsConfiguration
  */
 INT wifi_getApWpsConfigurationState(INT apIndex, CHAR *output_string);
 
@@ -1459,12 +2604,36 @@ INT wifi_getApWpsConfigurationState(INT apIndex, CHAR *output_string);
  * specified Access Point (AP).
  * This function must not suspend and must not invoke any blocking system calls.
  *
- * @param[in] apIndex  Index of the Access Point.
- * @param[in] pin      WPS enrollee PIN to set.
+ * @param[in] apIndex  Index of the Access Point, in the range `AP_INDEX_1` to
+ *                     `AP_INDEX_24`.
+ * @param[in] pin  NUL-terminated string giving the WPS enrollee PIN.
+ *                 `WIFI_AP_MAX_WPSPIN_LEN` is 9, which accommodates an 8-digit PIN and
+ *                 its terminator. The caller owns the storage; the `HAL` reads it during
+ *                 the call and must not retain the pointer afterwards, so the caller may
+ *                 pass a stack buffer.
+ *
+ * @pre `wifi_init()` must have completed successfully, and a handler should already be
+ *      installed with `wifi_wpsEvent_callback_register()` or the session's outcome will
+ *      not be reported; see `Initialization and Startup` in `docs/pages/halSpec.md`. A
+ *      call made before initialisation fails with `WIFI_HAL_ERROR` and starts no session.
+ * @post On success a PIN-method WPS session is armed with the given PIN, and its outcome
+ *       is delivered to the registered WPS event handler. On failure no part of the
+ *       configuration is changed.
  *
  * @returns The status of the operation.
- * @retval WIFI_HAL_SUCCESS If successful.
- * @retval WIFI_HAL_ERROR   If any error is detected.
+ * @retval WIFI_HAL_SUCCESS The PIN was accepted and the session armed.
+ * @retval WIFI_HAL_ERROR   `apIndex` is out of range, `pin` is NULL, longer than
+ *                          `WIFI_AP_MAX_WPSPIN_LEN` permits or fails its checksum, or WPS
+ *                          is not enabled on this Access Point. The caller should
+ *                          validate the PIN and confirm WPS is enabled with
+ *                          `wifi_getApWpsConfiguration()` before retrying.
+ *
+ * @note A PIN session expires on its own, reported as `wifi_wps_ev_pin_timeout`; use
+ *       `wifi_cancelApWPS()` to end it early.
+ * @note The `HAL` is expected to be thread safe, per `Threading Model` in
+ *       `docs/pages/halSpec.md`.
+ * @see wifi_wpsEvent_callback_register
+ * @see wifi_cancelApWPS
  */
 INT wifi_setApWpsEnrolleePin(INT apIndex, CHAR *pin);
 
@@ -1475,11 +2644,33 @@ INT wifi_setApWpsEnrolleePin(INT apIndex, CHAR *pin);
  * for the specified Access Point (AP).
  * This function must not suspend and must not invoke any blocking system calls.
  *
- * @param[in] apIndex  Index of the Access Point.
+ * @param[in] apIndex  Index of the Access Point, in the range `AP_INDEX_1` to
+ *                     `AP_INDEX_24`.
+ *
+ * @pre `wifi_init()` must have completed successfully, and a handler should already be
+ *      installed with `wifi_wpsEvent_callback_register()` or the session's outcome will
+ *      not be reported; see `Initialization and Startup` in `docs/pages/halSpec.md`. A
+ *      call made before initialisation fails with `WIFI_HAL_ERROR` and starts no session.
+ * @post On success a push-button WPS session is started, exactly as a physical button
+ *       press would start one, and its outcome is delivered to the registered WPS event
+ *       handler. On failure no part of the configuration is changed.
  *
  * @returns The status of the operation.
- * @retval WIFI_HAL_SUCCESS If successful.
- * @retval WIFI_HAL_ERROR   If any error is detected.
+ * @retval WIFI_HAL_SUCCESS The push-button session was started.
+ * @retval WIFI_HAL_ERROR   `apIndex` is out of range, WPS is not enabled on this Access
+ *                          Point, or a session could not be started. The caller should
+ *                          confirm WPS is enabled with `wifi_getApWpsConfiguration()`
+ *                          rather than retrying immediately.
+ *
+ * @note The session ends by itself: success is `wifi_wps_ev_success`, expiry of the walk
+ *       time is `wifi_wps_ev_pbc_timeout`, and a competing session is
+ *       `wifi_wps_ev_pbc_overlap`. Only the event handler distinguishes these -- this
+ *       call's success means the session started, not that a client was onboarded.
+ * @note The `HAL` is expected to be thread safe, per `Threading Model` in
+ *       `docs/pages/halSpec.md`.
+ * @see wifi_wpsEvent_callback_register
+ * @see wifi_cancelApWPS
+ * @see wifi_wps_ev_t
  */
 INT wifi_setApWpsButtonPush(INT apIndex);
 
@@ -1490,11 +2681,29 @@ INT wifi_setApWpsButtonPush(INT apIndex);
  * Access Point (AP).
  * This function must not suspend and must not invoke any blocking system calls.
  *
- * @param[in] apIndex  Index of the Access Point.
+ * @param[in] apIndex  Index of the Access Point, in the range `AP_INDEX_1` to
+ *                     `AP_INDEX_24`.
+ *
+ * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
+ *      in `docs/pages/halSpec.md`. A call made beforehand fails with `WIFI_HAL_ERROR`
+ *      without performing the action.
+ * @post On success no WPS session is active on this Access Point. On failure no part of
+ *       the configuration is changed.
  *
  * @returns The status of the operation.
- * @retval WIFI_HAL_SUCCESS If successful.
- * @retval WIFI_HAL_ERROR   If any error is detected.
+ * @retval WIFI_HAL_SUCCESS WPS mode was cancelled.
+ * @retval WIFI_HAL_ERROR   `apIndex` is out of range or the vendor layer could not cancel
+ *                          the session. The caller should not assume a session is still
+ *                          running, and should wait for the WPS event handler rather than
+ *                          polling.
+ *
+ * @note Cancelling a session that is not running is not defined by this interface as either
+ *       success or failure, so a caller should not use the return value to test whether a
+ *       session was active.
+ * @note The `HAL` is expected to be thread safe, per `Threading Model` in
+ *       `docs/pages/halSpec.md`.
+ * @see wifi_setApWpsButtonPush
+ * @see wifi_setApWpsEnrolleePin
  */
 INT wifi_cancelApWPS(INT apIndex);
 
@@ -1505,12 +2714,30 @@ INT wifi_cancelApWPS(INT apIndex);
  * specified Access Point (AP).
  * This function must not suspend and must not invoke any blocking system calls.
  *
- * @param[in] apIndex     Index of the Access Point.
- * @param[out] output_dBm Pointer to a variable to store the ManagementFramePowerControl value, in dBm.
+ * @param[in] apIndex  Index of the Access Point, in the range `AP_INDEX_1` to
+ *                     `AP_INDEX_24`.
+ * @param[out] output_dBm  Caller-allocated variable that receives the management frame
+ *                         transmit power in dBm. The caller allocates and releases it;
+ *                         the `HAL` writes into it and retains no reference to it after
+ *                         returning.
+ *
+ * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
+ *      in `docs/pages/halSpec.md`. A call made beforehand fails with `WIFI_HAL_ERROR` and
+ *      writes nothing to the output.
+ * @post On success the output holds the current management frame power; on failure the
+ *       output is left unspecified, so a caller must not read it unless the call
+ *       succeeded.
  *
  * @returns The status of the operation.
- * @retval WIFI_HAL_SUCCESS If successful.
- * @retval WIFI_HAL_ERROR   If any error is detected.
+ * @retval WIFI_HAL_SUCCESS The value was retrieved.
+ * @retval WIFI_HAL_ERROR   `apIndex` is out of range, a required output pointer is NULL,
+ *                          or the vendor layer could not supply the value. The caller
+ *                          should validate its arguments; a failure that persists across
+ *                          retries should be logged and the value treated as unavailable.
+ *
+ * @note The `HAL` is expected to be thread safe, per `Threading Model` in
+ *       `docs/pages/halSpec.md`.
+ * @see wifi_setApManagementFramePowerControl
  */
 INT wifi_getApManagementFramePowerControl(INT apIndex, INT *output_dBm);
 
@@ -1521,12 +2748,31 @@ INT wifi_getApManagementFramePowerControl(INT apIndex, INT *output_dBm);
  * Access Point (AP).
  * This function must not suspend and must not invoke any blocking system calls.
  *
- * @param[in] apIndex  Index of the Access Point.
- * @param[in] dBm      RadioManagementFramePowerControl value to set, in dBm.
+ * @param[in] apIndex  Index of the Access Point, in the range `AP_INDEX_1` to
+ *                     `AP_INDEX_24`.
+ * @param[in] dBm  Management frame transmit power in dBm. This interface does not state
+ *                 the accepted range, which is bounded by regulatory limits and by the
+ *                 hosting radio, so a caller should read the value back rather than
+ *                 assuming it was taken.
+ *
+ * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
+ *      in `docs/pages/halSpec.md`. A call made beforehand fails with `WIFI_HAL_ERROR` and
+ *      leaves the configuration unchanged.
+ * @post On success management frames are transmitted at the requested power. On failure
+ *       no part of the configuration is changed.
  *
  * @returns The status of the operation.
- * @retval WIFI_HAL_SUCCESS If successful.
- * @retval WIFI_HAL_ERROR   If any error is detected.
+ * @retval WIFI_HAL_SUCCESS The value was applied.
+ * @retval WIFI_HAL_ERROR   `apIndex` is out of range, the vendor layer rejected `dBm`, or
+ *                          it could not apply the change. This interface does not state the
+ *                          accepted values for `dBm`, so a caller must not infer a bound
+ *                          from the failure; it should report the failure and read the
+ *                          setting back with `wifi_getApManagementFramePowerControl()`
+ *                          rather than retrying with the same argument.
+ *
+ * @note The `HAL` is expected to be thread safe, per `Threading Model` in
+ *       `docs/pages/halSpec.md`.
+ * @see wifi_getApManagementFramePowerControl
  */
 INT wifi_setApManagementFramePowerControl(INT apIndex, INT dBm);
 /** @} */  //END OF GROUP WIFI_HAL_APIS
@@ -1553,20 +2799,33 @@ INT wifi_setApManagementFramePowerControl(INT apIndex, INT dBm);
 typedef INT(* wifi_newApAssociatedDevice_callback)(INT apIndex, wifi_associated_dev3_t *associated_dev);
 #else
 
+/**
+ * @brief State of one radio link of a Wi-Fi 7 multi-link client.
+ *
+ * A multi-link device presents one of these per link it has set up. Only entries
+ * whose `cli_Valid` is true carry meaningful data, so a caller must test that member
+ * before reading any other.
+ */
 typedef struct {
-    BOOL cli_Valid;
-    BOOL cli_IsAssocLink;
-    UCHAR cli_LinkID;
-    UINT cli_VapIndex;
-    INT cli_RSSI;
-    UCHAR cli_LinkAddress[6];
+    BOOL cli_Valid;             /**< True when the rest of this entry is populated; false means the link slot is unused. */
+    BOOL cli_IsAssocLink;       /**< True on the single link that carried the association exchange. */
+    UCHAR cli_LinkID;           /**< IEEE 802.11be link identifier advertised for this link. */
+    UINT cli_VapIndex;          /**< Index of the VAP this link is established on. */
+    INT cli_RSSI;               /**< Received signal strength for this link, in dBm. */
+    UCHAR cli_LinkAddress[6];   /**< MAC address the client uses on this link, which differs from its MLD address. */
 } wifi_mld_sta_link_info_t;
 
+/**
+ * @brief Multi-link capability and per-link state of an associated client.
+ *
+ * Reported as part of `wifi_associated_dev_t`. When `cli_MLDSta` is false the client
+ * is a conventional single-link station and the remaining members carry no meaning.
+ */
 typedef struct {
-    BOOL cli_MLDSta;
-    wifi_multi_link_modes_t cli_MLModeCapa;
-    BOOL cli_TIDLinkMapNegotiation;
-    wifi_mld_sta_link_info_t cli_LinkInfo[MAX_NUM_RADIOS];
+    BOOL cli_MLDSta;                        /**< True when the client is a Wi-Fi 7 multi-link device; false for a single-link station. */
+    wifi_multi_link_modes_t cli_MLModeCapa; /**< Multi-link operating modes the client advertised support for. */
+    BOOL cli_TIDLinkMapNegotiation;         /**< True when the client negotiated a traffic-identifier-to-link mapping rather than using the default. */
+    wifi_mld_sta_link_info_t cli_LinkInfo[MAX_NUM_RADIOS]; /**< Per-link state, one entry per radio; read only the entries whose `cli_Valid` is true. */
 } wifi_mld_sta_info_t;
 
 /**
@@ -1618,13 +2877,47 @@ typedef INT(* wifi_newApAssociatedDevice_callback)(INT apIndex, wifi_associated_
 /** @} */  //END OF GROUP WIFI_HAL_TYPES
 
 /**
- * @brief Registers a callback function for new AP associated device events.
+ * @addtogroup WIFI_HAL_APIS
+ * @{
+ */
+/**
+ * @brief Installs the caller's handler for client association events.
  *
- * This function registers a callback function that will be invoked when a new
- * Wi-Fi client associates with an Access Point (AP).
- * This function must not suspend and must not invoke any blocking system calls.
+ * After registration the `HAL` reports each new client association through the
+ * supplied handler, passing the association details rather than only the fact of
+ * the event. The most recently registered handler replaces any previous one. This
+ * is the association half of the notification pair whose other half is
+ * `wifi_apDisassociatedDevice_callback_register()`.
  *
- * @param[in] callback_proc Pointer to the callback function to register.
+ * @param[in] callback_proc  Handler to install, of type
+ *                           `wifi_newApAssociatedDevice_callback`. The `HAL` retains
+ *                           this function pointer and invokes it until it is
+ *                           replaced, so the function must remain callable for that
+ *                           whole period. The effect of passing NULL is not
+ *                           specified by this interface.
+ *
+ * @pre `wifi_init()` must have completed successfully; see `Initialization and
+ *      Startup` in `docs/pages/halSpec.md`. The effect of registering beforehand is
+ *      not specified by this interface.
+ * @post The handler is installed and is invoked on each subsequent association.
+ *
+ * @execution callback
+ * @sideeffect None
+ *
+ * @note The registration call itself is synchronous and returns nothing; delivery of
+ *       `wifi_newApAssociatedDevice_callback` is asynchronous.
+ * @note This function must not suspend and must not invoke any blocking system calls; see
+ *       `Blocking calls` in `docs/pages/halSpec.md`. The same holds for the handler, which
+ *       should just send a message to a driver event handler task.
+ * @note The `HAL` is expected to be thread safe, per `Threading Model` in
+ *       `docs/pages/halSpec.md`.
+ * @warning The associated-device structure reaching the handler is owned by the `HAL` and
+ *          is valid only for the duration of that call. The client must copy anything it
+ *          needs afterwards, per `Asynchronous Notification Model` in
+ *          `docs/pages/halSpec.md`.
+ *
+ * @see wifi_newApAssociatedDevice_callback
+ * @see wifi_apDisassociatedDevice_callback_register
  */
 void wifi_newApAssociatedDevice_callback_register(wifi_newApAssociatedDevice_callback callback_proc);
 /** @} */  //END OF GROUP WIFI_HAL_APIS
@@ -1650,28 +2943,39 @@ void wifi_newApAssociatedDevice_callback_register(wifi_newApAssociatedDevice_cal
  */
 typedef INT ( * wifi_apDisassociatedDevice_callback)(INT apIndex, char *MAC, INT event_type);
 
-/* wifi_device_disassociated_callback() function */
 /**
-* @brief This call back will be invoked in onewifi when new wifi client disassociates from Access Point.
-*
-* @param[in] apIndex          Access Point Index
-* @param[in] src_mac          MAC address of disassociated device
-* @param[in] dest_mac         MAC address of AccessPoint
-* @param[in] frame_type       type of management frame
-* @param[in] event_type       type of disassociation, explicit or due to client inactivity
-*
-* @return The status of the operation
-* @retval RETURN_OK if successful
-* @retval RETURN_ERR if any error is detected
-*
-* @execution Synchronous
-* @sideeffect None
-*
-* @note This function must not suspend and must not invoke any blocking system
-* calls. It should probably just send a message to a driver event handler task.
-*
-*/
-
+ * @brief Callback function invoked when a client disassociates, reported with both
+ *        endpoints of the exchange.
+ *
+ * This callback carries more of the exchange than `wifi_apDisassociatedDevice_callback`
+ * does: both MAC addresses and the management frame type, as well as the cause. It is
+ * the form `onewifi` consumes.
+ *
+ * @param[in] apIndex     Index of the Access Point that observed the event, in the
+ *                        range `AP_INDEX_1` to `AP_INDEX_24`.
+ * @param[in] src_mac     NUL-terminated MAC address string of the disassociated device.
+ * @param[in] dest_mac    NUL-terminated MAC address string of the Access Point.
+ * @param[in] frame_type  Management frame type that carried the disassociation.
+ * @param[in] event_type  Cause of the disassociation: explicit, or the result of
+ *                        client inactivity.
+ *
+ * @return The status of the operation
+ * @retval RETURN_OK if successful
+ * @retval RETURN_ERR if any error is detected
+ *
+ * @execution Synchronous
+ * @sideeffect None
+ *
+ * @note This function must not suspend and must not invoke any blocking system
+ * calls. It should probably just send a message to a driver event handler task.
+ * @note `src_mac` and `dest_mac` are owned by the `HAL` and are valid only for the duration
+ *       of the call; the client must copy them if they are needed later, per `Asynchronous
+ *       Notification Model` in `docs/pages/halSpec.md`.
+ * @note The `HAL` is expected to be thread safe, so the handler may be entered on a `HAL`
+ *       thread; see `Threading Model` in `docs/pages/halSpec.md`.
+ *
+ * @see wifi_apDisassociatedDevice_callback
+ */
 typedef INT ( * wifi_device_disassociated_callback)(INT apIndex, char *src_mac,char *dest_mac, INT frame_type, INT event_type);
 /* wifi_stamode_callback() function */
 /**
@@ -1696,17 +3000,84 @@ typedef INT ( * wifi_device_disassociated_callback)(INT apIndex, char *src_mac,c
 */
 typedef INT ( * wifi_stamode_callback)(int apIndex, char *mac, int key_mgmt, int type, int radio, int mode);
 
+/**
+ * @brief Callback function invoked when a four-way handshake completes or fails.
+ *
+ * This callback reports the outcome of the WPA/WPA2/WPA3 four-way handshake for one
+ * client, which is how a caller distinguishes a client that failed key negotiation
+ * from one that never associated. Install it with
+ * `wifi_handshake_callback_register()`.
+ *
+ * @param[in] apIndex  Index of the Access Point the client was authenticating to, in
+ *                     the range `AP_INDEX_1` to `AP_INDEX_24`.
+ * @param[in] mac      NUL-terminated MAC address string of the client. The `HAL` owns
+ *                     this buffer and it is valid only for the duration of the call.
+ * @param[in] status   Outcome of the handshake. This interface does not enumerate the
+ *                     values, so a caller must not assume they match
+ *                     `wifi_status_code_t` or `eapol_msg_type_t`.
+ *
+ * @returns The status of the operation, which the implementer of the handler returns
+ *          to the `HAL`.
+ * @retval RETURN_OK  The handler accepted the notification.
+ * @retval RETURN_ERR The handler could not process the notification.
+ *
+ * @note This function must not suspend and must not invoke any blocking system calls. It
+ *       should just send a message to a driver event handler task.
+ * @note The client must copy `mac` before returning if the value is needed later, per
+ *       `Asynchronous Notification Model` in `docs/pages/halSpec.md`.
+ * @note The `HAL` is expected to be thread safe, so the handler may be entered on a `HAL`
+ *       thread; see `Threading Model` in `docs/pages/halSpec.md`.
+ *
+ * @see wifi_handshake_callback_register
+ */
 typedef INT ( * wifi_handshake_callback)(int apIndex, char *mac, int status);
 
+/**
+ * @brief Callback function invoked when an EAPOL exchange times out.
+ *
+ * This callback reports that an EAPOL message was not answered within the configured
+ * timeout, distinguishing a client that went away mid-handshake from one that was
+ * refused. The relevant timeouts and retry counts are configured through
+ * `wifi_vap_security_t`'s `eapol_key_timeout`, `eapol_key_retries`,
+ * `eap_identity_req_timeout` and `eap_req_timeout` members.
+ *
+ * @param[in] apIndex  Index of the Access Point on which the timeout occurred, in the
+ *                     range `AP_INDEX_1` to `AP_INDEX_24`.
+ * @param[in] mac      NUL-terminated MAC address string of the client. The `HAL` owns
+ *                     this buffer and it is valid only for the duration of the call.
+ * @param[in] type     Which EAPOL exchange timed out; see `eapol_msg_type_t` for the
+ *                     handshake messages this interface names.
+ *
+ * @returns The status of the operation, which the implementer of the handler returns
+ *          to the `HAL`.
+ * @retval RETURN_OK  The handler accepted the notification.
+ * @retval RETURN_ERR The handler could not process the notification.
+ *
+ * @note This interface declares this callback type but no registration function for it, so
+ *       there is currently no way for a caller to install one. It is documented here
+ *       because it is part of the published type surface.
+ * @note This function must not suspend and must not invoke any blocking system calls.
+ * @note The client must copy `mac` before returning if the value is needed later, per
+ *       `Asynchronous Notification Model` in `docs/pages/halSpec.md`.
+ * @note The `HAL` is expected to be thread safe, so the handler may be entered on a `HAL`
+ *       thread; see `Threading Model` in `docs/pages/halSpec.md`.
+ *
+ * @see eapol_msg_type_t
+ */
 typedef INT ( * wifi_eapol_timeouts_callback)(int apIndex, char *mac, int type);
 /* wifi_hal_ap_max_client_rejection_callback_register() function */
 /**
  * @brief This call back will be called whenever an authentication response with reject reason 17
  * is received.
  *
- * @param[in] apIndex          Access Point Index
- * @param[in] mac_address      client_mac_address
- * @param[in] reject_reason    reject reason
+ * @param[in] apIndex  Index of the Access Point that rejected the client, in the
+ *                     range `AP_INDEX_1` to `AP_INDEX_24`.
+ * @param[in] MAC      NUL-terminated MAC address string of the rejected client.
+ *                     The `HAL` owns this buffer and it is valid only for the
+ *                     duration of the call.
+ * @param[in] reason   IEEE 802.11 association status code carried by the rejecting
+ *                     response. Reason 17 is the association-denied-because-the-AP-is-
+ *                     at-capacity case this callback exists to report.
  *
  * @return The status of the operation
  * @retval RETURN_OK if successful
@@ -1717,79 +3088,225 @@ typedef INT ( * wifi_eapol_timeouts_callback)(int apIndex, char *mac, int type);
  *
  * @note This function must not suspend and must not invoke any blocking system
  * calls. It should probably just send a message to a driver event handler task.
+ * @note The client must copy `MAC` before returning if the value is needed later, per
+ *       `Asynchronous Notification Model` in `docs/pages/halSpec.md`.
+ * @note The `HAL` is expected to be thread safe, so the handler may be entered on a `HAL`
+ *       thread; see `Threading Model` in `docs/pages/halSpec.md`.
  *
  */
 typedef INT (*wifi_apMaxClientRejection_callback)(INT apIndex, char *MAC, INT reason);
 
 /**
- * @brief Callback function invoked when a RADIUS or EAP failure occurs.
+ * @brief Callback function invoked when a management frame carries a status code.
  *
- * This callback function is invoked when a RADIUS or EAP failure occurs on
- * the specified Access Point (AP).
- * This function must not suspend and must not invoke any blocking system calls.
+ * This callback reports the IEEE 802.11 status code the Access Point placed in an
+ * authentication, association or reassociation response, which lets a caller
+ * distinguish a client that was refused from one that never attempted to join.
  *
- * @param[in] apIndex         Index of the Access Point.
- * @param[in] failure_reason  Reason for the failure.
+ * @param[in] apIndex     Index of the Access Point that sent the frame, in the
+ *                        range `AP_INDEX_1` to `AP_INDEX_24`.
+ * @param[in] src_mac     NUL-terminated MAC address string of the client device.
+ * @param[in] dest_mac    NUL-terminated MAC address string of the Access Point.
+ * @param[in] frame_type  Management frame type the status code was carried in.
+ * @param[in] status      IEEE 802.11 status code from the response frame; the
+ *                        values this interface names are in `wifi_status_code_t`.
  *
  * @returns The status of the operation.
  * @retval WIFI_HAL_SUCCESS If successful.
  * @retval WIFI_HAL_ERROR   If any error is detected.
+ *
+ * @note This function must not suspend and must not invoke any blocking system calls.
+ * @note `src_mac` and `dest_mac` are owned by the `HAL` and are valid only for the duration
+ *       of the call; the client must copy them if they are needed later, per `Asynchronous
+ *       Notification Model` in `docs/pages/halSpec.md`.
+ * @note The `HAL` is expected to be thread safe, so the handler may be entered on a `HAL`
+ *       thread; see `Threading Model` in `docs/pages/halSpec.md`.
+ *
+ * @see wifi_apStatusCode_callback_register
+ * @see wifi_status_code_t
  */
 typedef INT ( * wifi_apStatusCode_callback)(int apIndex, char *src_mac,char *dest_mac, int frame_type ,int status);
 
+/**
+ * @brief Callback function invoked when a RADIUS or EAP authentication fails.
+ *
+ * This callback reports a RADIUS or EAP failure observed on the specified Access
+ * Point, so a caller can act on an authentication that was attempted and refused
+ * rather than inferring it from the absence of an association.
+ *
+ * @param[in] apIndex         Index of the Access Point on which the failure was
+ *                            observed, in the range `AP_INDEX_1` to `AP_INDEX_24`.
+ * @param[in] sta_mac         MAC address of the station whose authentication failed,
+ *                            passed by value as a `mac_address_t`.
+ * @param[in] failure_reason  Reason for the failure. The values this interface names
+ *                            are in `wifi_eap_status_code_t`.
+ *
+ * @returns The status of the operation.
+ * @retval WIFI_HAL_SUCCESS If successful.
+ * @retval WIFI_HAL_ERROR   If any error is detected.
+ *
+ * @note This function must not suspend and must not invoke any blocking system calls.
+ * @note The `HAL` is expected to be thread safe, so the handler may be entered on a `HAL`
+ *       thread; see `Threading Model` in `docs/pages/halSpec.md`.
+ *
+ * @see wifi_radiusEapFailure_callback_register
+ * @see wifi_eap_status_code_t
+ */
 typedef INT ( * wifi_radiusEapFailure_callback)(INT apIndex, mac_address_t sta_mac, INT failure_reason);
+/** @} */  //END OF GROUP WIFI_HAL_TYPES
 
 /**
- * @brief Registers a callback function for RADIUS/EAP failure events.
+ * @addtogroup WIFI_HAL_APIS
+ * @{
+ */
+/**
+ * @brief Installs the caller's handler for RADIUS and EAP authentication failures.
  *
- * This function registers a callback function that will be invoked when a
- * RADIUS or EAP failure occurs.
- * This function must not suspend and must not invoke any blocking system calls.
+ * After registration the `HAL` reports each RADIUS or EAP failure through the
+ * supplied handler, which lets a caller distinguish a client refused by the
+ * authentication server from one that never attempted to join. The most recently
+ * registered handler replaces any previous one.
  *
- * @param callback_proc Pointer to the callback function to register.
+ * @param[in] callback_proc  Handler to install, of type
+ *                           `wifi_radiusEapFailure_callback`. The `HAL` retains this
+ *                           function pointer and invokes it until it is replaced, so
+ *                           the function must remain callable for that whole period.
+ *                           The effect of passing NULL is not specified by this
+ *                           interface.
+ *
+ * @pre `wifi_init()` must have completed successfully; see `Initialization and
+ *      Startup` in `docs/pages/halSpec.md`. The effect of registering beforehand is
+ *      not specified by this interface.
+ * @post The handler is installed and is invoked on each subsequent failure.
+ *
+ * @execution callback
+ * @sideeffect None
+ *
+ * @note The registration call itself is synchronous and returns nothing; delivery of
+ *       `wifi_radiusEapFailure_callback` is asynchronous.
+ * @note This function must not suspend and must not invoke any blocking system calls; see
+ *       `Blocking calls` in `docs/pages/halSpec.md`. The same holds for the handler, which
+ *       should just send a message to a driver event handler task.
+ * @note The `HAL` is expected to be thread safe, per `Threading Model` in
+ *       `docs/pages/halSpec.md`.
+ *
+ * @see wifi_radiusEapFailure_callback
+ * @see wifi_radiusFallback_failover_callback_register
  */
 void wifi_radiusEapFailure_callback_register(wifi_radiusEapFailure_callback callback_proc);
 
-/* wifi_apStatusCode_callback_register() function */
 /**
-* @brief Callback registration function.
-*
-* @param[in] callback_proc  wifi_apStatusCode_callback_register callback function
-*
-* @return The status of the operation
-* @retval RETURN_OK if successful
-* @retval RETURN_ERR if any error is detected
-*
-* @execution Synchronous
-* @sideeffect None
-*
-* @note This function must not suspend and must not invoke any blocking system
-* calls. It should probably just send a message to a driver event handler task.
-*
-*/
-
+ * @brief Installs the caller's handler for management-frame status codes.
+ *
+ * After registration the `HAL` reports the IEEE 802.11 status code of each
+ * authentication, association and reassociation response through the supplied
+ * handler. The most recently registered handler replaces any previous one.
+ *
+ * @param[in] callback_proc  Handler to install, of type `wifi_apStatusCode_callback`.
+ *                           The `HAL` retains this function pointer and invokes it
+ *                           until it is replaced, so the function must remain
+ *                           callable for that whole period. The effect of passing
+ *                           NULL is not specified by this interface.
+ *
+ * @pre `wifi_init()` must have completed successfully; see `Initialization and
+ *      Startup` in `docs/pages/halSpec.md`. The effect of registering beforehand is
+ *      not specified by this interface.
+ * @post The handler is installed and is invoked on each subsequent status-code event.
+ *
+ * @execution callback
+ * @sideeffect None
+ *
+ * @note The registration call itself is synchronous and returns nothing; delivery of
+ *       `wifi_apStatusCode_callback` is asynchronous.
+ * @note This function must not suspend and must not invoke any blocking system calls; see
+ *       `Blocking calls` in `docs/pages/halSpec.md`. The same holds for the handler, which
+ *       should just send a message to a driver event handler task.
+ * @note The `HAL` is expected to be thread safe, per `Threading Model` in
+ *       `docs/pages/halSpec.md`.
+ * @warning Frame data reaching the handler is owned by the `HAL` and is valid only for the
+ *          duration of that call; the client must copy anything it needs afterwards.
+ *
+ * @see wifi_apStatusCode_callback
+ */
 void wifi_apStatusCode_callback_register(wifi_apStatusCode_callback callback_proc);
-/* wifi_ap_stamode_callback_register() function */
 /**
-* @brief Callback registration function.
-*
-* @param[in] callback_proc  wifi_stamode_callback callback function
-*
-* @return The status of the operation
-* @retval RETURN_OK if successful
-* @retval RETURN_ERR if any error is detected
-*
-* @execution Synchronous
-* @sideeffect None
-*
-* @note This function must not suspend and must not invoke any blocking system
-* calls. It should probably just send a message to a driver event handler task.
-*
-*/
+ * @brief Installs the caller's handler for station-mode association events.
+ *
+ * After registration the `HAL` reports each association request, reassociation
+ * request and EAPOL frame through the supplied handler, together with the key
+ * management, radio and security mode the station used. The most recently
+ * registered handler replaces any previous one.
+ *
+ * @param[in] callback_proc  Handler to install, of type `wifi_stamode_callback`.
+ *                           The `HAL` retains this function pointer and invokes it
+ *                           until it is replaced, so the function must remain
+ *                           callable for that whole period. The effect of passing
+ *                           NULL is not specified by this interface.
+ *
+ * @pre `wifi_init()` must have completed successfully; see `Initialization and
+ *      Startup` in `docs/pages/halSpec.md`. The effect of registering beforehand is
+ *      not specified by this interface.
+ * @post The handler is installed and is invoked on each subsequent station-mode event.
+ *
+ * @execution callback
+ * @sideeffect None
+ *
+ * @note The registration call itself is synchronous and returns nothing; delivery of
+ *       `wifi_stamode_callback` is asynchronous.
+ * @note This function must not suspend and must not invoke any blocking system calls; see
+ *       `Blocking calls` in `docs/pages/halSpec.md`. The same holds for the handler, which
+ *       should just send a message to a driver event handler task.
+ * @note The `HAL` is expected to be thread safe, per `Threading Model` in
+ *       `docs/pages/halSpec.md`.
+ * @warning The MAC address reaching the handler is owned by the `HAL` and is valid only for
+ *          the duration of that call; the client must copy it if needed afterwards.
+ *
+ * @see wifi_stamode_callback
+ */
 void wifi_ap_stamode_callback_register(wifi_stamode_callback callback_proc);
 
+/**
+ * @brief Installs the caller's handler for four-way handshake outcomes.
+ *
+ * After registration the `HAL` reports the outcome of each WPA/WPA2/WPA3 four-way
+ * handshake through the supplied handler, which lets a caller distinguish a client
+ * that failed key negotiation from one that never associated. The most recently
+ * registered handler replaces any previous one.
+ *
+ * @param[in] callback_proc  Handler to install, of type `wifi_handshake_callback`.
+ *                           The `HAL` retains this function pointer and invokes it
+ *                           until it is replaced, so the function must remain
+ *                           callable for that whole period. The effect of passing
+ *                           NULL is not specified by this interface.
+ *
+ * @pre `wifi_init()` must have completed successfully; see `Initialization and
+ *      Startup` in `docs/pages/halSpec.md`. The effect of registering beforehand is
+ *      not specified by this interface.
+ * @post The handler is installed and is invoked on each subsequent handshake outcome.
+ *
+ * @execution callback
+ * @sideeffect None
+ *
+ * @note The registration call itself is synchronous and returns nothing; delivery of
+ *       `wifi_handshake_callback` is asynchronous.
+ * @note This function must not suspend and must not invoke any blocking system calls; see
+ *       `Blocking calls` in `docs/pages/halSpec.md`. The same holds for the handler, which
+ *       should just send a message to a driver event handler task.
+ * @note The `HAL` is expected to be thread safe, per `Threading Model` in
+ *       `docs/pages/halSpec.md`.
+ * @warning The MAC address reaching the handler is owned by the `HAL` and is valid only for
+ *          the duration of that call; the client must copy it if needed afterwards, per
+ *          `Asynchronous Notification Model` in `docs/pages/halSpec.md`.
+ *
+ * @see wifi_handshake_callback
+ */
 void wifi_handshake_callback_register(wifi_handshake_callback callback_proc);
+/** @} */  //END OF GROUP WIFI_HAL_APIS
 
+/**
+ * @addtogroup WIFI_HAL_TYPES
+ * @{
+ */
 /**
  * @brief Callback function invoked when a RADIUS server fallback failure occurs.
  *
@@ -1807,17 +3324,6 @@ void wifi_handshake_callback_register(wifi_handshake_callback callback_proc);
  * is updated in the failure_reason code.
  */
 typedef INT ( * wifi_radiusFallback_failover_callback)(INT apIndex, INT failure_reason);
-
-/**
- * @brief Registers a callback function for RADIUS server fallback failure events.
- *
- * This function registers a callback function that will be invoked when a
- * RADIUS server fallback failure occurs.
- *
- * @param callback_proc Pointer to the callback function to register.
- */
-void wifi_radiusFallback_failover_callback_register(wifi_radiusFallback_failover_callback callback_proc);
-
 /** @} */  //END OF GROUP WIFI_HAL_TYPES
 
 /**
@@ -1825,12 +3331,87 @@ void wifi_radiusFallback_failover_callback_register(wifi_radiusFallback_failover
  * @{
  */
 /**
- * @brief Registers a callback function for AP disassociated device events.
+ * @brief Installs the caller's handler for RADIUS fallback and failover events.
  *
- * This function registers a callback function that will be invoked when a
- * Wi-Fi client disassociates from an Access Point (AP).
+ * After registration the `HAL` reports each failure to fall back to, or fail over
+ * between, the primary and secondary RADIUS servers through the supplied handler.
+ * The most recently registered handler replaces any previous one.
  *
- * @param callback_proc Pointer to the callback function to register.
+ * @param[in] callback_proc  Handler to install, of type
+ *                           `wifi_radiusFallback_failover_callback`. The `HAL`
+ *                           retains this function pointer and invokes it until it is
+ *                           replaced, so the function must remain callable for that
+ *                           whole period. The effect of passing NULL is not
+ *                           specified by this interface.
+ *
+ * @pre `wifi_init()` must have completed successfully; see `Initialization and
+ *      Startup` in `docs/pages/halSpec.md`. The effect of registering beforehand is
+ *      not specified by this interface.
+ * @post The handler is installed and is invoked on each subsequent fallback or
+ *       failover event.
+ *
+ * @execution callback
+ * @sideeffect None
+ *
+ * @note The registration call itself is synchronous and returns nothing; delivery of
+ *       `wifi_radiusFallback_failover_callback` is asynchronous.
+ * @note This function must not suspend and must not invoke any blocking system calls; see
+ *       `Blocking calls` in `docs/pages/halSpec.md`. The same holds for the handler, which
+ *       should just send a message to a driver event handler task.
+ * @note The `HAL` is expected to be thread safe, per `Threading Model` in
+ *       `docs/pages/halSpec.md`.
+ * @note The registered handler is documented as returning `WIFI_HAL_SUCCESS` even where the
+ *       operation failed, reporting the failure in its `failure_reason` argument instead; a
+ *       caller must read that argument rather than the handler's return value.
+ *
+ * @see wifi_radiusFallback_failover_callback
+ * @see wifi_setApSecuritySecondaryRadiusServer
+ */
+void wifi_radiusFallback_failover_callback_register(wifi_radiusFallback_failover_callback callback_proc);
+
+/** @} */  //END OF GROUP WIFI_HAL_APIS
+
+/**
+ * @addtogroup WIFI_HAL_APIS
+ * @{
+ */
+/**
+ * @brief Installs the caller's handler for client disassociation events.
+ *
+ * After registration the `HAL` reports each client disassociation through the
+ * supplied handler, together with whether it was explicit or the result of client
+ * inactivity. The most recently registered handler replaces any previous one. This
+ * is the disassociation half of the notification pair whose other half is
+ * `wifi_newApAssociatedDevice_callback_register()`.
+ *
+ * @param[in] callback_proc  Handler to install, of type
+ *                           `wifi_apDisassociatedDevice_callback`. The `HAL` retains
+ *                           this function pointer and invokes it until it is
+ *                           replaced, so the function must remain callable for that
+ *                           whole period. The effect of passing NULL is not
+ *                           specified by this interface.
+ *
+ * @pre `wifi_init()` must have completed successfully; see `Initialization and
+ *      Startup` in `docs/pages/halSpec.md`. The effect of registering beforehand is
+ *      not specified by this interface.
+ * @post The handler is installed and is invoked on each subsequent disassociation.
+ *
+ * @execution callback
+ * @sideeffect None
+ *
+ * @note The registration call itself is synchronous and returns nothing; delivery of
+ *       `wifi_apDisassociatedDevice_callback` is asynchronous.
+ * @note This function must not suspend and must not invoke any blocking system calls; see
+ *       `Blocking calls` in `docs/pages/halSpec.md`. The same holds for the handler, which
+ *       should just send a message to a driver event handler task.
+ * @note The `HAL` is expected to be thread safe, per `Threading Model` in
+ *       `docs/pages/halSpec.md`.
+ * @warning The MAC address reaching the handler is owned by the `HAL` and is valid only for
+ *          the duration of that call. The client must copy it if it is needed afterwards,
+ *          per `Asynchronous Notification Model` in `docs/pages/halSpec.md`.
+ *
+ * @see wifi_apDisassociatedDevice_callback
+ * @see wifi_newApAssociatedDevice_callback_register
  */
 void wifi_apDisassociatedDevice_callback_register(wifi_apDisassociatedDevice_callback callback_proc);
 /** @} */  //END OF GROUP WIFI_HAL_APIS
@@ -1861,28 +3442,38 @@ typedef INT ( * wifi_apDeAuthEvent_callback)(int ap_index, char *mac, int reason
  * @addtogroup WIFI_HAL_TYPES
  * @{
  */
-/* wifi_device_deauthenticated_callback() function */
 /**
-* @brief This call back will be invoked when DeAuth Event comes from client.
-*
-* @param[in] apIndex          Access Point Index
-* @param[in] src_mac          MAC address of client device
-* @param[in] dest_mac         MAC address of AccessPoint
-* @param[in] frame_type       type of management frame
-* @param[in] reason           type of reason, explicit or due to client inactivity
-*
-* @return The status of the operation
-* @retval RETURN_OK if successful
-* @retval RETURN_ERR if any error is detected
-*
-* @execution Synchronous
-* @sideeffect None
-*
-* @note This function must not suspend and must not invoke any blocking system
-* calls. It should probably just send a message to a driver event handler task.
-*
-*/
-
+ * @brief Callback function invoked when a client deauthenticates.
+ *
+ * This callback reports a deauthentication observed by the Access Point, carrying
+ * both endpoints of the exchange and the IEEE 802.11 reason code, so a caller can
+ * tell a deliberate disconnect from one forced by the network.
+ *
+ * @param[in] ap_index    Index of the Access Point that observed the event, in the
+ *                        range `AP_INDEX_1` to `AP_INDEX_24`.
+ * @param[in] src_mac     NUL-terminated MAC address string of the client device.
+ * @param[in] dest_mac    NUL-terminated MAC address string of the Access Point.
+ * @param[in] frame_type  Management frame type that carried the deauthentication.
+ * @param[in] reason      IEEE 802.11 reason code. The values this interface names
+ *                        are in `wifi_reason_code_t`.
+ *
+ * @return The status of the operation
+ * @retval RETURN_OK if successful
+ * @retval RETURN_ERR if any error is detected
+ *
+ * @execution Synchronous
+ * @sideeffect None
+ *
+ * @note This function must not suspend and must not invoke any blocking system
+ * calls. It should probably just send a message to a driver event handler task.
+ * @note `src_mac` and `dest_mac` are owned by the `HAL` and are valid only for the duration
+ *       of the call; the client must copy them if they are needed later, per `Asynchronous
+ *       Notification Model` in `docs/pages/halSpec.md`.
+ * @note The `HAL` is expected to be thread safe, so the handler may be entered on a `HAL`
+ *       thread; see `Threading Model` in `docs/pages/halSpec.md`.
+ *
+ * @see wifi_reason_code_t
+ */
 typedef INT ( * wifi_device_deauthenticated_callback)(int ap_index, char *src_mac,char *dest_mac, int frame_type, int reason);
 
 /** @} */  //END OF GROUP WIFI_HAL_TYPES
@@ -1892,17 +3483,47 @@ typedef INT ( * wifi_device_deauthenticated_callback)(int ap_index, char *src_ma
  * @{
  */
 /**
- * @brief Registers a callback function for deauthentication events.
+ * @brief Installs the caller's handler for client deauthentication events.
  *
- * This function registers a callback function that will be invoked when a
- * deauthentication event occurs.
+ * After registration the `HAL` reports each deauthentication through the supplied
+ * handler with its IEEE 802.11 reason code, so a caller can act on the wrong-password
+ * case (reason code 2) rather than inferring it. The most recently registered handler
+ * replaces any previous one.
  *
- * @param callback_proc Pointer to the callback function to register.
+ * @param[in] callback_proc  Handler to install, of type
+ *                           `wifi_apDeAuthEvent_callback`. The `HAL` retains this
+ *                           function pointer and invokes it until it is replaced, so
+ *                           the function must remain callable for that whole period.
+ *                           The effect of passing NULL is not specified by this
+ *                           interface.
+ *
+ * @pre `wifi_init()` must have completed successfully; see `Initialization and
+ *      Startup` in `docs/pages/halSpec.md`. The effect of registering beforehand is
+ *      not specified by this interface.
+ * @post The handler is installed and is invoked on each subsequent deauthentication.
+ *
+ * @execution callback
+ * @sideeffect None
+ *
+ * @note The registration call itself is synchronous and returns nothing; delivery of
+ *       `wifi_apDeAuthEvent_callback` is asynchronous.
+ * @note This function must not suspend and must not invoke any blocking system calls; see
+ *       `Blocking calls` in `docs/pages/halSpec.md`. The same holds for the handler, which
+ *       should just send a message to a driver event handler task.
+ * @note The `HAL` is expected to be thread safe, per `Threading Model` in
+ *       `docs/pages/halSpec.md`.
+ * @warning The MAC address reaching the handler is owned by the `HAL` and is valid only for
+ *          the duration of that call. The client must copy it if it is needed afterwards,
+ *          per `Asynchronous Notification Model` in `docs/pages/halSpec.md`.
+ *
+ * @see wifi_apDeAuthEvent_callback
+ * @see wifi_reason_code_t
  */
 void wifi_apDeAuthEvent_callback_register(wifi_apDeAuthEvent_callback callback_proc);
 
 /**
- * @brief Sets the interworking access network type for an Access Point.
+ * @brief Sets the access network type advertised in an Access Point's Interworking
+ *        element.
  *
  * This function sets the access network type that will be included in the
  * Interworking Information Element (IE) in the beacons transmitted by the
@@ -1919,18 +3540,43 @@ void wifi_apDeAuthEvent_callback_register(wifi_apDeAuthEvent_callback callback_p
  *  - 14: Test or experimental
  *  - 15: Wildcard
  *
- * @param[in] apIndex            Index of the Access Point.
- * @param[in] accessNetworkType  Access network type to set.
+ * @param[in] apIndex  Index of the Access Point, in the range `AP_INDEX_1` to
+ *                     `AP_INDEX_24`.
+ * @param[in] accessNetworkType  Access network type advertised in the Interworking
+ *                               Information Element, per section 8.4.2.94 of IEEE Std
+ *                               802.11-2012: 0 private network, 1 private network with
+ *                               guest access, 2 chargeable public network, 3 free public
+ *                               network, 4 personal device network, 5 emergency services
+ *                               only, 6 to 13 reserved, 14 test or experimental, 15
+ *                               wildcard.
+ *
+ * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
+ *      in `docs/pages/halSpec.md`. A call made beforehand fails with `WIFI_HAL_ERROR` and
+ *      leaves the configuration unchanged.
+ * @post On success beacons from this Access Point carry the requested access network type
+ *       in their Interworking Information Element. On failure no part of the
+ *       configuration is changed.
  *
  * @returns The status of the operation.
- * @retval WIFI_HAL_SUCCESS If successful.
- * @retval WIFI_HAL_ERROR   If any error is detected.
+ * @retval WIFI_HAL_SUCCESS The type was applied.
+ * @retval WIFI_HAL_ERROR   `apIndex` is out of range, `accessNetworkType` is outside 0 to
+ *                          15, or the vendor layer rejected the change. The caller should
+ *                          correct the value rather than retrying with the same argument.
+ *
+ * @note The value only reaches the air while the Interworking Service is enabled; see
+ *       `wifi_setApInterworkingServiceEnable()`.
+ * @note This call does not block, per `Blocking calls` in `docs/pages/halSpec.md`.
+ * @note The `HAL` is expected to be thread safe, per `Threading Model` in
+ *       `docs/pages/halSpec.md`.
+ * @see wifi_getInterworkingAccessNetworkType
+ * @see wifi_setApInterworkingServiceEnable
  */
 INT wifi_setInterworkingAccessNetworkType(INT apIndex, INT accessNetworkType);
 
 
 /**
- * @brief Gets the interworking access network type for an Access Point.
+ * @brief Reads the access network type currently advertised in an Access Point's
+ *        Interworking element.
  *
  * This function retrieves the access network type that is included in the
  * Interworking Information Element (IE) in the beacons transmitted by the
@@ -1947,12 +3593,32 @@ INT wifi_setInterworkingAccessNetworkType(INT apIndex, INT accessNetworkType);
  *  - 14: Test or experimental
  *  - 15: Wildcard
  *
- * @param[in] apIndex        Index of the Access Point.
- * @param[out] output_uint  Pointer to a variable to store the access network type.
+ * @param[in] apIndex  Index of the Access Point, in the range `AP_INDEX_1` to
+ *                     `AP_INDEX_24`.
+ * @param[out] output_uint  Caller-allocated variable that receives the advertised access
+ *                          network type, one of the values listed for
+ *                          `wifi_setInterworkingAccessNetworkType()`. The caller
+ *                          allocates and releases it; the `HAL` writes into it and
+ *                          retains no reference to it after returning.
+ *
+ * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
+ *      in `docs/pages/halSpec.md`. A call made beforehand fails with `WIFI_HAL_ERROR` and
+ *      writes nothing to the output.
+ * @post On success the output holds the advertised access network type; on failure the
+ *       output is left unspecified, so a caller must not read it unless the call
+ *       succeeded.
  *
  * @returns The status of the operation.
- * @retval WIFI_HAL_SUCCESS If successful.
- * @retval WIFI_HAL_ERROR   If any error is detected.
+ * @retval WIFI_HAL_SUCCESS The type was retrieved.
+ * @retval WIFI_HAL_ERROR   `apIndex` is out of range, a required output pointer is NULL,
+ *                          or the vendor layer could not supply the value. The caller
+ *                          should validate its arguments; a failure that persists across
+ *                          retries should be logged and the value treated as unavailable.
+ *
+ * @note This call does not block, per `Blocking calls` in `docs/pages/halSpec.md`.
+ * @note The `HAL` is expected to be thread safe, per `Threading Model` in
+ *       `docs/pages/halSpec.md`.
+ * @see wifi_setInterworkingAccessNetworkType
  */
 INT wifi_getInterworkingAccessNetworkType(INT apIndex, UINT *output_uint);
 
@@ -1995,13 +3661,33 @@ typedef struct
  * This function retrieves the enable/disable status of the Interworking Service
  * for the specified Access Point (AP).
  *
- * @param[in] apIndex      Index of the Access Point.
- * @param[out] output_bool Pointer to a variable to store the Interworking Service
- *                         enable status (true for enabled, false for disabled).
+ * @param[in] apIndex  Index of the Access Point, in the range `AP_INDEX_1` to
+ *                     `AP_INDEX_24`.
+ * @param[out] output_bool  Caller-allocated variable that receives true when the
+ *                          Interworking Service is enabled, false when it is disabled.
+ *                          The caller allocates and releases it; the `HAL` writes into it
+ *                          and retains no reference to it after returning.
+ *
+ * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
+ *      in `docs/pages/halSpec.md`. A call made beforehand fails with `WIFI_HAL_ERROR` and
+ *      writes nothing to the output.
+ * @post On success the output holds the Interworking Service state; on failure the output
+ *       is left unspecified, so a caller must not read it unless the call succeeded.
  *
  * @returns The status of the operation.
- * @retval WIFI_HAL_SUCCESS If successful.
- * @retval WIFI_HAL_ERROR   If any error is detected.
+ * @retval WIFI_HAL_SUCCESS The state was retrieved.
+ * @retval WIFI_HAL_ERROR   `apIndex` is out of range, a required output pointer is NULL,
+ *                          or the vendor layer could not supply the value. The caller
+ *                          should validate its arguments; a failure that persists across
+ *                          retries should be logged and the value treated as unavailable.
+ *
+ * @note `wifi_getAPCapabilities()` reports through `interworkingServiceSupported` whether
+ *       this Access Point can support the service at all.
+ * @note This call does not block, per `Blocking calls` in `docs/pages/halSpec.md`.
+ * @note The `HAL` is expected to be thread safe, per `Threading Model` in
+ *       `docs/pages/halSpec.md`.
+ * @see wifi_setApInterworkingServiceEnable
+ * @see wifi_getAPCapabilities
  */
 INT wifi_getApInterworkingServiceEnable(INT apIndex, BOOL *output_bool);
 
@@ -2011,13 +3697,33 @@ INT wifi_getApInterworkingServiceEnable(INT apIndex, BOOL *output_bool);
  * This function sets the enable/disable status of the Interworking Service
  * for the specified Access Point (AP).
  *
- * @param[in] apIndex     Index of the Access Point.
- * @param[in] input_bool  Value to set the Interworking Service enable status to
- *                        (true for enabled, false for disabled).
+ * @param[in] apIndex  Index of the Access Point, in the range `AP_INDEX_1` to
+ *                     `AP_INDEX_24`.
+ * @param[in] input_bool  true to enable the Interworking Service, false to disable it.
+ *
+ * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
+ *      in `docs/pages/halSpec.md`. A call made beforehand fails with `WIFI_HAL_ERROR` and
+ *      leaves the configuration unchanged.
+ * @post On success the Interworking Service is in the requested state. On failure no part
+ *       of the configuration is changed.
  *
  * @returns The status of the operation.
- * @retval WIFI_HAL_SUCCESS If successful.
- * @retval WIFI_HAL_ERROR   If any error is detected.
+ * @retval WIFI_HAL_SUCCESS The state was applied.
+ * @retval WIFI_HAL_ERROR   `apIndex` is out of range, or the vendor layer could not apply
+ *                          the requested state. Every value of `input_bool` is accepted, so
+ *                          a failure reflects the index or the vendor layer rather than the
+ *                          argument; the caller should read the setting back with
+ *                          `wifi_getApInterworkingServiceEnable()` before relying on it
+ *                          rather than retrying with the same argument.
+ *
+ * @note Disabling the service stops the Interworking Information Element being advertised,
+ *       so the access network type and the element's other fields have no effect on the air
+ *       until it is enabled again.
+ * @note This call does not block, per `Blocking calls` in `docs/pages/halSpec.md`.
+ * @note The `HAL` is expected to be thread safe, per `Threading Model` in
+ *       `docs/pages/halSpec.md`.
+ * @see wifi_getApInterworkingServiceEnable
+ * @see wifi_pushApInterworkingElement
  */
 INT wifi_setApInterworkingServiceEnable(INT apIndex, BOOL input_bool);
 
@@ -2027,13 +3733,33 @@ INT wifi_setApInterworkingServiceEnable(INT apIndex, BOOL input_bool);
  * This function retrieves the Interworking Element that will be sent by the
  * specified Access Point (AP).
  *
- * @param[in] apIndex          Index of the Access Point.
- * @param[out] output_struct  Pointer to a `wifi_InterworkingElement_t` structure
- *                            to store the Interworking Element.
+ * @param[in] apIndex  Index of the Access Point, in the range `AP_INDEX_1` to
+ *                     `AP_INDEX_24`.
+ * @param[out] output_struct  Caller-allocated `wifi_InterworkingElement_t` that receives
+ *                            the Interworking Information Element this Access Point
+ *                            advertises. The caller allocates and releases it; the `HAL`
+ *                            writes into it and retains no reference to it after
+ *                            returning.
+ *
+ * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
+ *      in `docs/pages/halSpec.md`. A call made beforehand fails with `WIFI_HAL_ERROR` and
+ *      writes nothing to the output.
+ * @post On success the output holds the advertised element; on failure the output is left
+ *       unspecified, so a caller must not read it unless the call succeeded.
  *
  * @returns The status of the operation.
- * @retval WIFI_HAL_SUCCESS If successful.
- * @retval WIFI_HAL_ERROR   If any error is detected.
+ * @retval WIFI_HAL_SUCCESS The element was retrieved.
+ * @retval WIFI_HAL_ERROR   `apIndex` is out of range, a required output pointer is NULL,
+ *                          or the vendor layer could not supply the value. The caller
+ *                          should validate its arguments; a failure that persists across
+ *                          retries should be logged and the value treated as unavailable.
+ *
+ * @note The structure's `hessid` member is optional and carries an empty string when no
+ *       value is provided, as its own member documentation states.
+ * @note This call does not block, per `Blocking calls` in `docs/pages/halSpec.md`.
+ * @note The `HAL` is expected to be thread safe, per `Threading Model` in
+ *       `docs/pages/halSpec.md`.
+ * @see wifi_pushApInterworkingElement
  */
 INT wifi_getApInterworkingElement(INT apIndex, wifi_InterworkingElement_t *output_struct);
 
@@ -2043,13 +3769,35 @@ INT wifi_getApInterworkingElement(INT apIndex, wifi_InterworkingElement_t *outpu
  * This function sets the Interworking Element that will be sent by the
  * specified Access Point (AP).
  *
- * @param[in] apIndex        Index of the Access Point.
- * @param[in] infoEelement  Pointer to a `wifi_InterworkingElement_t` structure
- *                          containing the Interworking Element to set.
+ * @param[in] apIndex  Index of the Access Point, in the range `AP_INDEX_1` to
+ *                     `AP_INDEX_24`.
+ * @param[in] infoEelement  Fully populated `wifi_InterworkingElement_t` to advertise. The
+ *                          caller owns the structure; the `HAL` reads it during the call
+ *                          and must not retain the pointer afterwards. Every member is
+ *                          applied, so read the current element first and modify it
+ *                          rather than passing a partially filled structure.
+ *
+ * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
+ *      in `docs/pages/halSpec.md`. A call made beforehand fails with `WIFI_HAL_ERROR` and
+ *      leaves the configuration unchanged.
+ * @post On success beacons and probe responses carry the supplied Interworking
+ *       Information Element. On failure no part of the configuration is changed.
  *
  * @returns The status of the operation.
- * @retval WIFI_HAL_SUCCESS If successful.
- * @retval WIFI_HAL_ERROR   If any error is detected.
+ * @retval WIFI_HAL_SUCCESS The element was applied.
+ * @retval WIFI_HAL_ERROR   `apIndex` is out of range, `infoEelement` is NULL, or a field
+ *                          is not valid for this Access Point. The caller should read the
+ *                          element back to establish what took effect, since this
+ *                          interface does not state that the update is atomic.
+ *
+ * @note The parameter name is spelt `infoEelement` in the declaration. That is how it must
+ *       be referred to in documentation and is not a typing error in this comment.
+ * @note The element reaches the air only while the Interworking Service is enabled.
+ * @note This call does not block, per `Blocking calls` in `docs/pages/halSpec.md`.
+ * @note The `HAL` is expected to be thread safe, per `Threading Model` in
+ *       `docs/pages/halSpec.md`.
+ * @see wifi_getApInterworkingElement
+ * @see wifi_setApInterworkingServiceEnable
  */
 INT wifi_pushApInterworkingElement(INT apIndex, wifi_InterworkingElement_t *infoEelement);
 
@@ -2271,40 +4019,136 @@ typedef INT(* wifi_csi_callback)(mac_address_t mac_addr, wifi_csi_data_t *csi_da
  */
 
 /**
- * @brief Registers a callback function for received management frames.
+ * @brief Installs the caller's handler for received management frames.
  *
- * This function registers a callback function that will be invoked when a
- * management frame is received.
+ * After registration the `HAL` delivers each received management frame to the
+ * supplied handler, which is how a caller observes probe, authentication,
+ * association and action frames without owning the radio. The most recently
+ * registered handler replaces any previous one.
  *
- * @param mgmtRxCallback Pointer to the callback function to register.
+ * @param[in] mgmtRxCallback  Handler to install, of type
+ *                            `wifi_receivedMgmtFrame_callback`. The `HAL` retains
+ *                            this function pointer and invokes it until it is
+ *                            replaced, so the function must remain callable for that
+ *                            whole period. The effect of passing NULL is not
+ *                            specified by this interface.
+ *
+ * @pre `wifi_init()` must have completed successfully; see `Initialization and
+ *      Startup` in `docs/pages/halSpec.md`. A call made beforehand fails with
+ *      `WIFI_HAL_ERROR` and installs nothing.
+ * @post On success the handler is installed and is invoked for each subsequent
+ *       management frame. On failure no handler is installed and any previously
+ *       registered handler remains in place.
  *
  * @returns The status of the operation.
- * @retval WIFI_HAL_SUCCESS If successful.
- * @retval WIFI_HAL_ERROR   If any error is detected.
+ * @retval WIFI_HAL_SUCCESS The handler was installed.
+ * @retval WIFI_HAL_ERROR   The handler could not be installed, for example because
+ *                          the `HAL` is not initialised or the vendor layer cannot
+ *                          deliver management frames on this platform. The caller
+ *                          should log the failure and treat management-frame
+ *                          notification as unavailable rather than retrying in a
+ *                          loop, because the condition is not transient.
+ *
+ * @execution callback
+ * @sideeffect None
+ *
+ * @note The registration call itself is synchronous; delivery of
+ *       `wifi_receivedMgmtFrame_callback` is asynchronous.
+ * @note This function must not suspend and must not invoke any blocking system calls; see
+ *       `Blocking calls` in `docs/pages/halSpec.md`. The same holds for the handler, which
+ *       should just send a message to a driver event handler task.
+ * @note The `HAL` is expected to be thread safe, per `Threading Model` in
+ *       `docs/pages/halSpec.md`.
+ * @warning The frame buffer reaching the handler is owned by the `HAL` and is valid only
+ *          for the duration of that call. The client must copy any part of it that is
+ *          needed afterwards, per `Asynchronous Notification Model` in
+ *          `docs/pages/halSpec.md`.
+ *
+ * @see wifi_receivedMgmtFrame_callback
+ * @see wifi_hal_register_frame_hook
  */
 INT wifi_mgmt_frame_callbacks_register(wifi_receivedMgmtFrame_callback mgmtRxCallback);
 
 /**
- * @brief Registers a callback function for CSI data.
+ * @brief Installs the caller's handler for Channel State Information data.
  *
- * This function registers a callback function that will be invoked when CSI
- * data is available from the HAL. If the CSI engine is disabled, this callback
- * function will not be executed.
- * This function must not suspend and must not invoke any blocking system calls.
+ * After registration the `HAL` delivers Channel State Information (`CSI`) to the
+ * supplied handler as it becomes available. Registration alone does not start the
+ * flow: the handler is invoked only while the `CSI` engine is enabled for at least
+ * one station, which is what `wifi_enableCSIEngine()` controls. The most recently
+ * registered handler replaces any previous one.
  *
- * @param callback_proc Pointer to the callback function to register.
+ * @param[in] callback_proc  Handler to install, of type `wifi_csi_callback`. The
+ *                           `HAL` retains this function pointer and invokes it until
+ *                           it is replaced, so the function must remain callable for
+ *                           that whole period. The effect of passing NULL is not
+ *                           specified by this interface.
+ *
+ * @pre `wifi_init()` must have completed successfully; see `Initialization and
+ *      Startup` in `docs/pages/halSpec.md`. The effect of registering beforehand is
+ *      not specified by this interface.
+ * @post The handler is installed. It is invoked only for stations whose `CSI` engine
+ *       is enabled, so a correct registration produces no callbacks at all until
+ *       `wifi_enableCSIEngine()` enables one.
+ *
+ * @execution callback
+ * @sideeffect None
+ *
+ * @note The registration call itself is synchronous and returns nothing; delivery of
+ *       `wifi_csi_callback` is asynchronous.
+ * @note This function must not suspend and must not invoke any blocking system calls; see
+ *       `Blocking calls` in `docs/pages/halSpec.md`. The same holds for the handler, which
+ *       should just send a message to a driver event handler task. `CSI` can arrive at a
+ *       high rate, so any per-sample work belongs on the caller's own thread.
+ * @note The `HAL` is expected to be thread safe, per `Threading Model` in
+ *       `docs/pages/halSpec.md`.
+ * @warning The `wifi_csi_data_t` reaching the handler is owned by the `HAL` and is valid
+ *          only for the duration of that call. The client must copy it if it is needed
+ *          afterwards, per `Asynchronous Notification Model` in `docs/pages/halSpec.md`.
+ *
+ * @see wifi_csi_callback
+ * @see wifi_enableCSIEngine
  */
 void wifi_csi_callback_register(wifi_csi_callback callback_proc);
 
 /**
- * @brief Registers a frame hook function.
+ * @brief Installs an application frame hook invoked on management frame reception.
  *
- * This function registers a frame hook function that will be executed when a
- * management frame is received from the HAL. This is used by applications;
- * if an application does not define this hook, it will not be executed.
- * This function must not suspend and must not invoke any blocking system calls.
+ * The hook is an optional application-level extension point: it is consulted when a
+ * management frame arrives, receives only the Access Point index and the frame type
+ * rather than the frame body, and is simply not called if no application installs
+ * one. An application that needs the frame contents should use
+ * `wifi_mgmt_frame_callbacks_register()` instead. The most recently registered hook
+ * replaces any previous one.
  *
- * @param hook_fn Pointer to the frame hook function to register.
+ * @param[in] hook_fn  Hook to install, of type `wifi_hal_frame_hook_fn_t`. The `HAL`
+ *                     retains this function pointer and invokes it until it is
+ *                     replaced, so the function must remain callable for that whole
+ *                     period. The effect of passing NULL is not specified by this
+ *                     interface.
+ *
+ * @pre `wifi_init()` must have completed successfully; see `Initialization and
+ *      Startup` in `docs/pages/halSpec.md`. The effect of registering beforehand is
+ *      not specified by this interface.
+ * @post The hook is installed and is consulted on each subsequent management frame
+ *       reception.
+ *
+ * @execution callback
+ * @sideeffect None
+ *
+ * @note The registration call itself is synchronous and returns nothing; invocation of
+ *       `wifi_hal_frame_hook_fn_t` is asynchronous.
+ * @note This function must not suspend and must not invoke any blocking system calls; see
+ *       `Blocking calls` in `docs/pages/halSpec.md`. The same holds for the hook, which
+ *       runs on the frame reception path.
+ * @note The `HAL` is expected to be thread safe, per `Threading Model` in
+ *       `docs/pages/halSpec.md`.
+ * @note This interface does not specify what the `HAL` does with the hook's return value,
+ *       so a hook must not assume it can suppress or alter frame processing by returning a
+ *       particular status.
+ *
+ * @see wifi_hal_frame_hook_fn_t
+ * @see wifi_mgmt_frame_callbacks_register
  */
 void wifi_hal_register_frame_hook(wifi_hal_frame_hook_fn_t hook_fn);
 
@@ -2318,14 +4162,38 @@ void wifi_hal_register_frame_hook(wifi_hal_frame_hook_fn_t hook_fn);
  * If the MAC address is null, the data engine for all STAs needs to be disabled
  * on this VAP.
  *
- * @param[in] apIndex  Index of the VAP.
- * @param[in] sta      MAC address of the station.
- * @param[in] enable   Boolean value indicating whether to enable (true) or
- *                     disable (false) the CSI engine.
+ * @param[in] apIndex  Index of the Virtual Access Point, in the range `AP_INDEX_1` to
+ *                     `AP_INDEX_24`.
+ * @param[in] sta  MAC address of the station, passed by value as a `mac_address_t`. An
+ *                 all-zero address means every station on this Virtual Access Point, and
+ *                 is only legal with `enable` false.
+ * @param[in] enable  true to enable the Channel State Information engine for that
+ *                    station, false to disable it. Must be false when `sta` is the
+ *                    all-zero address.
+ *
+ * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
+ *      in `docs/pages/halSpec.md`. A call made beforehand fails with `WIFI_HAL_ERROR` and
+ *      leaves the configuration unchanged.
+ * @post On success the Channel State Information engine is in the requested state for
+ *       that station, or for every station on the Virtual Access Point when `sta` was the
+ *       all-zero address and `enable` was false. On failure no part of the configuration
+ *       is changed.
  *
  * @returns The status of the operation.
- * @retval WIFI_HAL_SUCCESS If successful.
- * @retval WIFI_HAL_ERROR   If any error is detected.
+ * @retval WIFI_HAL_SUCCESS The engine state was applied.
+ * @retval WIFI_HAL_ERROR   `apIndex` is out of range, `enable` is true while `sta` is the
+ *                          all-zero address, the station is not associated, or the vendor
+ *                          layer rejected the change. The caller must not retry the
+ *                          null-address-with-enable combination, which this interface
+ *                          requires to fail.
+ *
+ * @note Data only reaches the caller once a handler is installed with
+ *       `wifi_csi_callback_register()`; enabling the engine without one produces no
+ *       callbacks.
+ * @note This call does not block, per `Blocking calls` in `docs/pages/halSpec.md`.
+ * @note The `HAL` is expected to be thread safe, per `Threading Model` in
+ *       `docs/pages/halSpec.md`.
+ * @see wifi_csi_callback_register
  */
 INT wifi_enableCSIEngine(INT apIndex, mac_address_t sta, BOOL enable);
 /** @} */  //END OF GROUP WIFI_HAL_APIS
@@ -2372,21 +4240,48 @@ typedef enum
  * Virtual Access Point (VAP) index. If the MAC address is null, the data
  * should be broadcast on the VAP.
  *
- * @param[in] apIndex      Index of the VAP.
- * @param[in] sta          MAC address of the station.
- * @param[in] data         Pointer to the data buffer. The data does not include
- *                         any Layer 2 information but starts with Layer 3.
- * @param[in] len          Length of the data.
- * @param[in] insert_llc   Whether to insert an LLC header. If set to true, the HAL
- *                         implementation must insert the following bytes before
- *                         the type field: DSAP = 0xaa, SSAP = 0xaa, Control = 0x03,
- *                         followed by 3 bytes each = 0x00.
- * @param[in] eth_proto    Ethernet protocol type.
- * @param[in] prio         Priority of the frame.
+ * @param[in] apIndex  Index of the Virtual Access Point, in the range `AP_INDEX_1` to
+ *                     `AP_INDEX_24`.
+ * @param[in] sta  MAC address of the destination station, passed by value as a
+ *                 `mac_address_t`. An all-zero address broadcasts the frame on the
+ *                 Virtual Access Point.
+ * @param[in] data  Caller-owned buffer holding `len` bytes of payload beginning at Layer
+ *                  3; it must not include any Layer 2 header. The `HAL` reads it during
+ *                  the call and must not retain the pointer afterwards.
+ * @param[in] len  Length of `data` in bytes. This interface states no maximum, so a
+ *                 caller should keep the frame within the medium's MTU rather than
+ *                 relying on the `HAL` to fragment it.
+ * @param[in] insert_llc  true to have the implementation insert an LLC header before the
+ *                        type field -- DSAP 0xaa, SSAP 0xaa, Control 0x03, then three
+ *                        0x00 bytes -- and false to transmit the payload without one.
+ * @param[in] eth_proto  Ethernet protocol type for the frame. The values this interface
+ *                       names are `WIFI_ETH_TYPE_IP`, `WIFI_ETH_TYPE_ARP`,
+ *                       `WIFI_ETH_TYPE_REVARP`, `WIFI_ETH_TYPE_VLAN`,
+ *                       `WIFI_ETH_TYPE_LOOPBACK`, `WIFI_ETH_TYPE_IP6` and
+ *                       `WIFI_ETH_TYPE_EAPOL`.
+ * @param[in] prio  Transmit priority, one of the `wifi_data_priority_t` values, which
+ *                  selects the WMM access category the frame is queued on.
+ *
+ * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
+ *      in `docs/pages/halSpec.md`. A call made beforehand fails with `WIFI_HAL_ERROR`
+ *      without performing the action.
+ * @post On success the frame has been handed to the driver for transmission. On failure
+ *       no part of the configuration is changed.
  *
  * @returns The status of the operation.
- * @retval WIFI_HAL_SUCCESS If successful.
- * @retval WIFI_HAL_ERROR   If any error is detected.
+ * @retval WIFI_HAL_SUCCESS The frame was accepted for transmission.
+ * @retval WIFI_HAL_ERROR   `apIndex` is out of range, `data` is NULL, `len` is 0, or the
+ *                          driver refused the frame. The caller should validate the
+ *                          buffer and, for a unicast address, confirm the station is
+ *                          associated before retrying.
+ *
+ * @note Success means the driver accepted the frame, not that it reached the air or the
+ *       peer; this interface provides no transmit confirmation.
+ * @note This call does not block, per `Blocking calls` in `docs/pages/halSpec.md`.
+ * @note The `HAL` is expected to be thread safe, per `Threading Model` in
+ *       `docs/pages/halSpec.md`.
+ * @see wifi_data_priority_t
+ * @see wifi_sendActionFrame
  */
 INT wifi_sendDataFrame(INT apIndex,
                        mac_address_t sta,
@@ -2399,17 +4294,37 @@ INT wifi_sendDataFrame(INT apIndex,
 /**
  * @brief Transmits an action frame to a station from a specific VAP.
  *
- * @param[in] apIndex    Index of the VAP to send the frame from.
- * @param[in] sta        MAC address of the peer device to send the frame to.
- * @param[in] frequency  Frequency of the channel on which this action frame
- *                       should be sent (for public action frames that can be
- *                       sent to a device on an off-channel).
- * @param[in] frame      Pointer to the frame buffer.
- * @param[in] len        Length of the buffer.
+ * @param[in] apIndex  Index of the Virtual Access Point, in the range `AP_INDEX_1` to
+ *                     `AP_INDEX_24`.
+ * @param[in] sta  MAC address of the peer to send the frame to, passed by value as a
+ *                 `mac_address_t`.
+ * @param[in] frequency  Channel frequency to transmit on, which allows a public action
+ *                       frame to be sent to a device on an off-channel. Pass 0 to use the
+ *                       Virtual Access Point's operating channel.
+ * @param[in] frame  Caller-owned buffer holding the frame to transmit. The `HAL` reads
+ *                   `len` bytes during the call and must not retain the pointer
+ *                   afterwards, so the caller may pass a stack buffer and may reuse or
+ *                   free it as soon as the call returns.
+ * @param[in] len  Length of `frame` in bytes.
+ *
+ * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
+ *      in `docs/pages/halSpec.md`. A call made beforehand fails with `WIFI_HAL_ERROR`
+ *      without performing the action.
+ * @post On success the action frame has been handed to the driver for transmission. On
+ *       failure no part of the configuration is changed.
  *
  * @returns The status of the operation.
- * @retval WIFI_HAL_SUCCESS If successful.
- * @retval WIFI_HAL_ERROR   If any error is detected.
+ * @retval WIFI_HAL_SUCCESS The frame was accepted for transmission.
+ * @retval WIFI_HAL_ERROR   `apIndex` is out of range, `frame` is NULL, `len` is 0, or the
+ *                          frequency is not usable. The caller should validate the buffer
+ *                          and frequency rather than retrying unchanged.
+ *
+ * @note Use `wifi_sendActionFrameExt()` where the radio must dwell on an off-channel
+ *       frequency after transmitting to receive a response; this call states no dwell time.
+ * @note This call does not block, per `Blocking calls` in `docs/pages/halSpec.md`.
+ * @note The `HAL` is expected to be thread safe, per `Threading Model` in
+ *       `docs/pages/halSpec.md`.
+ * @see wifi_sendActionFrameExt
  */
 INT wifi_sendActionFrame(INT apIndex,
                          mac_address_t sta,
@@ -2420,20 +4335,43 @@ INT wifi_sendActionFrame(INT apIndex,
 /**
  * @brief Transmits an action frame to a station from a specific VAP.
  *
- * @param[in] apIndex    Index of the VAP to send the frame from.
- * @param[in] sta        MAC address of the peer device to send the frame to.
- * @param[in] frequency  Frequency of the channel on which this action frame
- *                       should be sent (for public action frames that can be
- *                       sent to a device on an off-channel).
- * @param[in] wait       The time (in milliseconds) to wait on the channel 
- *                       (if off-channel) after sending the action frame before
- *                       returning to the original channel.
- * @param[in] frame      Pointer to the frame buffer.
- * @param[in] len        Length of the buffer.
+ * @param[in] apIndex  Index of the Virtual Access Point, in the range `AP_INDEX_1` to
+ *                     `AP_INDEX_24`.
+ * @param[in] sta  MAC address of the peer to send the frame to, passed by value as a
+ *                 `mac_address_t`.
+ * @param[in] frequency  Channel frequency to transmit on, which allows a public action
+ *                       frame to be sent to a device on an off-channel. Pass 0 to use the
+ *                       Virtual Access Point's operating channel.
+ * @param[in] wait  Time in milliseconds to remain on an off-channel frequency after
+ *                  transmitting, before returning to the operating channel. Pass 0 not to
+ *                  wait.
+ * @param[in] frame  Caller-owned buffer holding the frame to transmit. The `HAL` reads
+ *                   `len` bytes during the call and must not retain the pointer
+ *                   afterwards, so the caller may pass a stack buffer and may reuse or
+ *                   free it as soon as the call returns.
+ * @param[in] len  Length of `frame` in bytes.
+ *
+ * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
+ *      in `docs/pages/halSpec.md`. A call made beforehand fails with `WIFI_HAL_ERROR`
+ *      without performing the action.
+ * @post On success the action frame has been handed to the driver for transmission, and
+ *       the radio remains on the given frequency for `wait` milliseconds before returning
+ *       to its operating channel. On failure no part of the configuration is changed.
  *
  * @returns The status of the operation.
- * @retval WIFI_HAL_SUCCESS If successful.
- * @retval WIFI_HAL_ERROR   If any error is detected.
+ * @retval WIFI_HAL_SUCCESS The frame was accepted for transmission.
+ * @retval WIFI_HAL_ERROR   `apIndex` is out of range, `frame` is NULL, `len` is 0, or the
+ *                          frequency is not usable. The caller should validate the buffer
+ *                          and frequency rather than retrying unchanged.
+ *
+ * @note A non-zero `wait` takes the radio off its operating channel for that period, during
+ *       which associated clients are not served. Keep it as short as the exchange allows.
+ * @note This interface does not state whether the call returns before or after the dwell
+ *       period elapses, so a caller must not use it as a timing primitive.
+ * @note This call does not block, per `Blocking calls` in `docs/pages/halSpec.md`.
+ * @note The `HAL` is expected to be thread safe, per `Threading Model` in
+ *       `docs/pages/halSpec.md`.
+ * @see wifi_sendActionFrame
  */
 INT wifi_sendActionFrameExt(INT apIndex,
                             mac_address_t sta,
@@ -2464,15 +4402,44 @@ typedef struct _wifi_GASConfiguration_t
 } __attribute__((packed)) wifi_GASConfiguration_t;
 
 /**
- * @brief Applies GAS configuration.
+ * @brief Applies the device-wide Generic Advertisement Service advertisement parameters.
  *
- * This function applies the specified GAS configuration.
+ * This function installs the `dot11GASAdvertisementEntry` parameters that govern how the
+ * device answers Generic Advertisement Service (`GAS`) queries: the advertisement
+ * identifier it answers for, whether it pauses for a server response, and the response
+ * timeout, comeback delay, response buffering time and query response length limit it
+ * applies. The structure carries the complete parameter set, so a caller changing one
+ * value passes the values it wants to keep for the rest.
  *
- * @param[in] input_struct Pointer to the GAS configuration structure.
+ * @param[in] input_struct  Fully populated `wifi_GASConfiguration_t` to apply, whose
+ *                          members correspond to the `dot11GASAdvertisementEntry` fields
+ *                          of 802.11-2016 Annex C.3. The caller owns the structure; the
+ *                          `HAL` reads it during the call and must not retain the pointer
+ *                          afterwards. `GAS_CFG_TYPE_SUPPORTED` is the one configuration
+ *                          type this interface names.
+ *
+ * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
+ *      in `docs/pages/halSpec.md`. A call made beforehand fails with `WIFI_HAL_ERROR` and
+ *      leaves the configuration unchanged.
+ * @post On success the Generic Advertisement Service uses the supplied advertisement
+ *       identifier, response timeout, comeback delay, buffering time and query response
+ *       length limit. On failure no part of the configuration is changed.
  *
  * @returns The status of the operation.
- * @retval WIFI_HAL_SUCCESS If successful.
- * @retval WIFI_HAL_ERROR   If any error is detected.
+ * @retval WIFI_HAL_SUCCESS The configuration was applied.
+ * @retval WIFI_HAL_ERROR   `input_struct` is NULL or a member is outside the range the
+ *                          vendor layer accepts. The caller should correct the structure
+ *                          rather than retrying with the same contents.
+ *
+ * @note This call takes no Access Point index: the Generic Advertisement Service
+ *       configuration applies device-wide, unlike the per-Access-Point interworking calls.
+ * @note `ResponseTimeout`, `ComeBackDelay` and `ResponseBufferingTime` are in seconds and
+ *       `QueryResponseLengthLimit` is in bytes, as the structure's own member documentation
+ *       states.
+ * @note This call does not block, per `Blocking calls` in `docs/pages/halSpec.md`.
+ * @note The `HAL` is expected to be thread safe, per `Threading Model` in
+ *       `docs/pages/halSpec.md`.
+ * @see wifi_GASConfiguration_t
  */
 INT wifi_applyGASConfiguration(wifi_GASConfiguration_t *input_struct);
 
@@ -2481,13 +4448,33 @@ INT wifi_applyGASConfiguration(wifi_GASConfiguration_t *input_struct);
 /**
  * @brief Sets the country code information element in beacon and probe responses.
  *
- * @param[in] apIndex  Index of the Access Point.
- * @param[in] enabled  Boolean value indicating whether to include (true) or
- *                    exclude (false) the country code IE.
+ * @param[in] apIndex  Index of the Access Point, in the range `AP_INDEX_1` to
+ *                     `AP_INDEX_24`.
+ * @param[in] enabled  true to include the Country information element in beacons and
+ *                     probe responses, false to exclude it.
+ *
+ * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
+ *      in `docs/pages/halSpec.md`. A call made beforehand fails with `WIFI_HAL_ERROR` and
+ *      leaves the configuration unchanged.
+ * @post On success beacons and probe responses carry the Country information element when
+ *       `enabled` is true, and omit it when it is false. On failure no part of the
+ *       configuration is changed.
  *
  * @returns The status of the operation.
- * @retval WIFI_HAL_SUCCESS If successful.
- * @retval WIFI_HAL_ERROR   If any error is detected.
+ * @retval WIFI_HAL_SUCCESS The setting was applied.
+ * @retval WIFI_HAL_ERROR   `apIndex` is out of range, or the vendor layer could not apply
+ *                          the requested state. Every value of `enabled` is accepted, so a
+ *                          failure reflects the index or the vendor layer rather than the
+ *                          argument; the caller should read the setting back with
+ *                          `wifi_getCountryIe()` before relying on it rather than retrying
+ *                          with the same argument.
+ *
+ * @note An information element only reaches the air while the Interworking Service is
+ *       enabled; see `wifi_setApInterworkingServiceEnable()`.
+ * @note This call does not block, per `Blocking calls` in `docs/pages/halSpec.md`.
+ * @note The `HAL` is expected to be thread safe, per `Threading Model` in
+ *       `docs/pages/halSpec.md`.
+ * @see wifi_getCountryIe
  */
 INT wifi_setCountryIe(INT apIndex, BOOL enabled);
 
@@ -2497,147 +4484,362 @@ INT wifi_setCountryIe(INT apIndex, BOOL enabled);
  * This function retrieves the status of the country code information element
  * in beacon and probe responses for the specified Access Point (AP).
  *
- * @param[in] apIndex  Index of the Access Point.
- * @param[out] enabled Pointer to a variable to store the enabled status of
- *                    the country code IE (true if included, false if excluded).
+ * @param[in] apIndex  Index of the Access Point, in the range `AP_INDEX_1` to
+ *                     `AP_INDEX_24`.
+ * @param[out] enabled  Caller-allocated variable that receives true when the Country
+ *                      information element is included in beacons and probe responses,
+ *                      false when it is excluded. The caller allocates and releases it;
+ *                      the `HAL` writes into it and retains no reference to it after
+ *                      returning.
+ *
+ * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
+ *      in `docs/pages/halSpec.md`. A call made beforehand fails with `WIFI_HAL_ERROR` and
+ *      writes nothing to the output.
+ * @post On success the output holds the Country information element state; on failure the
+ *       output is left unspecified, so a caller must not read it unless the call
+ *       succeeded.
  *
  * @returns The status of the operation.
- * @retval WIFI_HAL_SUCCESS If successful.
- * @retval WIFI_HAL_ERROR   If any error is detected.
+ * @retval WIFI_HAL_SUCCESS The state was retrieved.
+ * @retval WIFI_HAL_ERROR   `apIndex` is out of range, a required output pointer is NULL,
+ *                          or the vendor layer could not supply the value. The caller
+ *                          should validate its arguments; a failure that persists across
+ *                          retries should be logged and the value treated as unavailable.
+ *
+ * @note This call does not block, per `Blocking calls` in `docs/pages/halSpec.md`.
+ * @note The `HAL` is expected to be thread safe, per `Threading Model` in
+ *       `docs/pages/halSpec.md`.
+ * @see wifi_setCountryIe
  */
 INT wifi_getCountryIe(INT apIndex, BOOL *enabled);
 
 /**
  * @brief Enables or disables Layer 2 traffic inspection and filtering.
  *
- * @param[in] apIndex  Index of the Access Point.
- * @param[in] enabled  Boolean value indicating whether to enable (true) or
- *                    disable (false) Layer 2 traffic inspection and filtering.
+ * @param[in] apIndex  Index of the Access Point, in the range `AP_INDEX_1` to
+ *                     `AP_INDEX_24`.
+ * @param[in] enabled  true to enable Layer 2 traffic inspection and filtering, false to
+ *                     disable it.
+ *
+ * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
+ *      in `docs/pages/halSpec.md`. A call made beforehand fails with `WIFI_HAL_ERROR` and
+ *      leaves the configuration unchanged.
+ * @post On success the Access Point inspects and filters Layer 2 traffic when `enabled`
+ *       is true, and does not when it is false. On failure no part of the configuration
+ *       is changed.
  *
  * @returns The status of the operation.
- * @retval WIFI_HAL_SUCCESS If successful.
- * @retval WIFI_HAL_ERROR   If any error is detected.
+ * @retval WIFI_HAL_SUCCESS The setting was applied.
+ * @retval WIFI_HAL_ERROR   `apIndex` is out of range, or the vendor layer could not apply
+ *                          the requested state. Every value of `enabled` is accepted, so a
+ *                          failure reflects the index or the vendor layer rather than the
+ *                          argument; the caller should read the setting back with
+ *                          `wifi_getLayer2TrafficInspectionFiltering()` before relying on
+ *                          it rather than retrying with the same argument.
+ *
+ * @note This is the Hotspot 2.0 L2TIF control, mirrored by the `l2tif` member of
+ *       `wifi_passpoint_settings_t`.
+ * @note An information element only reaches the air while the Interworking Service is
+ *       enabled; see `wifi_setApInterworkingServiceEnable()`.
+ * @note This call does not block, per `Blocking calls` in `docs/pages/halSpec.md`.
+ * @note The `HAL` is expected to be thread safe, per `Threading Model` in
+ *       `docs/pages/halSpec.md`.
+ * @see wifi_getLayer2TrafficInspectionFiltering
  */
 INT wifi_setLayer2TrafficInspectionFiltering(INT apIndex, BOOL enabled);
 
 /**
  * @brief Gets the status of Layer 2 traffic inspection and filtering.
  *
- * @param[in] apIndex  Index of the Access Point.
- * @param[out] enabled Pointer to a variable to store the enabled status of
- *                    Layer 2 traffic inspection and filtering (true if enabled,
- *                    false if disabled).
+ * @param[in] apIndex  Index of the Access Point, in the range `AP_INDEX_1` to
+ *                     `AP_INDEX_24`.
+ * @param[out] enabled  Caller-allocated variable that receives true when Layer 2 traffic
+ *                      inspection and filtering is enabled, false when it is disabled.
+ *                      The caller allocates and releases it; the `HAL` writes into it and
+ *                      retains no reference to it after returning.
+ *
+ * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
+ *      in `docs/pages/halSpec.md`. A call made beforehand fails with `WIFI_HAL_ERROR` and
+ *      writes nothing to the output.
+ * @post On success the output holds the Layer 2 traffic inspection and filtering state;
+ *       on failure the output is left unspecified, so a caller must not read it unless
+ *       the call succeeded.
  *
  * @returns The status of the operation.
- * @retval WIFI_HAL_SUCCESS If successful.
- * @retval WIFI_HAL_ERROR   If any error is detected.
+ * @retval WIFI_HAL_SUCCESS The state was retrieved.
+ * @retval WIFI_HAL_ERROR   `apIndex` is out of range, a required output pointer is NULL,
+ *                          or the vendor layer could not supply the value. The caller
+ *                          should validate its arguments; a failure that persists across
+ *                          retries should be logged and the value treated as unavailable.
+ *
+ * @note This call does not block, per `Blocking calls` in `docs/pages/halSpec.md`.
+ * @note The `HAL` is expected to be thread safe, per `Threading Model` in
+ *       `docs/pages/halSpec.md`.
+ * @see wifi_setLayer2TrafficInspectionFiltering
  */
 INT wifi_getLayer2TrafficInspectionFiltering(INT apIndex, BOOL *enabled);
 
 /**
- * @brief Disables the DGAF.
+ * @brief Sets or clears the DGAF-disabled bit advertised in the Hotspot 2.0 Indication
+ *        element.
  *
- * When set to true, the DGAF disabled bit should be set in the HS2.0 Indication
- * Information Element in beacon and probe responses.
+ * When `disabled` is true the Downstream Group-Addressed Forwarding (`DGAF`) disabled bit
+ * is set in the HS2.0 Indication Information Element carried in beacons and probe
+ * responses; when it is false the bit is cleared. The name reads as a setter for the
+ * downstream group address behaviour, but the value written is the disable bit, so true
+ * suppresses forwarding rather than enabling it.
  *
- * @param[in] apIndex   Index of the Access Point.
- * @param[in] disabled  Boolean value indicating whether to disable (true) or
- *                      enable (false) the DGAF.
+ * @param[in] apIndex  Index of the Access Point, in the range `AP_INDEX_1` to
+ *                     `AP_INDEX_24`.
+ * @param[in] disabled  true to disable Downstream Group-Addressed Forwarding, which sets
+ *                      the DGAF-disabled bit; false to enable forwarding, which clears
+ *                      it.
+ *
+ * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
+ *      in `docs/pages/halSpec.md`. A call made beforehand fails with `WIFI_HAL_ERROR` and
+ *      leaves the configuration unchanged.
+ * @post On success the DGAF-disabled bit of the Hotspot 2.0 Indication information
+ *       element is set when `disabled` is true, and clear when it is false. On failure no
+ *       part of the configuration is changed.
  *
  * @returns The status of the operation.
- * @retval WIFI_HAL_SUCCESS If successful.
- * @retval WIFI_HAL_ERROR   If any error is detected.
+ * @retval WIFI_HAL_SUCCESS The setting was applied.
+ * @retval WIFI_HAL_ERROR   `apIndex` is out of range, or the vendor layer could not apply
+ *                          the requested state. Every value of `disabled` is accepted, so a
+ *                          failure reflects the index or the vendor layer rather than the
+ *                          argument; the caller should read the setting back with
+ *                          `wifi_getDownStreamGroupAddress()` before relying on it rather
+ *                          than retrying with the same argument.
+ *
+ * @note The argument's sense is inverted relative to the other toggles here: true disables
+ *       the forwarding behaviour rather than enabling a feature.
+ * @note An information element only reaches the air while the Interworking Service is
+ *       enabled; see `wifi_setApInterworkingServiceEnable()`.
+ * @note This call does not block, per `Blocking calls` in `docs/pages/halSpec.md`.
+ * @note The `HAL` is expected to be thread safe, per `Threading Model` in
+ *       `docs/pages/halSpec.md`.
+ * @see wifi_getDownStreamGroupAddress
  */
 INT wifi_setDownStreamGroupAddress(INT apIndex, BOOL disabled);
 
 /**
  * @brief Gets the status of DGAF disable.
  *
- * @param[in] apIndex   Index of the Access Point.
- * @param[out] disabled Pointer to a variable to store the disabled status of
- *                      the DGAF (true if disabled, false if enabled).
+ * @param[in] apIndex  Index of the Access Point, in the range `AP_INDEX_1` to
+ *                     `AP_INDEX_24`.
+ * @param[out] disabled  Caller-allocated variable that receives true when Downstream
+ *                       Group-Addressed Forwarding is disabled, false when it is enabled.
+ *                       The caller allocates and releases it; the `HAL` writes into it
+ *                       and retains no reference to it after returning.
+ *
+ * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
+ *      in `docs/pages/halSpec.md`. A call made beforehand fails with `WIFI_HAL_ERROR` and
+ *      writes nothing to the output.
+ * @post On success the output holds the DGAF-disabled state; on failure the output is
+ *       left unspecified, so a caller must not read it unless the call succeeded.
  *
  * @returns The status of the operation.
- * @retval WIFI_HAL_SUCCESS If successful.
- * @retval WIFI_HAL_ERROR   If any error is detected.
+ * @retval WIFI_HAL_SUCCESS The state was retrieved.
+ * @retval WIFI_HAL_ERROR   `apIndex` is out of range, a required output pointer is NULL,
+ *                          or the vendor layer could not supply the value. The caller
+ *                          should validate its arguments; a failure that persists across
+ *                          retries should be logged and the value treated as unavailable.
+ *
+ * @note This call does not block, per `Blocking calls` in `docs/pages/halSpec.md`.
+ * @note The `HAL` is expected to be thread safe, per `Threading Model` in
+ *       `docs/pages/halSpec.md`.
+ * @see wifi_setDownStreamGroupAddress
  */
 INT wifi_getDownStreamGroupAddress(INT apIndex, BOOL *disabled);
 
 /**
  * @brief Enables or disables the BSS Load Information Element.
  *
- * @param[in] apIndex  Index of the Access Point.
- * @param[in] enabled  Boolean value indicating whether to include (true) or
- *                    exclude (false) the BSS Load IE in beacon and probe responses.
+ * @param[in] apIndex  Index of the Access Point, in the range `AP_INDEX_1` to
+ *                     `AP_INDEX_24`.
+ * @param[in] enabled  true to include the BSS Load information element in beacons and
+ *                     probe responses, false to exclude it.
+ *
+ * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
+ *      in `docs/pages/halSpec.md`. A call made beforehand fails with `WIFI_HAL_ERROR` and
+ *      leaves the configuration unchanged.
+ * @post On success beacons and probe responses carry the BSS Load information element
+ *       when `enabled` is true, and omit it when it is false. On failure no part of the
+ *       configuration is changed.
  *
  * @returns The status of the operation.
- * @retval WIFI_HAL_SUCCESS If successful.
- * @retval WIFI_HAL_ERROR   If any error is detected.
+ * @retval WIFI_HAL_SUCCESS The setting was applied.
+ * @retval WIFI_HAL_ERROR   `apIndex` is out of range, or the vendor layer could not apply
+ *                          the requested state. Every value of `enabled` is accepted, so a
+ *                          failure reflects the index or the vendor layer rather than the
+ *                          argument; the caller should read the setting back with
+ *                          `wifi_getBssLoad()` before relying on it rather than retrying
+ *                          with the same argument.
+ *
+ * @note An information element only reaches the air while the Interworking Service is
+ *       enabled; see `wifi_setApInterworkingServiceEnable()`.
+ * @note This call does not block, per `Blocking calls` in `docs/pages/halSpec.md`.
+ * @note The `HAL` is expected to be thread safe, per `Threading Model` in
+ *       `docs/pages/halSpec.md`.
+ * @see wifi_getBssLoad
  */
 INT wifi_setBssLoad(INT apIndex, BOOL enabled);
 
 /**
  * @brief Gets the status of the BSS Load Information Element.
  *
- * @param[in] apIndex  Index of the Access Point.
- * @param[out] enabled Pointer to a variable to store the enabled status of the
- *                    BSS Load IE (true if included, false if excluded).
+ * @param[in] apIndex  Index of the Access Point, in the range `AP_INDEX_1` to
+ *                     `AP_INDEX_24`.
+ * @param[out] enabled  Caller-allocated variable that receives true when the BSS Load
+ *                      information element is included, false when it is excluded. The
+ *                      caller allocates and releases it; the `HAL` writes into it and
+ *                      retains no reference to it after returning.
+ *
+ * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
+ *      in `docs/pages/halSpec.md`. A call made beforehand fails with `WIFI_HAL_ERROR` and
+ *      writes nothing to the output.
+ * @post On success the output holds the BSS Load information element state; on failure
+ *       the output is left unspecified, so a caller must not read it unless the call
+ *       succeeded.
  *
  * @returns The status of the operation.
- * @retval WIFI_HAL_SUCCESS If successful.
- * @retval WIFI_HAL_ERROR   If any error is detected.
+ * @retval WIFI_HAL_SUCCESS The state was retrieved.
+ * @retval WIFI_HAL_ERROR   `apIndex` is out of range, a required output pointer is NULL,
+ *                          or the vendor layer could not supply the value. The caller
+ *                          should validate its arguments; a failure that persists across
+ *                          retries should be logged and the value treated as unavailable.
+ *
+ * @note This call does not block, per `Blocking calls` in `docs/pages/halSpec.md`.
+ * @note The `HAL` is expected to be thread safe, per `Threading Model` in
+ *       `docs/pages/halSpec.md`.
+ * @see wifi_setBssLoad
  */
 INT wifi_getBssLoad(INT apIndex, BOOL *enabled);
 
 /**
  * @brief Enables or disables proxy ARP on the device driver.
  *
- * @param[in] apIndex  Index of the Access Point.
- * @param[in] enabled  Boolean value indicating whether to enable (true) or
- *                    disable (false) proxy ARP.
+ * @param[in] apIndex  Index of the Access Point, in the range `AP_INDEX_1` to
+ *                     `AP_INDEX_24`.
+ * @param[in] enabled  true to enable proxy ARP in the device driver, false to disable it.
+ *
+ * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
+ *      in `docs/pages/halSpec.md`. A call made beforehand fails with `WIFI_HAL_ERROR` and
+ *      leaves the configuration unchanged.
+ * @post On success the device driver answers ARP on behalf of associated clients when
+ *       `enabled` is true, and does not when it is false. On failure no part of the
+ *       configuration is changed.
  *
  * @returns The status of the operation.
- * @retval WIFI_HAL_SUCCESS If successful.
- * @retval WIFI_HAL_ERROR   If any error is detected.
+ * @retval WIFI_HAL_SUCCESS The setting was applied.
+ * @retval WIFI_HAL_ERROR   `apIndex` is out of range, or the vendor layer could not apply
+ *                          the requested state. Every value of `enabled` is accepted, so a
+ *                          failure reflects the index or the vendor layer rather than the
+ *                          argument; the caller should read the setting back with
+ *                          `wifi_getProxyArp()` before relying on it rather than retrying
+ *                          with the same argument.
+ *
+ * @note An information element only reaches the air while the Interworking Service is
+ *       enabled; see `wifi_setApInterworkingServiceEnable()`.
+ * @note This call does not block, per `Blocking calls` in `docs/pages/halSpec.md`.
+ * @note The `HAL` is expected to be thread safe, per `Threading Model` in
+ *       `docs/pages/halSpec.md`.
+ * @see wifi_getProxyArp
  */
 INT wifi_setProxyArp(INT apIndex, BOOL enabled);
 
 /**
  * @brief Gets the status of proxy ARP from the driver.
  *
- * @param[in] apIndex  Index of the Access Point.
- * @param[out] enabled Pointer to a variable to store the enabled status of
- *                    proxy ARP (true if enabled, false if disabled).
+ * @param[in] apIndex  Index of the Access Point, in the range `AP_INDEX_1` to
+ *                     `AP_INDEX_24`.
+ * @param[out] enabled  Caller-allocated variable that receives true when proxy ARP is
+ *                      enabled in the driver, false when it is disabled. The caller
+ *                      allocates and releases it; the `HAL` writes into it and retains no
+ *                      reference to it after returning.
+ *
+ * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
+ *      in `docs/pages/halSpec.md`. A call made beforehand fails with `WIFI_HAL_ERROR` and
+ *      writes nothing to the output.
+ * @post On success the output holds the proxy ARP state as reported by the driver; on
+ *       failure the output is left unspecified, so a caller must not read it unless the
+ *       call succeeded.
  *
  * @returns The status of the operation.
- * @retval WIFI_HAL_SUCCESS If successful.
- * @retval WIFI_HAL_ERROR   If any error is detected.
+ * @retval WIFI_HAL_SUCCESS The state was retrieved.
+ * @retval WIFI_HAL_ERROR   `apIndex` is out of range, a required output pointer is NULL,
+ *                          or the vendor layer could not supply the value. The caller
+ *                          should validate its arguments; a failure that persists across
+ *                          retries should be logged and the value treated as unavailable.
+ *
+ * @note This call does not block, per `Blocking calls` in `docs/pages/halSpec.md`.
+ * @note The `HAL` is expected to be thread safe, per `Threading Model` in
+ *       `docs/pages/halSpec.md`.
+ * @see wifi_setProxyArp
  */
 INT wifi_getProxyArp(INT apIndex, BOOL *enabled);
 
 /**
  * @brief Sets the Hotspot 2.0 status for an Access Point.
  *
- * @param[in] apIndex  Index of the Access Point.
- * @param[in] enabled  Boolean value indicating whether to enable (true) or
- *                    disable (false) Hotspot 2.0.
+ * @param[in] apIndex  Index of the Access Point, in the range `AP_INDEX_1` to
+ *                     `AP_INDEX_24`.
+ * @param[in] enabled  true to enable Hotspot 2.0 on this Access Point, false to disable
+ *                     it.
+ *
+ * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
+ *      in `docs/pages/halSpec.md`. A call made beforehand fails with `WIFI_HAL_ERROR` and
+ *      leaves the configuration unchanged.
+ * @post On success the Access Point advertises Hotspot 2.0 when `enabled` is true, and
+ *       does not when it is false. On failure no part of the configuration is changed.
  *
  * @returns The status of the operation.
- * @retval WIFI_HAL_SUCCESS If successful.
- * @retval WIFI_HAL_ERROR   If any error is detected.
+ * @retval WIFI_HAL_SUCCESS The setting was applied.
+ * @retval WIFI_HAL_ERROR   `apIndex` is out of range, or the vendor layer could not apply
+ *                          the requested state. Every value of `enabled` is accepted, so a
+ *                          failure reflects the index or the vendor layer rather than the
+ *                          argument; the caller should read the setting back with
+ *                          `wifi_getApHotspotElement()` before relying on it rather than
+ *                          retrying with the same argument.
+ *
+ * @note Hotspot 2.0 advertisement builds on the Interworking Service, so enabling it here
+ *       without enabling that service has no effect on the air.
+ * @note An information element only reaches the air while the Interworking Service is
+ *       enabled; see `wifi_setApInterworkingServiceEnable()`.
+ * @note This call does not block, per `Blocking calls` in `docs/pages/halSpec.md`.
+ * @note The `HAL` is expected to be thread safe, per `Threading Model` in
+ *       `docs/pages/halSpec.md`.
+ * @see wifi_getApHotspotElement
  */
 INT wifi_pushApHotspotElement(INT apIndex, BOOL enabled);
 
 /**
  * @brief Gets the Hotspot 2.0 status for an Access Point.
  *
- * @param[in] apIndex  Index of the Access Point.
- * @param[out] enabled Pointer to a variable to store the enabled status of
- *                    Hotspot 2.0 (true if enabled, false if disabled).
+ * @param[in] apIndex  Index of the Access Point, in the range `AP_INDEX_1` to
+ *                     `AP_INDEX_24`.
+ * @param[out] enabled  Caller-allocated variable that receives true when Hotspot 2.0 is
+ *                      enabled on this Access Point, false when it is disabled. The
+ *                      caller allocates and releases it; the `HAL` writes into it and
+ *                      retains no reference to it after returning.
+ *
+ * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
+ *      in `docs/pages/halSpec.md`. A call made beforehand fails with `WIFI_HAL_ERROR` and
+ *      writes nothing to the output.
+ * @post On success the output holds the Hotspot 2.0 state; on failure the output is left
+ *       unspecified, so a caller must not read it unless the call succeeded.
  *
  * @returns The status of the operation.
- * @retval WIFI_HAL_SUCCESS If successful.
- * @retval WIFI_HAL_ERROR   If any error is detected.
+ * @retval WIFI_HAL_SUCCESS The state was retrieved.
+ * @retval WIFI_HAL_ERROR   `apIndex` is out of range, a required output pointer is NULL,
+ *                          or the vendor layer could not supply the value. The caller
+ *                          should validate its arguments; a failure that persists across
+ *                          retries should be logged and the value treated as unavailable.
+ *
+ * @note This call does not block, per `Blocking calls` in `docs/pages/halSpec.md`.
+ * @note The `HAL` is expected to be thread safe, per `Threading Model` in
+ *       `docs/pages/halSpec.md`.
+ * @see wifi_pushApHotspotElement
  */
 INT wifi_getApHotspotElement(INT apIndex, BOOL *enabled);
 
@@ -2648,14 +4850,36 @@ INT wifi_getApHotspotElement(INT apIndex, BOOL *enabled);
  * Element that will be included in beacon and probe responses when
  * interworking is enabled and the OI count is greater than 0.
  *
- * @param[in] apIndex       Index of the Access Point.
- * @param[in] infoElement  Pointer to a `wifi_roamingConsortiumElement_t`
- *                         structure containing the OI count, length of the
- *                         first 3 OIs, and the first 3 OIs as a hex string.
+ * @param[in] apIndex  Index of the Access Point, in the range `AP_INDEX_1` to
+ *                     `AP_INDEX_24`.
+ * @param[in] infoElement  Fully populated `wifi_roamingConsortiumElement_t` carrying the
+ *                         Organisation Identifier count, the length of each of the first
+ *                         three OIs and the OIs themselves as hex strings. Each OI is 3
+ *                         to 15 octets, and only three fit in a beacon or probe response.
+ *                         The caller owns the structure; the `HAL` reads it during the
+ *                         call and must not retain the pointer afterwards.
+ *
+ * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
+ *      in `docs/pages/halSpec.md`. A call made beforehand fails with `WIFI_HAL_ERROR` and
+ *      leaves the configuration unchanged.
+ * @post On success beacons and probe responses carry the supplied Roaming Consortium
+ *       information element, provided interworking is enabled and the OI count is greater
+ *       than 0. On failure no part of the configuration is changed.
  *
  * @returns The status of the operation.
- * @retval WIFI_HAL_SUCCESS If successful.
- * @retval WIFI_HAL_ERROR   If any error is detected.
+ * @retval WIFI_HAL_SUCCESS The element was applied.
+ * @retval WIFI_HAL_ERROR   `apIndex` is out of range, `infoElement` is NULL, the OI count
+ *                          exceeds the three the structure holds, or an OI length is
+ *                          outside 3 to 15 octets. The caller should correct the
+ *                          structure rather than retrying with the same contents.
+ *
+ * @note The element is advertised only while interworking is enabled and the OI count is
+ *       greater than 0; either condition unmet leaves it off the air.
+ * @note This call does not block, per `Blocking calls` in `docs/pages/halSpec.md`.
+ * @note The `HAL` is expected to be thread safe, per `Threading Model` in
+ *       `docs/pages/halSpec.md`.
+ * @see wifi_getApRoamingConsortiumElement
+ * @see wifi_setApInterworkingServiceEnable
  */
 INT wifi_pushApRoamingConsortiumElement(INT apIndex, wifi_roamingConsortiumElement_t *infoElement);
 
@@ -2666,14 +4890,37 @@ INT wifi_pushApRoamingConsortiumElement(INT apIndex, wifi_roamingConsortiumEleme
  * Element. If the Roaming Consortium IE is not present, the count will be
  * returned as 0, and the length and OI fields can be ignored.
  *
- * @param[in] apIndex      Index of the Access Point.
- * @param[out] infoElement Pointer to a `wifi_roamingConsortiumElement_t`
- *                         structure to store the OI count, length of the
- *                         first 3 OIs, and the first 3 OIs as a hex string.
+ * @param[in] apIndex  Index of the Access Point, in the range `AP_INDEX_1` to
+ *                     `AP_INDEX_24`.
+ * @param[out] infoElement  Caller-allocated `wifi_roamingConsortiumElement_t` that
+ *                          receives the advertised Organisation Identifier count, the
+ *                          length of each of the first three OIs and the OIs themselves
+ *                          as hex strings. The caller allocates and releases it; the
+ *                          `HAL` writes into it and retains no reference to it after
+ *                          returning.
+ *
+ * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
+ *      in `docs/pages/halSpec.md`. A call made beforehand fails with `WIFI_HAL_ERROR` and
+ *      writes nothing to the output.
+ * @post On success the output holds the advertised element, where a count of 0 means the
+ *       element is not present and the length and OI fields carry nothing meaningful; on
+ *       failure the output is left unspecified, so a caller must not read it unless the
+ *       call succeeded.
  *
  * @returns The status of the operation.
- * @retval WIFI_HAL_SUCCESS If successful.
- * @retval WIFI_HAL_ERROR   If any error is detected.
+ * @retval WIFI_HAL_SUCCESS The element was retrieved. A count of 0 is a success meaning
+ *                          no element is advertised.
+ * @retval WIFI_HAL_ERROR   `apIndex` is out of range, a required output pointer is NULL,
+ *                          or the vendor layer could not supply the value. The caller
+ *                          should validate its arguments; a failure that persists across
+ *                          retries should be logged and the value treated as unavailable.
+ *
+ * @note Test the count before reading the length or OI fields: at a count of 0 they are
+ *       explicitly not meaningful.
+ * @note This call does not block, per `Blocking calls` in `docs/pages/halSpec.md`.
+ * @note The `HAL` is expected to be thread safe, per `Threading Model` in
+ *       `docs/pages/halSpec.md`.
+ * @see wifi_pushApRoamingConsortiumElement
  */
 INT wifi_getApRoamingConsortiumElement(INT apIndex, wifi_roamingConsortiumElement_t *infoElement);
 
@@ -2684,26 +4931,66 @@ INT wifi_getApRoamingConsortiumElement(INT apIndex, wifi_roamingConsortiumElemen
  * beacon and probe responses, with the P2P Manageability attribute's
  * "Cross Connection Permitted" field set to 0.
  *
- * @param[in] apIndex   Index of the Access Point.
- * @param[in] disabled  Boolean value indicating whether to disable (true) or
- *                      enable (false) P2P cross connect.
+ * @param[in] apIndex  Index of the Access Point, in the range `AP_INDEX_1` to
+ *                     `AP_INDEX_24`.
+ * @param[in] disabled  true to disable P2P cross connect, which advertises the P2P
+ *                      information element with "Cross Connection Permitted" set to 0;
+ *                      false to permit cross connection.
+ *
+ * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
+ *      in `docs/pages/halSpec.md`. A call made beforehand fails with `WIFI_HAL_ERROR` and
+ *      leaves the configuration unchanged.
+ * @post On success the P2P information element is advertised with the P2P Manageability
+ *       attribute's "Cross Connection Permitted" field set to 0 when `disabled` is true.
+ *       On failure no part of the configuration is changed.
  *
  * @returns The status of the operation.
- * @retval WIFI_HAL_SUCCESS If successful.
- * @retval WIFI_HAL_ERROR   If any error is detected.
+ * @retval WIFI_HAL_SUCCESS The setting was applied.
+ * @retval WIFI_HAL_ERROR   `apIndex` is out of range, or the vendor layer could not apply
+ *                          the requested state. Every value of `disabled` is accepted, so a
+ *                          failure reflects the index or the vendor layer rather than the
+ *                          argument; the caller should read the setting back with
+ *                          `wifi_getP2PCrossConnect()` before relying on it rather than
+ *                          retrying with the same argument.
+ *
+ * @note The argument's sense is inverted relative to the other toggles here: true disables
+ *       cross connection rather than enabling a feature.
+ * @note An information element only reaches the air while the Interworking Service is
+ *       enabled; see `wifi_setApInterworkingServiceEnable()`.
+ * @note This call does not block, per `Blocking calls` in `docs/pages/halSpec.md`.
+ * @note The `HAL` is expected to be thread safe, per `Threading Model` in
+ *       `docs/pages/halSpec.md`.
+ * @see wifi_getP2PCrossConnect
  */
 INT wifi_setP2PCrossConnect(INT apIndex, BOOL disabled);
 
 /**
  * @brief Gets the P2P cross connect disabled status.
  *
- * @param[in] apIndex   Index of the Access Point.
- * @param[out] disabled Pointer to a variable to store the disabled status of
- *                      P2P cross connect (true if disabled, false if enabled).
+ * @param[in] apIndex  Index of the Access Point, in the range `AP_INDEX_1` to
+ *                     `AP_INDEX_24`.
+ * @param[out] disabled  Caller-allocated variable that receives true when P2P cross
+ *                       connect is disabled, false when it is permitted. The caller
+ *                       allocates and releases it; the `HAL` writes into it and retains
+ *                       no reference to it after returning.
+ *
+ * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
+ *      in `docs/pages/halSpec.md`. A call made beforehand fails with `WIFI_HAL_ERROR` and
+ *      writes nothing to the output.
+ * @post On success the output holds the P2P cross connect state; on failure the output is
+ *       left unspecified, so a caller must not read it unless the call succeeded.
  *
  * @returns The status of the operation.
- * @retval WIFI_HAL_SUCCESS If successful.
- * @retval WIFI_HAL_ERROR   If any error is detected.
+ * @retval WIFI_HAL_SUCCESS The state was retrieved.
+ * @retval WIFI_HAL_ERROR   `apIndex` is out of range, a required output pointer is NULL,
+ *                          or the vendor layer could not supply the value. The caller
+ *                          should validate its arguments; a failure that persists across
+ *                          retries should be logged and the value treated as unavailable.
+ *
+ * @note This call does not block, per `Blocking calls` in `docs/pages/halSpec.md`.
+ * @note The `HAL` is expected to be thread safe, per `Threading Model` in
+ *       `docs/pages/halSpec.md`.
+ * @see wifi_setP2PCrossConnect
  */
 INT wifi_getP2PCrossConnect(INT apIndex, BOOL *disabled);
 
@@ -2714,16 +5001,46 @@ INT wifi_getP2PCrossConnect(INT apIndex, BOOL *disabled);
  * and broadcast, that are connected to the specified Access Point (AP).
  * This function must not suspend and must not invoke any blocking system calls.
  *
- * @param[in] ap_index            Index of the Access Point.
- * @param[in] maxNumberSessions   Maximum number of sessions to copy to the list.
- * @param[out] twtSessions        Pointer to an array of `wifi_twt_sessions_t`
- *                                structures to store the session information.
- * @param[out] numSessionReturned Pointer to a variable to store the number of
- *                                sessions copied to the list.
+ * @param[in] ap_index  Index of the Access Point, in the range `AP_INDEX_1` to
+ *                      `AP_INDEX_24`.
+ * @param[in] maxNumberSessions  Number of elements the `twtSessions` array can hold.
+ *                               `MAX_NUM_TWT_SESSION` is 50, the largest session
+ *                               population this interface names, so an array sized to
+ *                               that constant cannot overflow.
+ * @param[out] twtSessions  Caller-allocated array of at least `maxNumberSessions`
+ *                          `wifi_twt_sessions_t` elements that receives the session
+ *                          descriptions. The caller allocates and releases it; the `HAL`
+ *                          writes into it and retains no reference to it after returning.
+ *                          Only the first `*numSessionReturned` elements are written.
+ * @param[out] numSessionReturned  Caller-allocated variable that receives the number of
+ *                                 elements actually written, never more than
+ *                                 `maxNumberSessions`. The caller allocates and releases
+ *                                 it; the `HAL` writes into it and retains no reference
+ *                                 to it after returning.
+ *
+ * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
+ *      in `docs/pages/halSpec.md`. A call made beforehand fails with `WIFI_HAL_ERROR` and
+ *      writes nothing to the output.
+ * @post On success the output holds `*numSessionReturned` session descriptions, both
+ *       individual and broadcast, with the remaining array elements untouched; on failure
+ *       the output is left unspecified, so a caller must not read it unless the call
+ *       succeeded.
  *
  * @returns The status of the operation.
- * @retval WIFI_HAL_SUCCESS If successful.
- * @retval WIFI_HAL_ERROR   If any error is detected.
+ * @retval WIFI_HAL_SUCCESS The sessions were retrieved. Zero sessions is a success, not
+ *                          an error.
+ * @retval WIFI_HAL_ERROR   `ap_index` is out of range, a required output pointer is NULL,
+ *                          or the array is too small for the current session count. The
+ *                          caller should validate its arguments; a failure that persists
+ *                          across retries should be logged and the value treated as
+ *                          unavailable.
+ *
+ * @note Both individual and broadcast Target Wake Time sessions are returned in the same
+ *       array; the caller distinguishes them from the session description itself.
+ * @note The `HAL` is expected to be thread safe, per `Threading Model` in
+ *       `docs/pages/halSpec.md`.
+ * @see wifi_setBroadcastTWTSchedule
+ * @see wifi_setTeardownTWTSession
  */
 INT wifi_getTWTsessions(INT ap_index, UINT maxNumberSessions, wifi_twt_sessions_t * twtSessions, UINT* numSessionReturned);
 
@@ -2735,18 +5052,44 @@ INT wifi_getTWTsessions(INT ap_index, UINT maxNumberSessions, wifi_twt_sessions_
  * for the specified Access Point (AP).
  * This function must not suspend and must not invoke any blocking system calls.
  *
- * @param[in] ap_index   Index of the Access Point.
- * @param[in] twtParams  TWT parameters to create or update the session.
- * @param[in] create     Flag indicating whether to create a new session (true)
- *                       or update an existing session (false).
- * @param[in,out] sessionID  Input: When `create` is false and the session exists,
- *                           this is the ID of the session to update.
- *                           Output: When `create` is true, this is the ID of
- *                           the newly created session.
+ * @param[in] ap_index  Index of the Access Point, in the range `AP_INDEX_1` to
+ *                      `AP_INDEX_24`.
+ * @param[in] twtParams  Target Wake Time parameters for the session, passed by value as a
+ *                       `wifi_twt_params_t`, so no caller storage is retained.
+ * @param[in] create  true to create a new session, false to update the existing session
+ *                    identified by `*sessionID`.
+ * @param[in,out] sessionID  On entry, when `create` is false, the identifier of the
+ *                           session to update. On exit, when `create` is true, the
+ *                           identifier of the newly created session. Caller-allocated;
+ *                           the `HAL` retains no reference to it after returning. It must
+ *                           point to valid storage in both directions, and must hold a
+ *                           valid identifier before an update.
+ *
+ * @pre `wifi_init()` must have completed successfully, and when `create` is false
+ *      `*sessionID` must already identify an existing session; see `Initialization and
+ *      Startup` in `docs/pages/halSpec.md`. A call made before initialisation, or an
+ *      update naming a session that does not exist, fails with `WIFI_HAL_ERROR` and
+ *      changes no schedule.
+ * @post On success a broadcast Target Wake Time session exists with the supplied
+ *       parameters, and `*sessionID` identifies it. On failure no part of the
+ *       configuration is changed.
  *
  * @returns The status of the operation.
- * @retval WIFI_HAL_SUCCESS If successful.
- * @retval WIFI_HAL_ERROR   If any error is detected.
+ * @retval WIFI_HAL_SUCCESS The session was created or updated, and `*sessionID`
+ *                          identifies it.
+ * @retval WIFI_HAL_ERROR   `ap_index` is out of range, `sessionID` is NULL, an update
+ *                          names a session that does not exist, `MAX_NUM_TWT_SESSION`
+ *                          sessions already exist, or a parameter was rejected. The
+ *                          caller should enumerate the sessions with
+ *                          `wifi_getTWTsessions()` to establish the actual state before
+ *                          retrying.
+ *
+ * @note On failure this interface does not state whether `*sessionID` was modified, so a
+ *       caller must not read it unless the call succeeded.
+ * @note The `HAL` is expected to be thread safe, per `Threading Model` in
+ *       `docs/pages/halSpec.md`.
+ * @see wifi_getTWTsessions
+ * @see wifi_setTeardownTWTSession
  */
 INT wifi_setBroadcastTWTSchedule(INT ap_index, wifi_twt_params_t twtParams, BOOL create, INT* sessionID);
 
@@ -2758,12 +5101,32 @@ INT wifi_setBroadcastTWTSchedule(INT ap_index, wifi_twt_params_t twtParams, BOOL
  * session associated with the specified Access Point (AP) and session ID.
  * This function must not suspend and must not invoke any blocking system calls.
  *
- * @param[in] ap_index  Index of the Access Point.
- * @param[in] sessionID TWT session ID to tear down.
+ * @param[in] ap_index  Index of the Access Point, in the range `AP_INDEX_1` to
+ *                      `AP_INDEX_24`.
+ * @param[in] sessionID  Identifier of the Target Wake Time session to tear down, as
+ *                       returned by `wifi_setBroadcastTWTSchedule()` or reported by
+ *                       `wifi_getTWTsessions()`.
+ *
+ * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
+ *      in `docs/pages/halSpec.md`. A call made beforehand fails with `WIFI_HAL_ERROR`
+ *      without performing the action.
+ * @post On success the identified session no longer exists. On failure no part of the
+ *       configuration is changed.
  *
  * @returns The status of the operation.
- * @retval WIFI_HAL_SUCCESS If successful.
- * @retval WIFI_HAL_ERROR   If any error is detected.
+ * @retval WIFI_HAL_SUCCESS The session was torn down.
+ * @retval WIFI_HAL_ERROR   `ap_index` is out of range, `sessionID` does not identify an
+ *                          existing session, or the vendor layer could not tear it down.
+ *                          The caller should enumerate the sessions with
+ *                          `wifi_getTWTsessions()` rather than assuming the session is
+ *                          gone.
+ *
+ * @note This tears down individual and broadcast sessions alike; the identifier determines
+ *       which.
+ * @note The `HAL` is expected to be thread safe, per `Threading Model` in
+ *       `docs/pages/halSpec.md`.
+ * @see wifi_getTWTsessions
+ * @see wifi_setBroadcastTWTSchedule
  */
 INT wifi_setTeardownTWTSession(INT ap_index, INT sessionID);
 
@@ -2786,7 +5149,12 @@ typedef struct _wifi_key_multi_psk
     CHAR wifi_keyId[64]; /**< Key identifier (e.g., "key-15" or "key_example"). */
     CHAR wifi_psk[64];   /**< PSK (ASCII passphrase of 8 to 63 characters). */
 } wifi_key_multi_psk_t;
+/** @} */  //END OF GROUP WIFI_HAL_TYPES
 
+/**
+ * @addtogroup WIFI_HAL_APIS
+ * @{
+ */
 /**
  * @brief Sets the new set of multi-PSK keys for an Access Point.
  *
@@ -2795,13 +5163,51 @@ typedef struct _wifi_key_multi_psk
  * This API is for setting all keys except the primary key, which is set by
  * `wifi_setApSecurityKeyPassphrase`.
  *
- * @param[in] apIndex    Index of the Access Point.
- * @param[in] keys       Array of `wifi_key_multi_psk_t` structures containing the keys.
- * @param[in] keysNumber Number of elements in the `keys` array.
+ * @param[in] apIndex  Index of the Access Point, in the range `AP_INDEX_1` to
+ *                     `AP_INDEX_24`.
+ * @param[in] keys  Caller-owned array of `keysNumber` `wifi_key_multi_psk_t` elements.
+ *                  Each element's `wifi_keyId` and `wifi_psk` are NUL-terminated and at
+ *                  most 63 characters plus the terminator, and a passphrase is 8 to 63
+ *                  characters. The `HAL` reads the array during the call and must not
+ *                  retain the pointer afterwards, so the caller may free it as soon as
+ *                  the call returns.
+ * @param[in] keysNumber  Number of elements in `keys`. Pass 0 with any pointer value to
+ *                        remove every non-primary key, since the previous set is replaced
+ *                        wholesale.
+ *
+ * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
+ *      in `docs/pages/halSpec.md`. A call made beforehand fails with `WIFI_HAL_ERROR` and
+ *      leaves the configuration unchanged.
+ * @post On success exactly the supplied keys are active as non-primary keys and every
+ *       previously set non-primary key is gone, while the primary key is untouched. On
+ *       failure no part of the configuration is changed.
  *
  * @returns The status of the operation
- * @retval WIFI_HAL_SUCCESS If successful.
- * @retval WIFI_HAL_ERROR   If any error is detected.
+ * @retval WIFI_HAL_SUCCESS The key set was replaced.
+ * @retval WIFI_HAL_ERROR   `apIndex` is out of range, `keys` is NULL while `keysNumber`
+ *                          is non-zero, a passphrase is outside 8 to 63 characters, or
+ *                          the vendor layer rejected the set. The caller should read the
+ *                          keys back with `wifi_getMultiPskKeys()`, because this
+ *                          interface does not state that the replacement is atomic.
+ *
+ * @note The primary key is not reachable through this call. The description above names
+ *       `wifi_setApSecurityKeyPassphrase()`, which is declared in
+ *       `wifi_hal_deprecated.h` rather than in the current interface, so it is reachable
+ *       only through the umbrella `wifi_hal.h` include and is outside the documented
+ *       contract. On the current surface the primary key is set with
+ *       `wifi_setApSecurity()`, through the `u.key` arm of `wifi_vap_security_t`.
+ * @note The structure follows the hostapd `wpa_psk_file` model, as its own documentation
+ *       states.
+ * @note This call does not block, per `Blocking calls` in `docs/pages/halSpec.md`.
+ * @note The `HAL` is expected to be thread safe, per `Threading Model` in
+ *       `docs/pages/halSpec.md`.
+ * @warning A `wifi_key_multi_psk_t` holds a passphrase. A caller that logs or traces these
+ *          structures must redact `wifi_psk`, and should clear its own copy once it is no
+ *          longer needed.
+ * @warning This replaces the whole non-primary key set rather than adding to it. A caller
+ *          that means to add one key must pass every key it wants to keep.
+ * @see wifi_getMultiPskKeys
+ * @see wifi_getMultiPskClientKey
  */
 INT wifi_pushMultiPskKeys(INT apIndex, wifi_key_multi_psk_t *keys, INT keysNumber);
 
@@ -2812,14 +5218,39 @@ INT wifi_pushMultiPskKeys(INT apIndex, wifi_key_multi_psk_t *keys, INT keysNumbe
  * This function retrieves all multi-PSK keys that are active on the specified
  * Access Point (AP), except for the primary key.
  *
- * @param[in] apIndex     Index of the Access Point.
- * @param[out] keys       Pointer to an array of `wifi_key_multi_psk_t` structures
- *                        to store the retrieved keys.
- * @param[in] keysNumber  Number of elements in the `keys` array.
+ * @param[in] apIndex  Index of the Access Point, in the range `AP_INDEX_1` to
+ *                     `AP_INDEX_24`.
+ * @param[out] keys  Caller-allocated array of at least `keysNumber`
+ *                   `wifi_key_multi_psk_t` elements that receives the active non-primary
+ *                   keys. The caller allocates and releases it; the `HAL` writes into it
+ *                   and retains no reference to it after returning.
+ * @param[in] keysNumber  Number of elements the array can hold.
+ *
+ * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
+ *      in `docs/pages/halSpec.md`. A call made beforehand fails with `WIFI_HAL_ERROR` and
+ *      writes nothing to the output.
+ * @post On success the output holds the active non-primary keys, up to `keysNumber` of
+ *       them; on failure the output is left unspecified, so a caller must not read it
+ *       unless the call succeeded.
  *
  * @returns The status of the operation
- * @retval WIFI_HAL_SUCCESS If successful.
- * @retval WIFI_HAL_ERROR   If any error is detected.
+ * @retval WIFI_HAL_SUCCESS The keys were retrieved.
+ * @retval WIFI_HAL_ERROR   `apIndex` is out of range, a required output pointer is NULL,
+ *                          or the array is too small for the active key set. The caller
+ *                          should validate its arguments; a failure that persists across
+ *                          retries should be logged and the value treated as unavailable.
+ *
+ * @note This call reports no count, so a caller cannot tell from the interface how many
+ *       elements were written or whether the array was too small. It must size the array
+ *       from the set it last pushed, or treat an unwritten element as absent.
+ * @note The primary key is never returned here.
+ * @note This call does not block, per `Blocking calls` in `docs/pages/halSpec.md`.
+ * @note The `HAL` is expected to be thread safe, per `Threading Model` in
+ *       `docs/pages/halSpec.md`.
+ * @warning A `wifi_key_multi_psk_t` holds a passphrase. A caller that logs or traces these
+ *          structures must redact `wifi_psk`, and should clear its own copy once it is no
+ *          longer needed.
+ * @see wifi_pushMultiPskKeys
  */
 INT wifi_getMultiPskKeys(INT apIndex, wifi_key_multi_psk_t *keys, INT keysNumber);
 
@@ -2832,14 +5263,40 @@ INT wifi_getMultiPskKeys(INT apIndex, wifi_key_multi_psk_t *keys, INT keysNumber
  * If `wifi_key_multi_psk_t.wifi_keyID` is null, it means that a multi-PSK
  * key was not used for authentication.
  *
- * @param[in] apIndex  Index of the Access Point.
- * @param[in] mac      Client MAC address.
- * @param[out] key     Pointer to a `wifi_key_multi_psk_t` structure to store
- *                     the retrieved key.
+ * @param[in] apIndex  Index of the Access Point, in the range `AP_INDEX_1` to
+ *                     `AP_INDEX_24`.
+ * @param[in] mac  MAC address of the client, passed by value as a `mac_address_t`, so no
+ *                 caller storage is retained.
+ * @param[out] key  Caller-allocated `wifi_key_multi_psk_t` that receives the multi-PSK
+ *                  key that client authenticated with. The caller allocates and releases
+ *                  it; the `HAL` writes into it and retains no reference to it after
+ *                  returning.
+ *
+ * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
+ *      in `docs/pages/halSpec.md`. A call made beforehand fails with `WIFI_HAL_ERROR` and
+ *      writes nothing to the output.
+ * @post On success the output holds the key the client used, or a `wifi_keyId` of NULL
+ *       where the client did not authenticate with a multi-PSK key; on failure the output
+ *       is left unspecified, so a caller must not read it unless the call succeeded.
  *
  * @returns The status of the operation
- * @retval WIFI_HAL_SUCCESS If successful.
- * @retval WIFI_HAL_ERROR   If any error is detected.
+ * @retval WIFI_HAL_SUCCESS The lookup completed. A NULL `wifi_keyId` is a successful
+ *                          result meaning the client did not use a multi-PSK key, not a
+ *                          failure.
+ * @retval WIFI_HAL_ERROR   `apIndex` is out of range, a required output pointer is NULL,
+ *                          or the client is not associated. The caller should validate
+ *                          its arguments; a failure that persists across retries should
+ *                          be logged and the value treated as unavailable.
+ *
+ * @note Test `key->wifi_keyId` before reading `key->wifi_psk`: a NULL identifier means no
+ *       multi-PSK key was used and the passphrase field carries nothing meaningful.
+ * @note This call does not block, per `Blocking calls` in `docs/pages/halSpec.md`.
+ * @note The `HAL` is expected to be thread safe, per `Threading Model` in
+ *       `docs/pages/halSpec.md`.
+ * @warning A `wifi_key_multi_psk_t` holds a passphrase. A caller that logs or traces these
+ *          structures must redact `wifi_psk`, and should clear its own copy once it is no
+ *          longer needed.
+ * @see wifi_pushMultiPskKeys
  */
 INT wifi_getMultiPskClientKey(INT apIndex, mac_address_t mac, wifi_key_multi_psk_t *key);
 
@@ -3106,10 +5563,22 @@ typedef struct
     wifi_vap_name_t vap_name;            /**< VAP name. */
 } __attribute__((packed)) wifi_postassoc_control_t;
 
+/**
+ * @brief Per-network parameters conveyed to the RADIUS server as vendor attributes.
+ *
+ * Used by the amenities configuration of a fronthaul BSS to describe the service
+ * level the network offers.
+ */
 typedef struct { 
     int speed_tier;                      /**< Speed Tier for Radius AVP */
 } __attribute__((packed)) network_param_config_t;
 
+/**
+ * @brief Amenities network configuration carried on a fronthaul BSS.
+ *
+ * A container so the amenities configuration can grow without changing the layout of
+ * `wifi_front_haul_bss_t`.
+ */
 typedef struct {
     network_param_config_t npc;          /**< Amenities Network Param Configurations*/
 } __attribute__((packed)) amenities_network_config_t;
@@ -3176,7 +5645,7 @@ typedef struct
     wifi_vap_security_t security; /**< Security settings. */
     mac_address_t mac;        /**< MAC address. */
     wifi_mld_info_sta_t mld_info; /**< MLD information. */
-    BOOL ignite_enabled; /* Ignite enable */
+    BOOL ignite_enabled; /**< Whether Ignite is enabled on this backhaul station. */
     BOOL valid_bh_credentials; /**< TRUE if backhaul credentials (SSID and key) are valid. */
 } __attribute__((packed)) wifi_back_haul_sta_t;
 
@@ -3241,11 +5710,11 @@ typedef struct {
   BOOL hostap_mgt_frame_ctrl;        /**< Whether hostapd management frame control is enabled. */
   BOOL mbo_enabled;                  /**< Whether MBO is enabled. */
   BOOL   interop_ctrl;               /**< Whether interop ctrl is enabled. */
-  BOOL   interop_tel;
+  BOOL   interop_tel;                /**< Whether interop telemetry reporting is enabled. */
   UINT    inum_sta;                   /**< configuring interop stations */
   UCHAR vendor_elements[WIFI_AP_MAX_VENDOR_IE_LEN]; /**< The vendor elements to be added to beacon/probe response frames. Includes IE ID (0xDD), Length, and Payload */
   USHORT vendor_elements_len;        /**< Length of vendor_elements currently stored since it is not null terminated */
-  char interop_info[64];
+  char interop_info[64];             /**< NUL-terminated vendor interop descriptor, at most 64 bytes including the terminator. */
   CHAR multi_ap_backhaul_ssid[WIFI_AP_MAX_SSID_LEN]; /**< Multi-AP backhaul SSID. Populated with the mesh backhaul SSID when WPS onboarding is configured. */
   UCHAR multi_ap_backhaul_network_key[256]; /**< Multi-AP backhaul network key, populated with the mesh backhaul key when WPS onboarding is configured. */
 } __attribute__((packed)) wifi_front_haul_bss_t;
@@ -3298,125 +5767,483 @@ typedef struct
 } __attribute__((packed)) wifi_ap_capabilities_t;
 /** @} */  //END OF GROUP WIFI_HAL_TYPES
 
-const char *get_vap_ssid(wifi_vap_info_t *vap);
-const char *get_vap_bridge_name(wifi_vap_info_t *vap);
-unsigned int get_vap_security_mode(wifi_vap_info_t *vap, wifi_vap_security_t *sec);
-
 /**
  * @addtogroup WIFI_HAL_APIS
  * @{
  */
 /**
- * @brief Creates a VAP on a radio.
+ * @brief Reads the SSID out of a caller-held VAP information structure.
  *
- * @param[in] index Index of the radio.
- * @param[in] map   Pointer to a `wifi_vap_info_map_t` structure containing
- *                  information about the VAPs to create.
+ * This is an accessor over a `wifi_vap_info_t` the caller already holds rather than a
+ * query against the driver. Both arms of the structure's union carry an SSID,
+ * `u.bss_info.ssid` for a fronthaul BSS and `u.sta_info.ssid` for a backhaul station,
+ * and `vap_mode` records which arm is in use. This interface does not state which arm
+ * the accessor reads, or whether it consults `vap_mode` to decide, so a caller that
+ * needs a specific arm should read that member directly.
+ *
+ * @param[in] vap  VAP information structure to read. Must be non-NULL and fully
+ *                 populated, typically by `wifi_getRadioVapInfoMap()`. The parameter
+ *                 is not declared `const`, so this interface does not guarantee the
+ *                 structure is left unmodified; a caller that needs that guarantee
+ *                 must not rely on it.
+ *
+ * @pre `vap` points to an initialised `wifi_vap_info_t`. The effect of passing NULL or
+ *      a partially populated structure is not specified by this interface.
+ * @post The structure's SSID is unchanged by the call.
+ *
+ * @return A pointer to the NUL-terminated SSID, or NULL if no SSID can be selected.
+ *         The two union arms declare different widths: `u.bss_info.ssid` is
+ *         `WIFI_AP_MAX_SSID_LEN` bytes, which is 33, while `u.sta_info.ssid` is an
+ *         `ssid_t`, which is 32. A caller copying the result should therefore size its
+ *         own buffer for the larger of the two. Because the type is `const char *` the
+ *         caller must not modify the characters and must not free them.
+ *
+ * @warning This interface does not specify the lifetime of the returned pointer or whether
+ *          it aliases storage inside `vap`. A caller must therefore neither free it nor
+ *          assume it stays valid after `vap` is modified or goes out of scope; copy the
+ *          string if it is needed beyond the immediate use.
+ *
+ * @note This accessor reads memory the caller already owns, so no allocation crosses the
+ *       interface; see `Memory Model` in `docs/pages/halSpec.md`.
+ * @note The call does not block, per `Blocking calls` in `docs/pages/halSpec.md`.
+ * @note The `HAL` is expected to be thread safe, per `Threading Model` in
+ *       `docs/pages/halSpec.md`. That covers the `HAL`'s own state; serialising access to a
+ *       `wifi_vap_info_t` the caller shares between threads remains the caller's business.
+ * @note Unlike the other declarations in this header this name carries no `wifi_` prefix,
+ *       which is a naming inconsistency in the interface rather than a hint that it behaves
+ *       differently.
+ *
+ * @see wifi_getRadioVapInfoMap
+ * @see wifi_vap_info_t
+ */
+const char *get_vap_ssid(wifi_vap_info_t *vap);
+
+/**
+ * @brief Reads the Linux bridge name out of a caller-held VAP information structure.
+ *
+ * This is an accessor over a `wifi_vap_info_t` the caller already holds. The bridge name
+ * identifies the bridge the VAP's network interface is attached to, which a caller needs
+ * when it configures forwarding or filtering around the VAP. The structure also carries
+ * `repurposed_bridge_name`; this interface does not state whether the accessor ever
+ * returns that member instead, so a caller that must distinguish the two should read
+ * them directly.
+ *
+ * @param[in] vap  VAP information structure to read. Must be non-NULL and fully
+ *                 populated, typically by `wifi_getRadioVapInfoMap()`. The parameter
+ *                 is not declared `const`, so this interface does not guarantee the
+ *                 structure is left unmodified; a caller that needs that guarantee
+ *                 must not rely on it.
+ *
+ * @pre `vap` points to an initialised `wifi_vap_info_t`. The effect of passing NULL or
+ *      a partially populated structure is not specified by this interface.
+ * @post The structure's bridge name is unchanged by the call.
+ *
+ * @return A pointer to the NUL-terminated bridge name, at most
+ *         `WIFI_BRIDGE_NAME_LEN` bytes including the terminator, or NULL if the VAP
+ *         has no bridge name. Because the type is `const char *` the caller must not
+ *         modify the characters and must not free them.
+ *
+ * @warning This interface does not specify the lifetime of the returned pointer or whether
+ *          it aliases `vap->bridge_name`. A caller must therefore neither free it nor
+ *          assume it stays valid after `vap` is modified or goes out of scope; copy the
+ *          string if it is needed beyond the immediate use.
+ *
+ * @note This accessor reads memory the caller already owns, so no allocation crosses the
+ *       interface; see `Memory Model` in `docs/pages/halSpec.md`.
+ * @note The call does not block, per `Blocking calls` in `docs/pages/halSpec.md`.
+ * @note The `HAL` is expected to be thread safe, per `Threading Model` in
+ *       `docs/pages/halSpec.md`. Serialising access to a `wifi_vap_info_t` the caller
+ *       shares between threads remains the caller's business.
+ * @note Unlike the other declarations in this header this name carries no `wifi_` prefix,
+ *       which is a naming inconsistency in the interface rather than a hint that it behaves
+ *       differently.
+ *
+ * @see wifi_getRadioVapInfoMap
+ * @see wifi_vap_info_t
+ */
+const char *get_vap_bridge_name(wifi_vap_info_t *vap);
+
+/**
+ * @brief Reads the security configuration out of a caller-held VAP information
+ *        structure.
+ *
+ * This is an accessor over a `wifi_vap_info_t` the caller already holds, reporting the
+ * security configuration through `sec`. Both arms of the structure's union carry a
+ * `wifi_vap_security_t`, `u.bss_info.security` for a fronthaul BSS and
+ * `u.sta_info.security` for a backhaul station, and `vap_mode` records which arm is in
+ * use. This interface does not state which arm the accessor reads, so a caller that
+ * needs a specific arm should read that member directly.
+ *
+ * @param[in]  vap  VAP information structure to read. Must be non-NULL and fully
+ *                  populated, typically by `wifi_getRadioVapInfoMap()`. The parameter
+ *                  is not declared `const`, so this interface does not guarantee the
+ *                  structure is left unmodified.
+ * @param[out] sec  Caller-allocated `wifi_vap_security_t` that receives the selected
+ *                  security configuration. The caller allocates and releases it; the
+ *                  callee writes into it and retains no reference to it after
+ *                  returning. Its `u` union holds either RADIUS settings or a
+ *                  pre-shared key, selected by `mode`.
+ *
+ * @pre `vap` points to an initialised `wifi_vap_info_t` and `sec` points to storage of
+ *      at least `sizeof(wifi_vap_security_t)`. The effect of passing NULL for either
+ *      is not specified by this interface.
+ * @post On a successful call `*sec` holds the VAP's security configuration. Whether
+ *       `*sec` is left untouched on failure is not specified by this interface, so a
+ *       caller must not read it unless the call is known to have succeeded.
+ *
+ * @return An `unsigned int`. This interface does not specify whether that value is a
+ *         `HAL` status code or the `wifi_security_modes_t` bit for the selected mode,
+ *         and the two are not distinguishable by inspection: `WIFI_HAL_SUCCESS` is 0
+ *         while every `wifi_security_modes_t` member is a non-zero power of two, so a
+ *         return of 0 is ambiguous between success and no-mode. A caller must not
+ *         assume either reading; take the security mode from `sec->mode`, which is
+ *         unambiguous, and treat the return value as opaque until the interface
+ *         defines it. No per-code list is given here for that reason: this function
+ *         returns a value rather than one of the `HAL` status codes.
+ *
+ * @note This accessor reads memory the caller already owns and writes into a buffer the
+ *       caller supplied, so no allocation crosses the interface; see `Memory Model` in
+ *       `docs/pages/halSpec.md`.
+ * @note The call does not block, per `Blocking calls` in `docs/pages/halSpec.md`.
+ * @note The `HAL` is expected to be thread safe, per `Threading Model` in
+ *       `docs/pages/halSpec.md`. Serialising access to a `wifi_vap_info_t` the caller
+ *       shares between threads remains the caller's business.
+ * @note Unlike the other declarations in this header this name carries no `wifi_` prefix,
+ *       which is a naming inconsistency in the interface rather than a hint that it behaves
+ *       differently.
+ *
+ * @see wifi_getApSecurity
+ * @see wifi_vap_security_t
+ * @see wifi_security_modes_t
+ */
+unsigned int get_vap_security_mode(wifi_vap_info_t *vap, wifi_vap_security_t *sec);
+
+/**
+ * @brief Creates the Virtual Access Points described by a map on one radio.
+ *
+ * This function creates every Virtual Access Point (`VAP`) the supplied map describes on
+ * the given radio, each one carrying the mode, `SSID`, security and bridge configuration
+ * its `wifi_vap_info_t` entry holds. It is the call that brings an Access Point index
+ * into existence, and `wifi_deleteAp()` is what removes it again.
+ *
+ * @param[in] index  Index of the radio to create the Virtual Access Points on, in the
+ *                   range `RADIO_INDEX_1` to `RADIO_INDEX_3`, bounded by
+ *                   `MAX_NUM_RADIOS`.
+ * @param[in] map  Caller-owned `wifi_vap_info_map_t` describing the Virtual Access Points
+ *                 to create. `num_vaps` gives how many entries of `vap_array` are
+ *                 populated, and must not exceed `MAX_NUM_VAP_PER_RADIO`, which is 8. The
+ *                 `HAL` reads the structure during the call and must not retain the
+ *                 pointer afterwards.
+ *
+ * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
+ *      in `docs/pages/halSpec.md`. A call made beforehand fails with `WIFI_HAL_ERROR`
+ *      without performing the action.
+ * @post On success the described Virtual Access Points exist on that radio; each one's
+ *       arrival at an operational state is reported separately through the registered VAP
+ *       status handler. On failure no part of the configuration is changed.
  *
  * @returns The status of the operation.
- * @retval WIFI_HAL_SUCCESS If successful.
- * @retval WIFI_HAL_ERROR   If any error is detected.
+ * @retval WIFI_HAL_SUCCESS The Virtual Access Points were created.
+ * @retval WIFI_HAL_ERROR   `index` is out of range, `map` is NULL, `num_vaps` exceeds
+ *                          `MAX_NUM_VAP_PER_RADIO`, or a Virtual Access Point description
+ *                          was rejected. The caller should read the radio back with
+ *                          `wifi_getRadioVapInfoMap()` to establish which Virtual Access
+ *                          Points exist, because this interface does not state that
+ *                          creation is atomic across the map.
+ *
+ * @note Success means the Virtual Access Points were created, not that they are up.
+ *       Register with `wifi_vapstatus_callback_register()` beforehand, or poll
+ *       `wifi_getApStatus()`, to learn when each becomes operational.
+ * @note Each `wifi_vap_info_t` selects its union arm through `vap_mode`: `bss_info` for an
+ *       Access Point and `sta_info` for a backhaul station. Populating the wrong arm for
+ *       the mode is not detected by this interface.
+ * @note This call does not block, per `Blocking calls` in `docs/pages/halSpec.md`.
+ * @note The `HAL` is expected to be thread safe, per `Threading Model` in
+ *       `docs/pages/halSpec.md`.
+ * @see wifi_getRadioVapInfoMap
+ * @see wifi_vapstatus_callback_register
+ * @see wifi_deleteAp
  */
 INT wifi_createVAP(wifi_radio_index_t index, wifi_vap_info_map_t *map);
 
 /**
- * @brief Gets the VAP information map for a radio.
+ * @brief Reads back the Virtual Access Point configuration of one radio.
  *
- * @param[in] index Index of the radio.
- * @param[out] map  Pointer to a `wifi_vap_info_map_t` structure to store the
- *                  VAP information map.
+ * This function reports the Virtual Access Points (`VAP`) that currently exist on the
+ * given radio together with the configuration each one carries, which is what a caller
+ * reads to establish the outcome of a `wifi_createVAP()` call or to recover the Access
+ * Point indices a radio owns.
+ *
+ * @param[in] index  Index of the radio to read, in the range `RADIO_INDEX_1` to
+ *                   `RADIO_INDEX_3`, bounded by `MAX_NUM_RADIOS`.
+ * @param[out] map  Caller-allocated `wifi_vap_info_map_t` that receives the radio's
+ *                  Virtual Access Points, with `num_vaps` giving how many entries of
+ *                  `vap_array` were populated. The caller allocates and releases it; the
+ *                  `HAL` writes into it and retains no reference to it after returning.
+ *
+ * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
+ *      in `docs/pages/halSpec.md`. A call made beforehand fails with `WIFI_HAL_ERROR` and
+ *      writes nothing to the output.
+ * @post On success the output holds `num_vaps` populated entries, with the remaining
+ *       `vap_array` elements left unspecified; on failure the output is left unspecified,
+ *       so a caller must not read it unless the call succeeded.
  *
  * @returns The status of the operation.
- * @retval WIFI_HAL_SUCCESS If successful.
- * @retval WIFI_HAL_ERROR   If any error is detected.
+ * @retval WIFI_HAL_SUCCESS The map was retrieved. A `num_vaps` of 0 is a success meaning
+ *                          the radio hosts no Virtual Access Points.
+ * @retval WIFI_HAL_ERROR   `index` is out of range, a required output pointer is NULL,
+ *                          or the vendor layer could not supply the value. The caller
+ *                          should validate its arguments; a failure that persists across
+ *                          retries should be logged and the value treated as unavailable.
+ *
+ * @note Read `num_vaps` first and only then the corresponding entries of `vap_array`; the
+ *       elements beyond it are not defined by this interface.
+ * @note This is the call that populates the structure the `get_vap_ssid()`,
+ *       `get_vap_bridge_name()` and `get_vap_security_mode()` accessors read.
+ * @note This call does not block, per `Blocking calls` in `docs/pages/halSpec.md`.
+ * @note The `HAL` is expected to be thread safe, per `Threading Model` in
+ *       `docs/pages/halSpec.md`.
+ * @see wifi_createVAP
+ * @see get_vap_ssid
  */
 INT wifi_getRadioVapInfoMap(wifi_radio_index_t index, wifi_vap_info_map_t *map);
 
 /**
  * @brief Sets the security settings for an Access Point.
  *
- * @param[in] ap_index  Index of the Access Point.
- * @param[in] security  Pointer to a `wifi_vap_security_t` structure containing
- *                      the security settings to apply.
+ * @param[in] ap_index  Index of the Access Point, in the range `AP_INDEX_1` to
+ *                      `AP_INDEX_24`.
+ * @param[in] security  Caller-owned `wifi_vap_security_t` to apply. Its `u` union arm is
+ *                      selected by `mode`: RADIUS settings for an enterprise mode, a key
+ *                      for a personal one. The `HAL` reads the structure during the call
+ *                      and must not retain the pointer afterwards.
+ *
+ * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
+ *      in `docs/pages/halSpec.md`. A call made beforehand fails with `WIFI_HAL_ERROR` and
+ *      leaves the configuration unchanged.
+ * @post On success the Access Point enforces the supplied security configuration. On
+ *       failure no part of the configuration is changed.
  *
  * @returns The status of the operation.
- * @retval WIFI_HAL_SUCCESS If successful.
- * @retval WIFI_HAL_ERROR   If any error is detected.
+ * @retval WIFI_HAL_SUCCESS The configuration was applied.
+ * @retval WIFI_HAL_ERROR   `ap_index` is out of range, `security` is NULL, or a member
+ *                          was rejected -- for instance a mode the Access Point does not
+ *                          support. The caller should check the supported modes with
+ *                          `wifi_getAPCapabilities()` and read the configuration back
+ *                          rather than assuming the update was atomic.
+ *
+ * @note Populate the union arm that matches `mode`: filling the RADIUS arm for a personal
+ *       mode, or the key arm for an enterprise mode, is not detected by this interface.
+ * @note `wifi_getAPCapabilities()` reports the modes this Access Point supports through
+ *       `securityModesSupported`.
+ * @note This call does not block, per `Blocking calls` in `docs/pages/halSpec.md`.
+ * @note The `HAL` is expected to be thread safe, per `Threading Model` in
+ *       `docs/pages/halSpec.md`.
+ * @warning The structure carries credentials in its `u` union. A caller that logs or traces
+ *          it must redact them, and should clear its own copy once the call returns.
+ * @warning Changing the security configuration disconnects associated clients, which must
+ *          reauthenticate with the new credentials.
+ * @see wifi_getApSecurity
+ * @see wifi_getAPCapabilities
  */
 INT wifi_setApSecurity(INT ap_index, wifi_vap_security_t *security);
 
 /**
  * @brief Gets the security settings for an Access Point.
  *
- * @param[in] ap_index  Index of the Access Point.
- * @param[out] security Pointer to a `wifi_vap_security_t` structure to store
- *                      the security settings.
+ * @param[in] ap_index  Index of the Access Point, in the range `AP_INDEX_1` to
+ *                      `AP_INDEX_24`.
+ * @param[out] security  Caller-allocated `wifi_vap_security_t` that receives the Access
+ *                       Point's security configuration, whose `u` union arm is selected
+ *                       by `mode`. The caller allocates and releases it; the `HAL` writes
+ *                       into it and retains no reference to it after returning.
+ *
+ * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
+ *      in `docs/pages/halSpec.md`. A call made beforehand fails with `WIFI_HAL_ERROR` and
+ *      writes nothing to the output.
+ * @post On success the output holds the security configuration; on failure the output is
+ *       left unspecified, so a caller must not read it unless the call succeeded.
  *
  * @returns The status of the operation.
- * @retval WIFI_HAL_SUCCESS If successful.
- * @retval WIFI_HAL_ERROR   If any error is detected.
+ * @retval WIFI_HAL_SUCCESS The configuration was retrieved.
+ * @retval WIFI_HAL_ERROR   `ap_index` is out of range, a required output pointer is NULL,
+ *                          or the vendor layer could not supply the value. The caller
+ *                          should validate its arguments; a failure that persists across
+ *                          retries should be logged and the value treated as unavailable.
+ *
+ * @note Read `mode` before the `u` union: it is what selects which arm holds meaningful
+ *       data.
+ * @note This call does not block, per `Blocking calls` in `docs/pages/halSpec.md`.
+ * @note The `HAL` is expected to be thread safe, per `Threading Model` in
+ *       `docs/pages/halSpec.md`.
+ * @warning The returned structure carries credentials in its `u` union. A caller that logs
+ *          or traces it must redact them, and should clear its own copy once it is no
+ *          longer needed.
+ * @see wifi_setApSecurity
  */
 INT wifi_getApSecurity(INT ap_index, wifi_vap_security_t *security);
 
 /**
  * @brief Gets the capabilities of an Access Point.
  *
- * @param[in] ap_index      Index of the Access Point.
- * @param[out] apCapabilities Pointer to a `wifi_ap_capabilities_t` structure to
- *                            store the AP capabilities.
+ * @param[in] ap_index  Index of the Access Point, in the range `AP_INDEX_1` to
+ *                      `AP_INDEX_24`.
+ * @param[out] apCapabilities  Caller-allocated `wifi_ap_capabilities_t` that receives
+ *                             what this Access Point supports. The caller allocates and
+ *                             releases it; the `HAL` writes into it and retains no
+ *                             reference to it after returning.
+ *
+ * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
+ *      in `docs/pages/halSpec.md`. A call made beforehand fails with `WIFI_HAL_ERROR` and
+ *      writes nothing to the output.
+ * @post On success the output holds the capability flags; on failure the output is left
+ *       unspecified, so a caller must not read it unless the call succeeded.
  *
  * @returns The status of the operation.
- * @retval WIFI_HAL_SUCCESS If successful.
- * @retval WIFI_HAL_ERROR   If any error is detected.
+ * @retval WIFI_HAL_SUCCESS The capabilities were retrieved.
+ * @retval WIFI_HAL_ERROR   `ap_index` is out of range, a required output pointer is NULL,
+ *                          or the vendor layer could not supply the value. The caller
+ *                          should validate its arguments; a failure that persists across
+ *                          retries should be logged and the value treated as unavailable.
+ *
+ * @note Use this before configuring an optional feature: `rtsThresholdSupported`,
+ *       `WMMSupported`, `UAPSDSupported`, `interworkingServiceSupported` and
+ *       `BSSTransitionImplemented` each predict whether the corresponding setter can
+ *       succeed, and `securityModesSupported` and `methodsSupported` give the accepted
+ *       security modes and onboarding methods.
+ * @note This call does not block, per `Blocking calls` in `docs/pages/halSpec.md`.
+ * @note The `HAL` is expected to be thread safe, per `Threading Model` in
+ *       `docs/pages/halSpec.md`.
+ * @see wifi_ap_capabilities_t
+ * @see wifi_setApSecurity
  */
 INT wifi_getAPCapabilities(INT ap_index, wifi_ap_capabilities_t *apCapabilities);
 
 /**
  * @brief Gets the WPS configuration for an Access Point.
  *
- * @param[in] ap_index  Index of the Access Point.
- * @param[out] wpsConfig Pointer to a `wifi_wps_t` structure to store the WPS
- *                       configuration.
+ * @param[in] ap_index  Index of the Access Point, in the range `AP_INDEX_1` to
+ *                      `AP_INDEX_24`.
+ * @param[out] wpsConfig  Caller-allocated `wifi_wps_t` that receives the WPS enable
+ *                        state, supported onboarding methods and PIN. The caller
+ *                        allocates and releases it; the `HAL` writes into it and retains
+ *                        no reference to it after returning.
+ *
+ * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
+ *      in `docs/pages/halSpec.md`. A call made beforehand fails with `WIFI_HAL_ERROR` and
+ *      writes nothing to the output.
+ * @post On success the output holds the WPS configuration; on failure the output is left
+ *       unspecified, so a caller must not read it unless the call succeeded.
  *
  * @returns The status of the operation.
- * @retval WIFI_HAL_SUCCESS If successful.
- * @retval WIFI_HAL_ERROR   If any error is detected.
+ * @retval WIFI_HAL_SUCCESS The configuration was retrieved.
+ * @retval WIFI_HAL_ERROR   `ap_index` is out of range, a required output pointer is NULL,
+ *                          or the vendor layer could not supply the value. The caller
+ *                          should validate its arguments; a failure that persists across
+ *                          retries should be logged and the value treated as unavailable.
+ *
+ * @note `methods` is a bit set of `wifi_onboarding_methods_t` values, so test individual
+ *       bits rather than comparing the whole field.
+ * @note `pin` is `WIFI_AP_MAX_WPSPIN_LEN` bytes, which is 9.
+ * @note This call does not block, per `Blocking calls` in `docs/pages/halSpec.md`.
+ * @note The `HAL` is expected to be thread safe, per `Threading Model` in
+ *       `docs/pages/halSpec.md`.
+ * @warning The `pin` member is a credential. A caller that logs or traces this structure
+ *          must redact it.
+ * @see wifi_setApWpsConfiguration
+ * @see wifi_getAPCapabilities
  */
 INT wifi_getApWpsConfiguration(INT ap_index, wifi_wps_t* wpsConfig);
 
 /**
  * @brief Sets the WPS configuration for an Access Point.
  *
- * @param[in] ap_index  Index of the Access Point.
- * @param[in] wpsConfig Pointer to a `wifi_wps_t` structure containing the WPS
- *                       configuration to apply.
+ * @param[in] ap_index  Index of the Access Point, in the range `AP_INDEX_1` to
+ *                      `AP_INDEX_24`.
+ * @param[in] wpsConfig  Caller-owned `wifi_wps_t` to apply, whose `methods` is a bit set
+ *                       of `wifi_onboarding_methods_t` values and whose `pin` is at most
+ *                       `WIFI_AP_MAX_WPSPIN_LEN` bytes including the terminator. The
+ *                       `HAL` reads it during the call and must not retain the pointer
+ *                       afterwards.
+ *
+ * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
+ *      in `docs/pages/halSpec.md`. A call made beforehand fails with `WIFI_HAL_ERROR` and
+ *      leaves the configuration unchanged.
+ * @post On success the Access Point's WPS configuration matches the structure. On failure
+ *       no part of the configuration is changed.
  *
  * @returns The status of the operation.
- * @retval WIFI_HAL_SUCCESS If successful.
- * @retval WIFI_HAL_ERROR   If any error is detected.
+ * @retval WIFI_HAL_SUCCESS The configuration was applied.
+ * @retval WIFI_HAL_ERROR   `ap_index` is out of range, `wpsConfig` is NULL, a requested
+ *                          onboarding method is not supported, or the PIN is malformed.
+ *                          The caller should check `methodsSupported` from
+ *                          `wifi_getAPCapabilities()` and correct the structure rather
+ *                          than retrying unchanged.
+ *
+ * @note Request only methods that `wifi_getAPCapabilities()` reports in `methodsSupported`.
+ * @note This call does not block, per `Blocking calls` in `docs/pages/halSpec.md`.
+ * @note The `HAL` is expected to be thread safe, per `Threading Model` in
+ *       `docs/pages/halSpec.md`.
+ * @warning The `pin` member is a credential. A caller that logs or traces this structure
+ *          must redact it.
+ * @see wifi_getApWpsConfiguration
+ * @see wifi_getAPCapabilities
  */
 INT wifi_setApWpsConfiguration(INT ap_index, wifi_wps_t* wpsConfig);
 
 /**
  * @brief Checks whether libhostapd is used.
  *
- * @param[out] output_bool Pointer to a variable to store the result (true if
- *                         libhostapd is used, false otherwise).
+ * @param[out] output_bool  Caller-allocated variable that receives true when this
+ *                          platform's Wi-Fi `HAL` is implemented over libhostapd and
+ *                          false when it is not. The caller allocates and releases it;
+ *                          the `HAL` writes into it and retains no reference to it after
+ *                          returning.
+ *
+ * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
+ *      in `docs/pages/halSpec.md`. A call made beforehand fails with `WIFI_HAL_ERROR` and
+ *      writes nothing to the output.
+ * @post On success the output holds the libhostapd indication; on failure the output is
+ *       left unspecified, so a caller must not read it unless the call succeeded.
  *
  * @returns The status of the operation.
- * @retval WIFI_HAL_SUCCESS If successful.
- * @retval WIFI_HAL_ERROR   If any error is detected.
+ * @retval WIFI_HAL_SUCCESS The indication was retrieved.
+ * @retval WIFI_HAL_ERROR   `output_bool` is NULL or the vendor layer could not report the
+ *                          value. The caller should treat libhostapd use as unknown and
+ *                          avoid `wifi_updateLibHostApdConfig()`.
+ *
+ * @note This call takes no Access Point index because the answer is a property of the
+ *       platform rather than of one Access Point.
+ * @note This call does not block, per `Blocking calls` in `docs/pages/halSpec.md`.
+ * @note The `HAL` is expected to be thread safe, per `Threading Model` in
+ *       `docs/pages/halSpec.md`.
+ * @see wifi_updateLibHostApdConfig
  */
 INT wifi_getLibhostapd(BOOL *output_bool);
 
 /**
  * @brief Updates the libhostapd configuration for an Access Point.
  *
- * @param[in] apIndex Index of the Access Point.
+ * @param[in] apIndex  Index of the Access Point, in the range `AP_INDEX_1` to
+ *                     `AP_INDEX_24`.
+ *
+ * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
+ *      in `docs/pages/halSpec.md`. A call made beforehand fails with `WIFI_HAL_ERROR`
+ *      without performing the action.
+ * @post On success the libhostapd configuration for this Access Point reflects the Access
+ *       Point's current settings. On failure no part of the configuration is changed.
  *
  * @returns The status of the operation.
- * @retval WIFI_HAL_SUCCESS If successful.
- * @retval WIFI_HAL_ERROR   If any error is detected.
+ * @retval WIFI_HAL_SUCCESS The configuration was updated.
+ * @retval WIFI_HAL_ERROR   `apIndex` is out of range, this platform does not use
+ *                          libhostapd, or the update failed. The caller should check
+ *                          `wifi_getLibhostapd()` first, since on a platform that does
+ *                          not use libhostapd this call has nothing to update.
+ *
+ * @note This call does not block, per `Blocking calls` in `docs/pages/halSpec.md`.
+ * @note The `HAL` is expected to be thread safe, per `Threading Model` in
+ *       `docs/pages/halSpec.md`.
+ * @see wifi_getLibhostapd
  */
 INT wifi_updateLibHostApdConfig(int apIndex);
 
@@ -3444,15 +6271,47 @@ typedef enum
 typedef INT(* wifi_vapstatus_callback)(INT apIndex, wifi_vapstatus_t status);
 
 /**
- * @brief Registers a callback function for VAP status changes.
+ * @brief Installs the caller's handler for VAP up and down transitions.
  *
- * This function must not suspend and must not invoke any blocking system calls.
+ * After registration the `HAL` reports each transition of a Virtual Access Point
+ * between `wifi_vapstatus_down` and `wifi_vapstatus_up` through the supplied handler,
+ * which is how a caller learns that a VAP created by `wifi_createVAP()` has actually
+ * come up. The most recently registered handler replaces any previous one.
  *
- * @param[in] callback Pointer to the callback function to register.
+ * @param[in] callback  Handler to install, of type `wifi_vapstatus_callback`. The
+ *                      `HAL` retains this function pointer and invokes it until it is
+ *                      replaced, so the function must remain callable for that whole
+ *                      period. The effect of passing NULL is not specified by this
+ *                      interface.
+ *
+ * @pre `wifi_init()` must have completed successfully; see `Initialization and
+ *      Startup` in `docs/pages/halSpec.md`. A call made beforehand fails with
+ *      `WIFI_HAL_ERROR` and installs nothing.
+ * @post On success the handler is installed and is invoked on each subsequent VAP
+ *       status change. On failure no handler is installed and any previously
+ *       registered handler remains in place.
  *
  * @returns The status of the operation.
- * @retval WIFI_HAL_SUCCESS If successful.
- * @retval WIFI_HAL_ERROR   If any error is detected.
+ * @retval WIFI_HAL_SUCCESS The handler was installed.
+ * @retval WIFI_HAL_ERROR   The handler could not be installed, for example because
+ *                          the `HAL` is not initialised. The caller should log the
+ *                          failure and fall back to polling VAP state through
+ *                          `wifi_getRadioVapInfoMap()` rather than waiting for a
+ *                          notification that will never arrive.
+ *
+ * @execution callback
+ * @sideeffect None
+ *
+ * @note The registration call itself is synchronous; delivery of `wifi_vapstatus_callback`
+ *       is asynchronous.
+ * @note This function must not suspend and must not invoke any blocking system calls; see
+ *       `Blocking calls` in `docs/pages/halSpec.md`. The same holds for the handler.
+ * @note The `HAL` is expected to be thread safe, per `Threading Model` in
+ *       `docs/pages/halSpec.md`.
+ *
+ * @see wifi_vapstatus_callback
+ * @see wifi_vapstatus_t
+ * @see wifi_createVAP
  */
 INT wifi_vapstatus_callback_register(wifi_vapstatus_callback callback);
 
@@ -3470,15 +6329,51 @@ INT wifi_vapstatus_callback_register(wifi_vapstatus_callback callback);
 typedef INT(* wifi_analytics_callback)(CHAR *fmt, ...);
 
 /**
- * @brief Registers a callback function for logging catastrophic failures.
+ * @brief Installs the caller's log sink for catastrophic `HAL` failures.
  *
- * This function must not suspend and must not invoke any blocking system calls.
+ * After registration the `HAL` routes its catastrophic-failure messages to the
+ * supplied handler, which lets the caller's own logging and telemetry pipeline carry
+ * them rather than losing them inside the vendor layer. The most recently registered
+ * handler replaces any previous one.
  *
- * @param[in] callback Pointer to the callback function to register.
+ * @param[in] callback  Handler to install, of type `wifi_analytics_callback`. It takes
+ *                      a `printf`-style format string and a variable argument list, so
+ *                      the implementation must consume the arguments with the `v`
+ *                      family of formatting calls. The `HAL` retains this function
+ *                      pointer and invokes it until it is replaced, so the function
+ *                      must remain callable for that whole period. The effect of
+ *                      passing NULL is not specified by this interface.
+ *
+ * @pre `wifi_init()` must have completed successfully; see `Initialization and
+ *      Startup` in `docs/pages/halSpec.md`. A call made beforehand fails with
+ *      `WIFI_HAL_ERROR` and installs nothing.
+ * @post On success the handler is installed and receives subsequent failure messages.
+ *       On failure no handler is installed and any previously registered handler
+ *       remains in place.
  *
  * @returns The status of the operation.
- * @retval WIFI_HAL_SUCCESS If successful.
- * @retval WIFI_HAL_ERROR   If any error is detected.
+ * @retval WIFI_HAL_SUCCESS The handler was installed.
+ * @retval WIFI_HAL_ERROR   The handler could not be installed, for example because
+ *                          the `HAL` is not initialised. The caller should log the
+ *                          failure through its own path and continue; losing this
+ *                          sink degrades diagnostics but does not affect Wi-Fi
+ *                          operation.
+ *
+ * @execution callback
+ * @sideeffect None
+ *
+ * @note The registration call itself is synchronous; invocation of
+ *       `wifi_analytics_callback` is asynchronous and may occur on a `HAL` thread.
+ * @note This function must not suspend and must not invoke any blocking system calls; see
+ *       `Blocking calls` in `docs/pages/halSpec.md`. The same holds for the handler, which
+ *       is called on failure paths where blocking would compound the problem.
+ * @note The `HAL` is expected to be thread safe, per `Threading Model` in
+ *       `docs/pages/halSpec.md`.
+ * @warning The format string and its arguments are owned by the `HAL` and are valid only
+ *          for the duration of the call; the handler must format or copy them before
+ *          returning.
+ *
+ * @see wifi_analytics_callback
  */
 INT wifi_hal_analytics_callback_register(wifi_analytics_callback callback);
 
@@ -3524,18 +6419,51 @@ typedef enum
 typedef INT(* wifi_wpsEvent_callback)(INT apIndex, wifi_wps_ev_t event);
 
 /**
- * @brief Registers a callback function to receive WPS result events.
+ * @brief Installs the caller's handler for Wi-Fi Protected Setup result events.
  *
- * This function allows upper layers to register a callback that will be
- * invoked whenever a WPS event occurs on any AP interface. Only one callback
- * may be registered at a time; registering a new callback replaces the
+ * After registration the `HAL` reports the outcome of every `WPS` operation on any
+ * Access Point interface through the supplied handler, which is the only way a caller
+ * learns whether a push-button or PIN session succeeded, timed out or overlapped.
+ * Only one handler may be registered at a time; registering a new one replaces the
  * previous one.
  *
- * @param[in] callback Pointer to the callback function to register.
+ * @param[in] callback  Handler to install, of type `wifi_wpsEvent_callback`. The
+ *                      `HAL` retains this function pointer and invokes it until it is
+ *                      replaced, so the function must remain callable for that whole
+ *                      period. The effect of passing NULL is not specified by this
+ *                      interface.
+ *
+ * @pre `wifi_init()` must have completed successfully; see `Initialization and
+ *      Startup` in `docs/pages/halSpec.md`. A call made beforehand fails with
+ *      `WIFI_HAL_ERROR` and installs nothing. Register before starting a `WPS`
+ *      session with `wifi_setApWpsButtonPush()` or `wifi_setApWpsEnrolleePin()`,
+ *      otherwise the session's outcome is not reported.
+ * @post On success the handler is installed and is invoked for each subsequent `WPS`
+ *       event. On failure no handler is installed and any previously registered
+ *       handler remains in place.
  *
  * @returns The status of the operation.
- * @retval WIFI_HAL_SUCCESS If successful.
- * @retval WIFI_HAL_ERROR   If any error is detected.
+ * @retval WIFI_HAL_SUCCESS The handler was installed.
+ * @retval WIFI_HAL_ERROR   The handler could not be installed, for example because
+ *                          the `HAL` is not initialised. The caller should log the
+ *                          failure and treat `WPS` outcomes as unobservable, since a
+ *                          `WPS` session started without a handler completes
+ *                          silently.
+ *
+ * @execution callback
+ * @sideeffect None
+ *
+ * @note The registration call itself is synchronous; delivery of `wifi_wpsEvent_callback`
+ *       is asynchronous.
+ * @note This function must not suspend and must not invoke any blocking system calls; see
+ *       `Blocking calls` in `docs/pages/halSpec.md`. The same holds for the handler.
+ * @note The `HAL` is expected to be thread safe, per `Threading Model` in
+ *       `docs/pages/halSpec.md`.
+ *
+ * @see wifi_wpsEvent_callback
+ * @see wifi_wps_ev_t
+ * @see wifi_setApWpsButtonPush
+ * @see wifi_cancelApWPS
  */
 INT wifi_wpsEvent_callback_register(wifi_wpsEvent_callback callback);
 
