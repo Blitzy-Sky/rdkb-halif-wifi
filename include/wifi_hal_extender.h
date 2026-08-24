@@ -31,22 +31,61 @@ extern "C"{
 
 /**
  * @brief Wi-Fi channel statistics.
+ *
+ * One instance describes the survey result for a single 20MHz channel. The structure is
+ * both an input and an output of `wifi_getRadioChannelStats()`: the caller sets
+ * `ch_number` to name the channel it wants, and the `HAL` writes every remaining member.
+ * The caller allocates and owns the array, per `Memory Model` in `docs/pages/halSpec.md`.
+ *
+ * The six `ch_utilization_*` members are busy-time accumulators rather than percentages.
+ * A caller derives a proportion by dividing one of them by `ch_utilization_total` over the
+ * same sampling interval, or by differencing two successive reads of the same member.
+ *
+ * @see wifi_getRadioChannelStats
  */
 typedef struct _wifi_channelStats
 {
-    INT ch_number; /**< Channel number (each channel is only 20MHz bandwidth). */
-    BOOL ch_in_pool; /**< Whether the channel is in the pool. If false, the driver does not need to scan this channel. */
-    INT ch_noise; /**< Average noise floor in dBm. */
-    BOOL ch_radar_noise; /**< Whether radar noise is present on the channel (5GHz only). */
-    INT ch_max_80211_rssi; /**< Maximum RSSI from a neighboring AP in dBm on this channel. */
-    INT ch_non_80211_noise; /**< Average non-802.11 noise. */
-    INT ch_utilization; /**< 802.11 utilization in percent. */
-    ULLONG ch_utilization_total; /**< Total time the radio spent receiving or transmitting on the channel. */
-    ULLONG ch_utilization_busy; /**< Time the radio detected that the channel was busy (Busy = Rx + Tx + Interference). */
-    ULLONG ch_utilization_busy_tx; /**< Time the radio spent transmitting on the channel. */
-    ULLONG ch_utilization_busy_rx; /**< Time the radio spent receiving on the channel (Rx = Rx_obss + Rx_self + Rx_errr (self and obss errors)). */
-    ULLONG ch_utilization_busy_self; /**< Time the radio spent receiving on the channel from its own connected clients. */
-    ULLONG ch_utilization_busy_ext; /**< Time the radio detected that the extended channel was busy (40MHz extension channel busy). */
+    INT ch_number; /**< IEEE 802.11 channel number, always a 20MHz channel. Set by the
+                        caller to select the channel and echoed by the `HAL`. This
+                        interface does not carry the band in this structure, so the
+                        channel number alone must identify the channel for the radio
+                        being queried. */
+    BOOL ch_in_pool; /**< Whether the channel is in the radio's scan pool, as a `BOOL`
+                        (`unsigned char`, `TRUE` or `FALSE`). When `FALSE` the driver
+                        does not need to scan this channel, so a caller should not read
+                        the remaining members as a fresh survey of it. */
+    INT ch_noise; /**< Average noise floor on the channel, in dBm. Normally negative. */
+    BOOL ch_radar_noise; /**< Whether radar was detected on the channel. Meaningful on
+                        5GHz only; this interface does not state what the member carries
+                        for a 2.4GHz or 6GHz channel. */
+    INT ch_max_80211_rssi; /**< Strongest RSSI observed from a neighbouring AP on this
+                        channel, in dBm. Normally negative. */
+    INT ch_non_80211_noise; /**< Average noise attributed to non-802.11 sources. This
+                        interface does not state the unit of this member; the two noise
+                        and RSSI members above it are expressed in dBm. */
+    INT ch_utilization; /**< 802.11 utilization of the channel, as a percentage in the
+                        range 0 to 100. */
+    ULLONG ch_utilization_total; /**< Accumulated time the radio was able to observe the
+                        channel, which is the denominator for the five busy accumulators
+                        below. This interface does not state the time unit or the epoch
+                        the accumulator counts from, so a caller must use it only as a
+                        ratio or a difference, never as an absolute duration. */
+    ULLONG ch_utilization_busy; /**< Accumulated time the channel was busy, where busy is
+                        Rx + Tx + interference. Same unit and epoch as
+                        `ch_utilization_total`. */
+    ULLONG ch_utilization_busy_tx; /**< Accumulated time the radio spent transmitting on
+                        the channel. A component of `ch_utilization_busy`. */
+    ULLONG ch_utilization_busy_rx; /**< Accumulated time the radio spent receiving on the
+                        channel, where Rx is Rx_obss + Rx_self + Rx_err, the last covering
+                        both self and OBSS errors. A component of
+                        `ch_utilization_busy`. */
+    ULLONG ch_utilization_busy_self; /**< Accumulated time the radio spent receiving from
+                        its own connected clients. A component of
+                        `ch_utilization_busy_rx`. */
+    ULLONG ch_utilization_busy_ext; /**< Accumulated time the 40MHz extension channel was
+                        busy. Reported for the extension channel, not for the 20MHz
+                        channel named by `ch_number`, so it is meaningful only where the
+                        radio is operating at 40MHz or wider. */
 } wifi_channelStats_t;
 
 /* MCS/NSS/BW rate table and indexes that should be used for supported rates
@@ -85,19 +124,46 @@ typedef struct _wifi_channelStats
 
 /**
  * @brief RX statistics for a specific rate.
+ *
+ * One instance carries the receive counters for a single rate, identified by the
+ * `nss`, `mcs` and `bw` triple that the rate table above indexes.
+ * `wifi_getApAssociatedDeviceRxStatsResult()` returns an array of these, one element per
+ * rate the client has used.
+ *
+ * @see wifi_getApAssociatedDeviceRxStatsResult
  */
 typedef struct _wifi_associated_dev_rate_info_rx_stats
 {
-    UCHAR nss; /**< Number of spatial streams (0 for legacy protocols like OFDM and CCK, 1 or more for HT and VHT). */
-    UCHAR mcs; /**< MCS index (0-7 for HT, 0-9 for VHT). */
-    USHORT bw; /**< Bandwidth in MHz (20, 40, 80, 160, etc.). */
-    ULLONG flags; /**< Flags indicating data validation: HAS_BYTES, HAS_MSDUS, HAS_MPDUS, HAS_PPDUS, HAS_BW_80P80, HAS_RSSI_COMB, HAS_RSSI_ARRAY. */
-    ULLONG bytes; /**< Number of bytes received for the given rate. */
-    ULLONG msdus; /**< Number of MSDUs received for the given rate. */
-    ULLONG mpdus; /**< Number of MPDUs received for the given rate. */
-    ULLONG ppdus; /**< Number of PPDUs received for the given rate. */
-    ULLONG retries; /**< Number of retries received for the given rate. */
-    UCHAR rssi_combined; /**< Last RSSI received for the given rate. */
+    UCHAR nss; /**< Number of spatial streams: 0 for the legacy OFDM and CCK rates, 1 or
+                        more for HT and VHT. Together with `mcs` and `bw` this identifies
+                        the rate the counters below belong to, as laid out in the rate
+                        table above this structure. */
+    UCHAR mcs; /**< MCS index for the rate: 0 to 7 for HT, 0 to 9 for VHT, and for the
+                        legacy rates the table index above rather than an MCS - 0 to 7 for
+                        OFDM and 8 to 14 for CCK. */
+    USHORT bw; /**< Bandwidth of the rate in MHz - 20, 40, 80 or 160. Note that this
+                        member is a count of MHz, unlike the `bw` column of the rate table
+                        above, which is an index. */
+    ULLONG flags; /**< Bitmask stating which of the members below the `HAL` actually
+                        populated, so a caller can tell an unpopulated counter from a
+                        genuine zero. This interface names the flags HAS_BYTES, HAS_MSDUS,
+                        HAS_MPDUS, HAS_PPDUS, HAS_BW_80P80, HAS_RSSI_COMB and
+                        HAS_RSSI_ARRAY but does not define their values anywhere, so a
+                        caller cannot test them portably from this header alone and the
+                        bit positions are a platform convention. */
+    ULLONG bytes; /**< Bytes received at this rate. A monotonically increasing counter;
+                        valid only if the HAS_BYTES flag is set. */
+    ULLONG msdus; /**< MSDUs received at this rate. Valid only if the HAS_MSDUS flag is
+                        set. */
+    ULLONG mpdus; /**< MPDUs received at this rate. Valid only if the HAS_MPDUS flag is
+                        set. */
+    ULLONG ppdus; /**< PPDUs received at this rate. Valid only if the HAS_PPDUS flag is
+                        set. */
+    ULLONG retries; /**< Retried frames received at this rate. */
+    UCHAR rssi_combined; /**< Most recent RSSI across all chains for this rate, valid only
+                        if the HAS_RSSI_COMB flag is set. Carried as an unsigned octet
+                        above the noise floor rather than as a signed dBm value, on the
+                        same basis as `rssi_array` below. */
     /* Per antenna RSSI (above noise floor) for all widths (primary,secondary) 
         -----------------------------------------------
         | chain_num |  20MHz [pri20                   ]
@@ -109,63 +175,152 @@ typedef struct _wifi_associated_dev_rate_info_rx_stats
         |  ...      |  ...
         |  8        |  rssi  [pri20,sec20,sec40,sec80 ]
         -----------------------------------------------    */    
-    UCHAR rssi_array[8][4]; /**< Per-antenna RSSI (above noise floor) for all widths (primary, secondary). */
+    UCHAR rssi_array[8][4]; /**< Per-chain RSSI above the noise floor, valid only if the
+                        HAS_RSSI_ARRAY flag is set. The first index is the chain, 0 to 7
+                        for up to eight chains, and the second is the 20MHz sub-band
+                        within the operating bandwidth in the order primary, secondary,
+                        secondary-40 and secondary-80. Only the leading sub-bands are
+                        meaningful: one entry at 20MHz, two at 40MHz, three at 80MHz and
+                        four at 160MHz, so `bw` bounds how much of each row a caller may
+                        read, and the number of chains the radio has bounds how many rows
+                        it may read. The comment block above this structure draws the same
+                        layout. */
 } wifi_associated_dev_rate_info_rx_stats_t;
 
 /**
  * @brief TX statistics for a specific rate.
+ *
+ * One instance carries the transmit counters for a single rate, identified by the
+ * `nss`, `mcs` and `bw` triple that the rate table above indexes.
+ * `wifi_getApAssociatedDeviceTxStatsResult()` returns an array of these, one element per
+ * rate the client has used. The receive counterpart is
+ * `wifi_associated_dev_rate_info_rx_stats_t`, which additionally carries RSSI.
+ *
+ * @see wifi_getApAssociatedDeviceTxStatsResult
  */
 typedef struct _wifi_associated_dev_rate_info_tx_stats
 {
-    UCHAR nss; /**< Number of spatial streams (0 for legacy protocols like OFDM and CCK, 1 or more for HT and VHT). */
-    UCHAR mcs; /**< MCS index (0-7 for HT, 0-9 for VHT). */
-    USHORT bw; /**< Bandwidth in MHz (20, 40, 80, 160, etc.). */
-    ULLONG flags; /**< Flags indicating data validation: HAS_BYTES, HAS_MSDUS, HAS_MPDUS, HAS_PPDUS, HAS_BW_80P80, HAS_RSSI_COMB, HAS_RSSI_ARRAY. */
-    ULLONG bytes; /**< Number of bytes transmitted for the given rate. */
-    ULLONG msdus; /**< Number of MSDUs transmitted for the given rate. */
-    ULLONG mpdus; /**< Number of MPDUs transmitted for the given rate. */
-    ULLONG ppdus; /**< Number of PPDUs transmitted for the given rate. */
-    ULLONG retries; /**< Number of transmission retries for the given rate. */
-    ULLONG attempts; /**< Number of attempts trying to transmit on the given rate. */
+    UCHAR nss; /**< Number of spatial streams: 0 for the legacy OFDM and CCK rates, 1 or
+                        more for HT and VHT. Together with `mcs` and `bw` this identifies
+                        the rate the counters below belong to, as laid out in the rate
+                        table above `wifi_associated_dev_rate_info_rx_stats_t`. */
+    UCHAR mcs; /**< MCS index for the rate: 0 to 7 for HT, 0 to 9 for VHT, and for the
+                        legacy rates the table index rather than an MCS. */
+    USHORT bw; /**< Bandwidth of the rate in MHz - 20, 40, 80 or 160. */
+    ULLONG flags; /**< Bitmask stating which of the members below the `HAL` actually
+                        populated, so a caller can tell an unpopulated counter from a
+                        genuine zero. The flag names are those listed for
+                        `wifi_associated_dev_rate_info_rx_stats_t`, and this interface
+                        does not define their values, so the bit positions are a platform
+                        convention. The RSSI flags do not apply here, because this
+                        structure carries no RSSI member. */
+    ULLONG bytes; /**< Bytes transmitted at this rate. A monotonically increasing counter;
+                        valid only if the HAS_BYTES flag is set. */
+    ULLONG msdus; /**< MSDUs transmitted at this rate. Valid only if the HAS_MSDUS flag is
+                        set. */
+    ULLONG mpdus; /**< MPDUs transmitted at this rate. Valid only if the HAS_MPDUS flag is
+                        set. */
+    ULLONG ppdus; /**< PPDUs transmitted at this rate. Valid only if the HAS_PPDUS flag is
+                        set. */
+    ULLONG retries; /**< Retransmissions at this rate. A subset of `attempts`. */
+    ULLONG attempts; /**< Transmit attempts at this rate, counting the first attempt and
+                        every retry, so `attempts` is at least `retries` and the
+                        difference is the number of frames first attempted at this
+                        rate. */
 } wifi_associated_dev_rate_info_tx_stats_t;
 
 /**
  * @brief TID entry.
+ *
+ * One instance carries the transmit-time statistics for a single traffic identifier over
+ * the reporting interval. Sixteen of these make up `wifi_associated_dev_tid_stats_t`.
+ *
+ * @see wifi_associated_dev_tid_stats_t
  */
 typedef struct wifi_associated_dev_tid_entry
 {
-    UCHAR ac; /**< Access category (BE, BK, VI, VO). */
-    UCHAR tid; /**< TID (0-15). */
-    ULLONG ewma_time_ms; /**< Moving average value based on the last couple of transmitted MSDUs. */
-    ULLONG sum_time_ms; /**< Delta of cumulative MSDU times over the interval. */
-    ULLONG num_msdus; /**< Number of MSDUs in the given interval. */
+    UCHAR ac; /**< IEEE 802.11e access category the TID maps into - background, best
+                        effort, video or voice. This interface does not define the
+                        numeric encoding of this member. */
+    UCHAR tid; /**< Traffic identifier this entry describes, in the range 0 to 15. In
+                        `wifi_associated_dev_tid_stats_t` the entry's array index carries
+                        the same value. */
+    ULLONG ewma_time_ms; /**< Exponentially weighted moving average of MSDU transmit
+                        latency for this TID, in milliseconds, taken over the most recent
+                        MSDUs. This interface does not state the averaging window or the
+                        weighting used. */
+    ULLONG sum_time_ms; /**< Total MSDU transmit time accumulated for this TID over the
+                        reporting interval, in milliseconds. Dividing it by `num_msdus`
+                        gives the mean latency for the interval. */
+    ULLONG num_msdus; /**< MSDUs transmitted for this TID over the reporting interval, and
+                        the divisor for `sum_time_ms`. A value of zero means no traffic,
+                        in which case `sum_time_ms` carries no useful mean. */
 } wifi_associated_dev_tid_entry_t;
 
 /**
  * @brief TID statistics.
+ *
+ * The `HAL` fills an instance of this structure in
+ * `wifi_getApAssociatedDeviceTidStatsResult()`, where the caller allocates the storage
+ * and keeps ownership of it.
+ *
+ * @see wifi_getApAssociatedDeviceTidStatsResult
  */
 typedef struct wifi_associated_dev_tid_stats
 {
-    wifi_associated_dev_tid_entry_t tid_array[16]; /**< Array of TID entries. */
+    wifi_associated_dev_tid_entry_t tid_array[16]; /**< Statistics for all sixteen traffic
+                        identifiers. The array is fixed at sixteen elements and is indexed
+                        by TID, so element `n` describes TID `n` and every element is
+                        addressable; there is no separate count member and a caller must
+                        not expect one. An element for a TID that carried no traffic is
+                        reported with a zero `num_msdus`. */
 } wifi_associated_dev_tid_stats_t;
 
 /**
  * @brief Associated device statistics.
+ *
+ * Aggregate traffic counters for one associated client, together with the two most recent
+ * RSSI snapshots. Unlike the per-rate statistics structures, this one is not broken down
+ * by rate. The `HAL` fills an instance in `wifi_getApAssociatedDeviceStats()`, where the
+ * caller allocates the storage and keeps ownership of it.
+ *
+ * All eight counters accumulate from an epoch this interface does not state, so a caller
+ * should difference two successive reads rather than treat a single read as a total for a
+ * period of its own choosing.
+ *
+ * @see wifi_getApAssociatedDeviceStats
  */
 typedef struct _wifi_associated_dev_stats
 {
-    ULLONG cli_rx_bytes; /**< The total number of bytes received from the client device, including framing characters. */
-    ULLONG cli_tx_bytes; /**< The total number of bytes transmitted to the client device, including framing characters. */
-    ULLONG cli_rx_frames; /**< The total number of frames received from the client. */
-    ULLONG cli_tx_frames; /**< The total number of frames transmitted to the client. */
-    ULLONG cli_rx_retries; /**< Number of RX retries. */
-    ULLONG cli_tx_retries; /**< Number of TX retries. */
-    ULLONG cli_rx_errors; /**< Number of RX errors. */
-    ULLONG cli_tx_errors; /**< Number of TX errors. */
-    double cli_rx_rate; /**< Average RX data rate used. */
-    double cli_tx_rate; /**< Average TX data rate used. */
-    wifi_rssi_snapshot_t cli_rssi_bcn; /**< RSSI from the last 4 beacons received (STA). */
-    wifi_rssi_snapshot_t cli_rssi_ack; /**< RSSI from the last 4 ACKs received (AP). */
+    ULLONG cli_rx_bytes; /**< Bytes received from the client, including framing
+                        characters. */
+    ULLONG cli_tx_bytes; /**< Bytes transmitted to the client, including framing
+                        characters. */
+    ULLONG cli_rx_frames; /**< Frames received from the client. */
+    ULLONG cli_tx_frames; /**< Frames transmitted to the client. */
+    ULLONG cli_rx_retries; /**< Frames received from the client that were marked as
+                        retries. A subset of `cli_rx_frames`. */
+    ULLONG cli_tx_retries; /**< Frames retransmitted to the client. Counted in addition to
+                        the first attempt, so it is not bounded by `cli_tx_frames`. */
+    ULLONG cli_rx_errors; /**< Receive errors on frames from the client, for example a
+                        failed FCS check. */
+    ULLONG cli_tx_errors; /**< Transmit errors on frames to the client, for example a
+                        frame discarded after exhausting its retry limit. */
+    double cli_rx_rate; /**< Mean receive data rate for the client. This interface does
+                        not state the unit of this member or the interval it is averaged
+                        over; comparable rate members elsewhere in the interface are
+                        expressed in Mbps. */
+    double cli_tx_rate; /**< Mean transmit data rate for the client, on the same terms as
+                        `cli_rx_rate`. */
+    wifi_rssi_snapshot_t cli_rssi_bcn; /**< RSSI of the last four beacons received, which
+                        is the snapshot a client `VAP` (STA role) can report. Each of the
+                        four entries in `wifi_rssi_snapshot_t` - declared in
+                        `wifi_hal_telemetry.h` - carries its own relative age in seconds,
+                        and its `count` member is the frame sequence number rather than a
+                        count of valid entries. */
+    wifi_rssi_snapshot_t cli_rssi_ack; /**< RSSI of the last four ACKs received, which is
+                        the snapshot an AP `VAP` can report, on the same terms as
+                        `cli_rssi_bcn`. */
 } wifi_associated_dev_stats_t;
 
 /**
@@ -186,11 +341,18 @@ typedef struct _wifi_associated_dev_stats
  */
 typedef struct
 {
-    INT apIndex; /**< AP index. */
-    UINT utilCheckIntervalSec; /**< Channel utilization check interval. */
-    UINT utilAvgCount; /**< Number of samples to average for channel utilization. */
-    UINT inactCheckIntervalSec; /**< Client inactivity check interval. */
-    UINT inactCheckThresholdSec; /**< Client inactivity threshold. */
+    INT apIndex; /**< Index of the AP this entry configures. The indices this interface
+                        defines are `AP_INDEX_1` to `AP_INDEX_24` in
+                        `wifi_hal_generic.h`. */
+    UINT utilCheckIntervalSec; /**< Channel utilization sampling period, in seconds. */
+    UINT utilAvgCount; /**< Number of samples averaged before a
+                        `WIFI_STEERING_EVENT_CHAN_UTILIZATION` event is sent, so an event
+                        is reported roughly every `utilCheckIntervalSec * utilAvgCount`
+                        seconds. */
+    UINT inactCheckIntervalSec; /**< Client activity check period, in seconds. */
+    UINT inactCheckThresholdSec; /**< Idle time after which a client is marked inactive,
+                        in seconds. Crossing it in either direction sends a
+                        `WIFI_STEERING_EVENT_CLIENT_ACTIVITY` event. */
 } wifi_steering_apConfig_t;
 
 /**
@@ -213,14 +375,28 @@ typedef struct
  */
 typedef struct
 {
-    UINT rssiProbeHWM;     /**< Probe response RSSI high water mark.    */
-    UINT rssiProbeLWM;     /**< Probe response RSSI low water mark.     */
-    UINT rssiAuthHWM;      /**< Auth response RSSI high water mark.     */
-    UINT rssiAuthLWM;      /**< Auth response RSSI low water mark.      */
-    UINT rssiInactXing;    /**< Inactive RSSI crossing threshold.       */
-    UINT rssiHighXing;     /**< High RSSI crossing threshold.           */
-    UINT rssiLowXing;      /**< Low RSSI crossing threshold.            */
-    UINT authRejectReason; /**< Inactive RSSI crossing threshold.       */
+    UINT rssiProbeHWM;     /**< Upper bound of the RSSI range in which probe requests are
+                                answered. A probe request whose RSSI is outside the
+                                `rssiProbeLWM` to `rssiProbeHWM` range is not responded
+                                to. */
+    UINT rssiProbeLWM;     /**< Lower bound of the probe response RSSI range. */
+    UINT rssiAuthHWM;      /**< Upper bound of the RSSI range in which auth requests are
+                                answered. An auth request outside the `rssiAuthLWM` to
+                                `rssiAuthHWM` range is rejected with `authRejectReason`,
+                                or silently ignored when that member is zero. */
+    UINT rssiAuthLWM;      /**< Lower bound of the auth response RSSI range. */
+    UINT rssiInactXing;    /**< RSSI threshold whose crossing marks the inactivity
+                                transition in a `WIFI_STEERING_EVENT_RSSI_XING` event,
+                                reported in the event's `inactveXing` member. */
+    UINT rssiHighXing;     /**< RSSI threshold whose crossing is reported in the event's
+                                `highXing` member. */
+    UINT rssiLowXing;      /**< RSSI threshold whose crossing is reported in the event's
+                                `lowXing` member. */
+    UINT authRejectReason; /**< IEEE 802.11 status code returned when an auth request is
+                                rejected for falling outside the `rssiAuthLWM` to
+                                `rssiAuthHWM` range. Zero disables rejection, so such a
+                                request is silently ignored instead; see the reason-code
+                                reference in the block above. */
 } wifi_steering_clientConfig_t;
 
 /**
@@ -289,13 +465,24 @@ typedef enum
  */
 typedef struct
 {
-    UINT maxChwidth;        /**< Max bandwidth supported. */
-    UINT maxStreams;        /**< Max spatial streams supported. */
-    UINT phyMode;           /**< PHY Mode supported. */
-    UINT maxMCS;            /**< Max MCS supported. */
-    UINT maxTxpower;        /**< Max TX power supported. */
-    UINT isStaticSmps;      /**< Operating in Static SM Power Save Mode. */
-    UINT isMUMimoSupported; /**< Supports MU-MIMO. */
+    UINT maxChwidth;        /**< Widest channel bandwidth the STA supports. This interface
+                                 does not state whether the member is a count of MHz or a
+                                 bandwidth code, so a caller must not compare it against
+                                 either without knowing the platform convention. */
+    UINT maxStreams;        /**< Highest number of spatial streams the STA supports, as a
+                                 count. */
+    UINT phyMode;           /**< PHY mode the STA supports. This interface does not define
+                                 the encoding of this member. */
+    UINT maxMCS;            /**< Highest MCS index the STA supports. */
+    UINT maxTxpower;        /**< Highest transmit power the STA supports. This interface
+                                 does not state the unit of this member. */
+    UINT isStaticSmps;      /**< Non-zero if the STA is operating in static spatial
+                                 multiplexing power save mode, which restricts it to a
+                                 single receive chain. Carried as a `UINT` rather than a
+                                 `BOOL`, so a caller should test for non-zero rather than
+                                 compare against `TRUE`. */
+    UINT isMUMimoSupported; /**< Non-zero if the STA supports MU-MIMO, on the same terms as
+                                 `isStaticSmps`. */
 } wifi_steering_datarateInfo_t;
 
 /**
@@ -319,10 +506,18 @@ typedef struct
  */
 typedef struct
 {
-    mac_address_t client_mac; /**< Client MAC Address. */
-    UINT rssi;           /**< RSSI of probe frame. */
-    BOOL broadcast;      /**< True if broadcast probe. */
-    BOOL blocked;        /**< True if response blocked. */
+    mac_address_t client_mac; /**< MAC address of the probing client, as the six octets of
+                              `mac_address_t` in `wifi_hal_generic.h`. */
+    UINT rssi;           /**< RSSI of the received probe request. Held in a `UINT`, so it
+                              is not a signed dBm value; the interface does not state the
+                              encoding, and the RSSI members of the other steering events
+                              use the same one, which is the value compared against the
+                              `wifi_steering_clientConfig_t` water marks. */
+    BOOL broadcast;      /**< `TRUE` if the probe request was a broadcast probe rather than
+                              one directed at a specific SSID. */
+    BOOL blocked;        /**< `TRUE` if the AP suppressed its probe response, which happens
+                              when `rssi` falls outside the `rssiProbeLWM` to
+                              `rssiProbeHWM` range configured for the client. */
 } wifi_steering_evProbeReq_t;
 
 #ifdef WIFI_HAL_VERSION_3_PHASE2
@@ -368,10 +563,14 @@ typedef struct
  */
 typedef struct
 {
-    mac_address_t client_mac; /**< Client MAC Address. */
-    UINT reason; /**< Reason code of disconnect. */
-    wifi_disconnectSource_t source; /**< Source of disconnect. */
-    wifi_disconnectType_t type; /**< Disconnect Type. */
+    mac_address_t client_mac; /**< MAC address of the disconnected client. */
+    UINT reason; /**< IEEE 802.11 reason code carried in the deauthentication or
+                        disassociation frame; see the reason-code reference on
+                        `wifi_steering_clientConfig_t`. */
+    wifi_disconnectSource_t source; /**< Which end initiated the disconnect, or
+                        `DISCONNECT_SOURCE_UNKNOWN` where the `HAL` cannot tell. */
+    wifi_disconnectType_t type; /**< How the client was disconnected, or
+                        `DISCONNECT_TYPE_UNKNOWN` where the `HAL` cannot tell. */
 } wifi_steering_evDisconnect_t;
 
 /**
@@ -402,11 +601,17 @@ typedef struct
  */
 typedef struct
 {
-    mac_address_t client_mac; /**< Client MAC address. */
-    UINT rssi; /**< Client's current RSSI. */
-    wifi_steering_rssiChange_t inactveXing; /**< Inactive threshold crossing status. */
-    wifi_steering_rssiChange_t highXing; /**< High threshold crossing status. */
-    wifi_steering_rssiChange_t lowXing; /**< Low threshold crossing status. */
+    mac_address_t client_mac; /**< MAC address of the client whose RSSI crossed a
+                        threshold. */
+    UINT rssi; /**< Client's RSSI at the crossing, in the same encoding as the RSSI members
+                        of the other steering events. */
+    wifi_steering_rssiChange_t inactveXing; /**< Direction in which `rssi` crossed
+                        `rssiInactXing`, or `WIFI_STEERING_RSSI_UNCHANGED` if it did not.
+                        The member name omits the "i" of "inactive". */
+    wifi_steering_rssiChange_t highXing; /**< Direction in which `rssi` crossed
+                        `rssiHighXing`, or `WIFI_STEERING_RSSI_UNCHANGED` if it did not. */
+    wifi_steering_rssiChange_t lowXing; /**< Direction in which `rssi` crossed
+                        `rssiLowXing`, or `WIFI_STEERING_RSSI_UNCHANGED` if it did not. */
 } wifi_steering_evRssiXing_t;
 
 /**
@@ -417,8 +622,12 @@ typedef struct
  */
 typedef struct
 {
-    mac_address_t client_mac; /**< Client MAC address. */
-    UINT rssi; /**< Client's current RSSI. */
+    mac_address_t client_mac; /**< MAC address of the measured client, matching the
+                        `client_mac` passed to `wifi_steering_clientMeasure()`. */
+    UINT rssi; /**< Measured RSSI for the client, in the same encoding as the RSSI members
+                        of the other steering events. Where the measurement follows the
+                        recommended method this is the average over the ACKs to five NULL
+                        frames, as `wifi_steering_clientMeasure()` describes. */
 } wifi_steering_evRssi_t;
 
 /**
@@ -428,54 +637,110 @@ typedef struct
  */
 typedef struct
 {
-    mac_address_t client_mac; /**< Client MAC Address. */
-    UINT rssi; /**< RSSI of auth frame. */
-    UINT reason; /**< Reject Reason. */
-    BOOL bsBlocked; /**< True if purposely blocked. */
-    BOOL bsRejected; /**< True if rejection sent. */
+    mac_address_t client_mac; /**< MAC address of the client whose authentication
+                        failed. */
+    UINT rssi; /**< RSSI of the received auth frame, in the same encoding as the RSSI
+                        members of the other steering events. This is the value compared
+                        against the `rssiAuthLWM` to `rssiAuthHWM` range. */
+    UINT reason; /**< IEEE 802.11 status code sent in the rejection, which is the
+                        `authRejectReason` configured for the client. Meaningful only where
+                        `bsRejected` is `TRUE`. */
+    BOOL bsBlocked; /**< `TRUE` if band steering suppressed the auth response deliberately,
+                        because `rssi` fell outside the configured auth range, rather than
+                        the authentication failing for another cause. */
+    BOOL bsRejected; /**< `TRUE` if band steering sent an explicit rejection carrying
+                        `reason`. `bsBlocked` `TRUE` with this `FALSE` is the silent-ignore
+                        case that an `authRejectReason` of zero selects. */
 } wifi_steering_evAuthFail_t;
 
 /**
  * @brief Wifi Steering Event
  *
- * This is the data containing a single steering event.
+ * This is the data containing a single steering event. The `HAL` passes one instance to a
+ * registered `wifi_steering_eventCB_t` handler.
+ *
+ * The `data` member is a union, and `type` is its discriminant: exactly one union member
+ * is valid for any given event, and reading any other member is undefined. The mapping is
+ * one-to-one with the `wifi_steering_eventType_t` values:
+ *
+ * - `WIFI_STEERING_EVENT_PROBE_REQ` selects `data.probeReq`
+ * - `WIFI_STEERING_EVENT_CLIENT_CONNECT` selects `data.connect`
+ * - `WIFI_STEERING_EVENT_CLIENT_DISCONNECT` selects `data.disconnect`
+ * - `WIFI_STEERING_EVENT_CLIENT_ACTIVITY` selects `data.activity`
+ * - `WIFI_STEERING_EVENT_CHAN_UTILIZATION` selects `data.chanUtil`
+ * - `WIFI_STEERING_EVENT_RSSI_XING` selects `data.rssiXing`
+ * - `WIFI_STEERING_EVENT_RSSI` selects `data.rssi`
+ * - `WIFI_STEERING_EVENT_AUTH_FAIL` selects `data.authFail`
+ *
+ * @warning A handler must branch on `type` before touching `data`, and must treat a `type`
+ *          value it does not recognise as carrying no readable union member rather than
+ *          falling through to a default one.
+ *
+ * @see wifi_steering_eventCB_t
+ * @see wifi_steering_eventType_t
  */
 typedef struct
 {
-    wifi_steering_eventType_t type; /**< Event Type. */
-    INT apIndex; /**< apIndex event is from. */
-    ULLONG timestamp_ms; /**< Optional: Event Timestamp. */
+    wifi_steering_eventType_t type; /**< Event type, and the discriminant that selects
+                        which member of `data` is valid. */
+    INT apIndex; /**< Index of the AP the event came from. The indices this interface
+                        defines are `AP_INDEX_1` to `AP_INDEX_24` in
+                        `wifi_hal_generic.h`. */
+    ULLONG timestamp_ms; /**< Time the event occurred, in milliseconds. Optional: this
+                        interface neither states the epoch it is measured from nor defines
+                        a value that means "not supplied", so a caller should use it only
+                        to order events from the same source. */
     union
     {
-        wifi_steering_evProbeReq_t probeReq; /**< Probe Request Data. */
-        wifi_steering_evConnect_t connect; /**< Client Connect Data. */
-        wifi_steering_evDisconnect_t disconnect; /**< Client Disconnect Data. */
-        wifi_steering_evActivity_t activity; /**< Client Active Change Data. */
-        wifi_steering_evChanUtil_t chanUtil; /**< Channel Utilization Data. */
-        wifi_steering_evRssiXing_t rssiXing; /**< Client RSSI Crossing Data. */
-        wifi_steering_evRssi_t rssi; /**< Client Measured RSSI Data. */
-        wifi_steering_evAuthFail_t authFail; /**< Auth Failure Data. */
+        wifi_steering_evProbeReq_t probeReq; /**< Valid when `type` is
+                        `WIFI_STEERING_EVENT_PROBE_REQ`. */
+        wifi_steering_evConnect_t connect; /**< Valid when `type` is
+                        `WIFI_STEERING_EVENT_CLIENT_CONNECT`. */
+        wifi_steering_evDisconnect_t disconnect; /**< Valid when `type` is
+                        `WIFI_STEERING_EVENT_CLIENT_DISCONNECT`. */
+        wifi_steering_evActivity_t activity; /**< Valid when `type` is
+                        `WIFI_STEERING_EVENT_CLIENT_ACTIVITY`. */
+        wifi_steering_evChanUtil_t chanUtil; /**< Valid when `type` is
+                        `WIFI_STEERING_EVENT_CHAN_UTILIZATION`. */
+        wifi_steering_evRssiXing_t rssiXing; /**< Valid when `type` is
+                        `WIFI_STEERING_EVENT_RSSI_XING`. */
+        wifi_steering_evRssi_t rssi; /**< Valid when `type` is
+                        `WIFI_STEERING_EVENT_RSSI`, which is the reply to
+                        `wifi_steering_clientMeasure()`. */
+        wifi_steering_evAuthFail_t authFail; /**< Valid when `type` is
+                        `WIFI_STEERING_EVENT_AUTH_FAIL`. */
     } data;
 } wifi_steering_event_t;
 
 // 802.11v BSS Transition Management Definitions
 /**
  * @brief Maximum number of BTM devices.
+ *
+ * No structure in this header is bounded by this limit; within this interface its only
+ * uses are in `wifi_hal_deprecated.h`, which is not part of the documented contract.
  */
 #define MAX_BTM_DEVICES 64
 
 /**
  * @brief Maximum length of a URL.
+ *
+ * Bounds the `url` member of `wifi_BTMRequest_t`, in octets.
  */
 #define MAX_URL_LEN 512
 
 /**
  * @brief Maximum number of BSS transition candidates.
+ *
+ * Bounds the `candidates` array of `wifi_BTMRequest_t`, `wifi_BTMQuery_t` and
+ * `wifi_BTMResponse_t`, each of which carries its own `numCandidates` count of the
+ * elements actually populated.
  */
 #define MAX_CANDIDATES 64
 
 /**
  * @brief Maximum size of vendor-specific data.
+ *
+ * Bounds the `buff` member of `wifi_VendorSpecific_t`, in octets.
  */
 #define MAX_VENDOR_SPECIFIC 32
 
@@ -487,8 +752,12 @@ typedef struct
  */
 typedef struct
 {
-    ULONG tsf; /**< 8-octet TSF timer value. */
-    USHORT duration; /**< Duration. */
+    ULONG tsf; /**< Value of the 8-octet TSF timer at which the BSS termination takes
+                        effect. Carried in a `ULONG`, which is not 8 octets wide on every
+                        platform, so a caller must not assume the full TSF range is
+                        representable here. */
+    USHORT duration; /**< Length of time the BSS will be down from `tsf`, in minutes, as
+                        802.11 defines the subelement. */
 } wifi_BTMTerminationDuration_t;
 
 /**
@@ -496,16 +765,26 @@ typedef struct
  */
 typedef struct
 {
-    CHAR condensedStr[3]; /**< 2-character country code from `do11CountryString`. */
+    CHAR condensedStr[3]; /**< First two octets of the `dot11CountryString` MIB value,
+                        which are the two-character ISO 3166-1 country code. The array is
+                        three octets so that the code can be held as a NUL-terminated
+                        string; this interface does not state whether the `HAL`
+                        terminates it, so a caller should read at most two characters
+                        rather than relying on termination. */
 } wifi_CondensedCountryString_t;
 
 /**
  * @brief TSF information.
+ *
+ * This structure represents the TSF Information field of a Neighbor Report element, as
+ * defined in 802.11-2016 section 9.4.2.36.
  */
 typedef struct
 {
-    USHORT offset; /**< Offset. */
-    USHORT interval; /**< Interval. */
+    USHORT offset; /**< Time until the neighbour AP's next beacon, in units of 512
+                        microseconds, measured from the last beacon of the serving AP. */
+    USHORT interval; /**< Beacon interval of the neighbour AP, in time units of 1024
+                        microseconds. */
 } wifi_TSFInfo_t;
 
 /**
@@ -513,17 +792,25 @@ typedef struct
  */
 typedef struct
 {
-    UCHAR preference; /**< Preference value. */
+    UCHAR preference; /**< Preference for transitioning to this candidate, in the range 1
+                        to 255, where a higher value is more preferred. 802.11 reserves 0
+                        to mean the candidate should not be transitioned to. */
 } wifi_BSSTransitionCandidatePreference_t;
 
 /**
  * @brief Bearing information.
+ *
+ * This structure represents the Bearing subelement of a Neighbor Report element, as
+ * defined in 802.11-2016 section 9.4.2.36, which locates the neighbour AP relative to the
+ * serving AP.
  */
 typedef struct
 {
-    USHORT bearing; /**< Bearing. */
-    UINT dist; /**< Distance. */
-    USHORT height; /**< Height. */
+    USHORT bearing; /**< Direction of the neighbour AP from the serving AP, in units of
+                        one degree clockwise from true north. */
+    UINT dist; /**< Straight-line distance to the neighbour AP, in centimetres. */
+    USHORT height; /**< Height of the neighbour AP relative to the serving AP, in
+                        centimetres. */
 } wifi_Bearing_t;
 
 /**
@@ -534,24 +821,40 @@ typedef struct
  */
 typedef struct
 {
-    UCHAR bandwidth; /**< Bandwidth. */
-    UCHAR centerSeg0; /**< Center segment 0. */
-    UCHAR centerSeg1; /**< Center segment 1. */
+    UCHAR bandwidth; /**< Channel width, as the 802.11 Channel Width code rather than a
+                        count of MHz. */
+    UCHAR centerSeg0; /**< Channel index of the centre frequency of the first frequency
+                        segment. */
+    UCHAR centerSeg1; /**< Channel index of the centre frequency of the second frequency
+                        segment, used for 80+80MHz. Zero where there is no second
+                        segment. */
 } wifi_WideBWChannel_t;
 
 /**
  * @brief Measurement information.
- * Wide Bandwidth Channel Element, ID = 194.  802.11-2016 section 9.4.2.161.
+ *
+ * This structure represents a Measurement Request element carried in a Neighbor Request
+ * frame, as defined in 802.11-2016 section 9.4.2.20.
+ *
+ * The `u` member is a union and `type` is its discriminant: for a measurement of LCI type
+ * only `u.lci` is valid, and for one of LCR type only `u.lcr` is valid. Reading the other
+ * member is undefined, and a caller that does not recognise `type` must treat neither as
+ * readable.
  */
 typedef struct
 {
-    UCHAR token; /**< Token. */
-    UCHAR mode; /**< Mode. */
-    UCHAR type; /**< Type. */
+    UCHAR token; /**< Measurement token, which relates this request to the report that
+                        answers it. */
+    UCHAR mode; /**< Measurement request mode bitmask, carrying the enable, request and
+                        report control bits 802.11 defines for the element. */
+    UCHAR type; /**< Measurement type, and the discriminant that selects which member of
+                        `u` is valid. */
     union
     {
-        UCHAR lci; /**< Location Configuration Information (LCI). */
-        UCHAR lcr; /**< Location Civic Report (LCR). */
+        UCHAR lci; /**< Location Configuration Information (LCI) subject, valid when `type`
+                        names an LCI measurement. */
+        UCHAR lcr; /**< Location Civic Report (LCR) subject, valid when `type` names an LCR
+                        measurement. */
     } u;
 } wifi_Measurement_t;
 
@@ -563,12 +866,20 @@ typedef struct
  */
 typedef struct
 {
-    USHORT info; /**< Information field (bitfield). */
-    UCHAR ampduParams; /**< AMPDU parameters. */
-    UCHAR mcs[16]; /**< MCS set (bitfield). */
-    USHORT extended; /**< Extended capabilities (bitfield). */
-    UINT txBeamCaps; /**< Transmit beamforming capabilities (bitfield). */
-    UCHAR aselCaps; /**< Antenna selection capabilities. */
+    USHORT info; /**< HT Capability Information field, as the 16-bit bitmask 802.11 defines
+                        for the element. This interface does not name the individual
+                        bits. */
+    UCHAR ampduParams; /**< A-MPDU Parameters field, carrying the maximum A-MPDU length
+                        exponent and the minimum MPDU start spacing. */
+    UCHAR mcs[16]; /**< Supported MCS Set field, as 16 octets of bitmask. Fixed length,
+                        with no count member: all 16 octets are always present, and a
+                        supported MCS is indicated by its bit rather than by an index into
+                        this array. */
+    USHORT extended; /**< HT Extended Capabilities field, as a 16-bit bitmask. */
+    UINT txBeamCaps; /**< Transmit Beamforming Capabilities field, as a 32-bit
+                        bitmask. */
+    UCHAR aselCaps; /**< ASEL Capability field, carrying the antenna selection
+                        capabilities as a bitmask. */
 } wifi_HTCapabilities_t;
 
 /**
@@ -594,9 +905,12 @@ typedef struct
  */
 typedef struct
 {
-    UCHAR primary; /**< Primary channel. */
-    UCHAR opInfo[5]; /**< Operating information (bitfield). */
-    UCHAR mcs[16]; /**< MCS set. */
+    UCHAR primary; /**< Primary channel number of the BSS. */
+    UCHAR opInfo[5]; /**< HT Operation Information field, as the five octets of bitmask
+                        802.11 defines for the element. Fixed length, with no count
+                        member. */
+    UCHAR mcs[16]; /**< Basic MCS Set field, as 16 octets of bitmask, on the same terms as
+                        the `mcs` member of `wifi_HTCapabilities_t`. */
 } wifi_HTOperation_t;
 
 /**
@@ -619,7 +933,9 @@ typedef struct
  */
 typedef struct
 {
-    UCHAR secondaryChOffset; /**< Secondary channel offset. */
+    UCHAR secondaryChOffset; /**< Position of the secondary channel relative to the
+                        primary, as the 802.11 Secondary Channel Offset code: no secondary
+                        channel, secondary above, or secondary below. */
 } wifi_SecondaryChannelOffset_t;
 
 /**
@@ -630,7 +946,12 @@ typedef struct
  */
 typedef struct
 {
-    UCHAR capabilities[5]; /**< Capabilities (bitfield). */
+    UCHAR capabilities[5]; /**< RM Enabled Capabilities field, as the five octets of
+                        bitmask 802.11 defines for the element. Fixed length, with no count
+                        member: all five octets are always present. This is the same
+                        five-octet encoding that `wifi_getRMCapabilities()` returns, and
+                        `wifi_steering_rrmCaps_t` carries the decoded form of the subset
+                        that steering uses. */
 } wifi_RMEnabledCapabilities_t;
 
 /**
@@ -641,8 +962,15 @@ typedef struct
  */
 typedef struct
 {
-    UCHAR oui[5]; /**< 3 or 5 octet OUI, depending on the format. */
-    UCHAR buff[MAX_VENDOR_SPECIFIC]; /**< Vendor-specific content. */
+    UCHAR oui[5]; /**< Organization Identifier, which is either the first 3 octets or all 5
+                        octets of this array depending on the format in use. This interface
+                        carries no member stating which, so a caller must determine the
+                        length from the OUI itself. */
+    UCHAR buff[MAX_VENDOR_SPECIFIC]; /**< Vendor-specific content, up to
+                        `MAX_VENDOR_SPECIFIC` octets. This interface carries no length
+                        member for it, so how much of the buffer is meaningful is not
+                        established here and a caller must derive it from the vendor's own
+                        format. */
 } wifi_VendorSpecific_t;
 
 /**
@@ -653,16 +981,35 @@ typedef struct
  */
 typedef struct
 {
-    UCHAR pilot; /**< Pilot value. */
-    wifi_VendorSpecific_t vendorSpecific; /**< Vendor-specific subelement. */
+    UCHAR pilot; /**< Measurement Pilot Interval, in time units of 1024 microseconds. Zero
+                        means measurement pilot frames are not transmitted. */
+    wifi_VendorSpecific_t vendorSpecific; /**< Optional vendor-specific subelement carried
+                        with the pilot transmission information. This interface carries no
+                        flag stating whether it is present, so a caller must treat it as
+                        meaningful only where the vendor's own format says it is. */
 } wifi_MeasurementPilotTransmission_t;
 
 /**
  * @brief Neighbor Report.
+ *
+ * This structure represents the Neighbor Report element (ID = 52), as defined in
+ * 802.11-2016 section 9.4.2.36. One instance describes a single candidate AP, and arrays
+ * of them are carried as the candidate lists of `wifi_BTMRequest_t`, `wifi_BTMQuery_t` and
+ * `wifi_BTMResponse_t`.
+ *
+ * Every optional subelement is expressed as a pair: a `BOOL` named `<field>Present`
+ * followed by the field itself. The `BOOL` is the only thing that makes the field
+ * meaningful - a caller must test it before reading the field, and must not infer
+ * presence from a field being non-zero, because this interface does not state that the
+ * `HAL` clears an absent one. A caller populating a report must set both, and a caller
+ * reading one must treat a field whose flag is `FALSE` as carrying nothing.
+ *
+ * @see wifi_BTMRequest_t
  */
 typedef struct
 {
-    bssid_t bssid; /**< BSSID. */
+    bssid_t bssid; /**< BSSID of the candidate AP, as the six octets of `bssid_t` in
+                        `wifi_hal_generic.h`. */
     //  32 bit optional value, bit fileds are
     //  b0, b1 for reachability
     //  b2 security
@@ -673,10 +1020,13 @@ typedef struct
     //  b12 very high throughput
     //  b13 ftm
     //  b14 to b31 reserved
-    UINT info; /**< Information field (32-bit optional value, bitfields are defined as follows). */
-    UCHAR opClass; /**< Operating class. */
-    UCHAR channel; /**< Channel number. */
-    UCHAR phyTable; /**< PHY table. */
+    UINT info; /**< BSSID Information field, as a 32-bit bitmask whose bit assignments are
+                        listed in the comment immediately above this member. */
+    UCHAR opClass; /**< Operating class of the candidate AP's channel, which is what gives
+                        `channel` its band and width. */
+    UCHAR channel; /**< Channel number of the candidate AP, interpreted within
+                        `opClass`. */
+    UCHAR phyTable; /**< PHY type of the candidate AP, as the 802.11 PHY type code. */
     BOOL tsfPresent; /**< Whether the TSF Information field is present. */
     wifi_TSFInfo_t tsfInfo; /**< TSF information. */
     BOOL condensedCountrySringPresent; /**< Whether the Condensed Country String field is present. */
@@ -705,7 +1055,11 @@ typedef struct
     wifi_MeasurementPilotTransmission_t msmtPilotTransmission; /**< Measurement Pilot Transmission. */
     BOOL vendorSpecificPresent; /**< Whether the Vendor Specific field is present. */
     wifi_VendorSpecific_t vendorSpecific; /**< Vendor Specific information. */
-    ssid_t target_ssid; /**< Target SSID. */
+    ssid_t target_ssid; /**< SSID of the candidate AP, in the 32-octet `ssid_t` of
+                        `wifi_hal_generic.h`. An SSID may occupy all 32 octets, so it is
+                        not necessarily NUL-terminated and a caller must not treat it as a
+                        C string. This member is not paired with a presence flag, unlike
+                        the optional subelements above it. */
 } wifi_NeighborReport_t;
 
 /**
@@ -716,20 +1070,42 @@ typedef struct
  */
 typedef struct
 {
-    UCHAR token; /**< Set by the STA to relate reports. */
-    UCHAR requestMode; /**< Requested instructions for the STA. */
-    USHORT timer; /**< Timer value. */
-    UCHAR validityInterval; /**< Validity interval. */
+    UCHAR token; /**< Dialog token relating this request to the response that answers it.
+                        Set by the STA on a STA-initiated transaction; on an AP-initiated
+                        request sent with `wifi_setBTMRequest()` the AP chooses it. */
+    UCHAR requestMode; /**< Request Mode bitmask, carrying the candidate-list-included,
+                        abridged, disassociation-imminent, BSS-termination-included and
+                        ESS-disassociation-imminent bits 802.11 defines. */
+    USHORT timer; /**< Disassociation Timer, in TBTTs, counting down to the point at which
+                        the AP will disassociate the STA. Zero means the AP has no
+                        disassociation intent. */
+    UCHAR validityInterval; /**< Time for which the candidate list stays valid, in TBTTs,
+                        measured from the transmission of this frame. */
     // The optional fields may include:
     // 1. BSS Termination Duration Subelement, ID = 4. 802.11-2016 Figure 9-300.
     // 2. Session Information URL.
     // 3. BSS Transition Candidate List Entries
-    wifi_BTMTerminationDuration_t termDuration; /**< BSS Termination Duration subelement. */
-    UCHAR disassociationImminent; /**< Whether disassociation is imminent. */
-    USHORT urlLen; /**< Length of the URL. */
-    CHAR url[MAX_URL_LEN]; /**< URL. */
-    UCHAR numCandidates; /**< Number of candidates. */
-    wifi_NeighborReport_t candidates[MAX_CANDIDATES]; /**< Candidate APs. */
+    wifi_BTMTerminationDuration_t termDuration; /**< BSS Termination Duration subelement,
+                        meaningful only where `requestMode` sets the BSS-termination
+                        -included bit. */
+    UCHAR disassociationImminent; /**< Non-zero if the AP intends to disassociate the STA,
+                        which duplicates the corresponding bit of `requestMode`. This
+                        interface does not state which takes precedence if the two
+                        disagree, so a caller should set them consistently. */
+    USHORT urlLen; /**< Number of valid octets in `url`, from 0 to `MAX_URL_LEN`. Zero
+                        means no session information URL is carried. */
+    CHAR url[MAX_URL_LEN]; /**< Session Information URL, bounded by `MAX_URL_LEN` octets
+                        and valid only for its leading `urlLen` octets. This interface does
+                        not state that the `HAL` NUL-terminates it, so a caller must use
+                        `urlLen` rather than treating it as a C string. */
+    UCHAR numCandidates; /**< Number of populated elements in `candidates`, from 0 to
+                        `MAX_CANDIDATES`. Zero means no candidate list is carried, which
+                        should agree with the candidate-list-included bit of
+                        `requestMode`. */
+    wifi_NeighborReport_t candidates[MAX_CANDIDATES]; /**< Candidate APs the STA may
+                        transition to, in preference order. The array is bounded by
+                        `MAX_CANDIDATES` and only its leading `numCandidates` elements are
+                        valid; the remainder must not be read. */
 } wifi_BTMRequest_t;
 
 /**
@@ -740,10 +1116,16 @@ typedef struct
  */
 typedef struct
 {
-    UCHAR token; /**< Set by the STA to relate reports. */
-    UCHAR queryReason; /**< Reason for the query. */
-    UCHAR numCandidates; /**< Number of candidates. */
-    wifi_NeighborReport_t candidates[MAX_CANDIDATES]; /**< Candidate APs. */
+    UCHAR token; /**< Dialog token set by the STA, which the AP must echo in the
+                        `wifi_BTMRequest_t` it returns so the STA can relate the two. */
+    UCHAR queryReason; /**< BTM Query Reason code, stating why the STA is asking to
+                        transition. */
+    UCHAR numCandidates; /**< Number of populated elements in `candidates`, from 0 to
+                        `MAX_CANDIDATES`. Zero means the STA offered no candidates of its
+                        own. */
+    wifi_NeighborReport_t candidates[MAX_CANDIDATES]; /**< Candidate APs the STA proposes,
+                        bounded by `MAX_CANDIDATES`. Only the leading `numCandidates`
+                        elements are valid; the remainder must not be read. */
 } wifi_BTMQuery_t;
 
 /**
@@ -754,12 +1136,21 @@ typedef struct
  */
 typedef struct
 {
-    UCHAR token; /**< Set by the STA to relate reports. */
-    UCHAR status; /**< Status code. */
-    UCHAR terminationDelay; /**< Termination delay. */
-    bssid_t target; /**< Target BSSID. */
-    UCHAR numCandidates; /**< Number of candidates. */
-    wifi_NeighborReport_t candidates[MAX_CANDIDATES]; /**< Candidate APs. */
+    UCHAR token; /**< Dialog token echoed from the `wifi_BTMRequest_t` this response
+                        answers, which is how a caller matches the two. */
+    UCHAR status; /**< BTM Status code stating whether the STA accepted the transition and,
+                        where it did not, why. Zero is acceptance; every other value is a
+                        rejection reason 802.11 defines. */
+    UCHAR terminationDelay; /**< Delay the STA requests before the BSS is terminated, in
+                        TBTTs. Meaningful only where `status` is the code that reports the
+                        STA is not accepting termination yet. */
+    bssid_t target; /**< BSSID the STA has chosen to transition to. Meaningful only where
+                        `status` reports acceptance. */
+    UCHAR numCandidates; /**< Number of populated elements in `candidates`, from 0 to
+                        `MAX_CANDIDATES`. */
+    wifi_NeighborReport_t candidates[MAX_CANDIDATES]; /**< Candidate APs the STA reports,
+                        bounded by `MAX_CANDIDATES`. Only the leading `numCandidates`
+                        elements are valid; the remainder must not be read. */
 } wifi_BTMResponse_t;
 
 /**
@@ -770,31 +1161,51 @@ typedef struct
  */
 typedef struct
 {
-    UCHAR token; /**< Set by the STA to relate reports. */
-    UCHAR ssidLen; /**< Length of the SSID (0 if not present). */
-    ssid_t ssid; /**< SSID. */
-    UCHAR measCount; /**< Number of measurements. */
-    wifi_Measurement_t measurements[2]; /**< Measurements. */
+    UCHAR token; /**< Dialog token relating this request to the neighbour report that
+                        answers it. */
+    UCHAR ssidLen; /**< Number of valid octets in `ssid`, from 0 to 32. Zero means no SSID
+                        is carried, so the request is not scoped to one network. */
+    ssid_t ssid; /**< SSID the request is scoped to, in the 32-octet `ssid_t` of
+                        `wifi_hal_generic.h`, valid only for its leading `ssidLen` octets
+                        and not necessarily NUL-terminated. */
+    UCHAR measCount; /**< Number of populated elements in `measurements`, which this
+                        structure bounds at 2. */
+    wifi_Measurement_t measurements[2]; /**< Measurement requests carried with the
+                        neighbour request, at most two - one LCI and one LCR. Only the
+                        leading `measCount` elements are valid; the remainder must not be
+                        read. */
 } wifi_NeighborRequestFrame_t;
 
 // 802.11k Beacon request & report structures and function prototypes
 /**
  * @brief Maximum number of requested elements in a beacon report.
+ *
+ * Bounds the `ids` array of `wifi_RequestedElementIDS_t`, and therefore also of
+ * `wifi_ExtdRequestedElementIDS_t`.
  */
 #define MAX_REQUESTED_ELEMS 8
 
 /**
  * @brief Maximum number of channels in a channel report.
+ *
+ * Bounds the `channels` array of `wifi_ChannelReport_t`, in entries.
  */
 #define MAX_CHANNELS_REPORT 64
 
 /**
  * @brief Beacon reporting configuration.
+ *
+ * This structure represents the Beacon Reporting subelement of a Beacon Request, which
+ * makes the report conditional rather than unconditional.
  */
 typedef struct
 {
-    UCHAR condition; /**< Reporting condition. */
-    UCHAR threshold; /**< Reporting threshold. */
+    UCHAR condition; /**< Reporting Condition code, naming which comparison against
+                        `threshold` triggers a report - for example RCPI or RSNI rising
+                        above or falling below it. Zero is 802.11's unconditional report,
+                        for which `threshold` carries nothing. */
+    UCHAR threshold; /**< Reference value that `condition` compares against, in the units
+                        of whichever quantity `condition` selects. */
 } wifi_BeaconReporting_t;
 
 /**
@@ -802,11 +1213,20 @@ typedef struct
  */
 typedef struct
 {
-    UCHAR ids[MAX_REQUESTED_ELEMS]; /**< Array of element IDs. */
+    UCHAR ids[MAX_REQUESTED_ELEMS]; /**< Element IDs the reporting STA is asked to include
+                        in each beacon report, bounded at `MAX_REQUESTED_ELEMS` entries.
+                        This interface carries no count member for the array, so how many
+                        entries are populated is not established here; a caller should
+                        treat a zero entry as the end of the list, since 0 is the SSID
+                        element ID and is not meaningful to request this way. */
 } wifi_RequestedElementIDS_t;
 
 /**
  * @brief Extended requested element IDs.
+ *
+ * An alias of `wifi_RequestedElementIDS_t`, used where the IDs requested are element ID
+ * extensions rather than element IDs. The two are distinct fields of
+ * `wifi_BeaconRequest_t` with the same layout and the same bound.
  */
 typedef wifi_RequestedElementIDS_t wifi_ExtdRequestedElementIDS_t;
 
@@ -818,64 +1238,121 @@ typedef wifi_RequestedElementIDS_t wifi_ExtdRequestedElementIDS_t;
  */
 typedef struct
 {
-    UCHAR opClass; /**< Operating class. */
-    UCHAR channels[MAX_CHANNELS_REPORT]; /**< Channel list. */
+    UCHAR opClass; /**< Operating class shared by every channel in `channels`, which is
+                        what gives those channel numbers their band and width. */
+    UCHAR channels[MAX_CHANNELS_REPORT]; /**< Channels the measurement is to cover, within
+                        `opClass`, bounded at `MAX_CHANNELS_REPORT` entries. This interface
+                        carries no count member for the array, so how many entries are
+                        populated is not established here; a caller should treat a zero
+                        entry as the end of the list, since 0 is not a valid channel
+                        number. */
 } wifi_ChannelReport_t;
 
 /**
  * @brief Beacon Request.
  *
  * This structure represents the Beacon Request frame, as defined in
- * 802.11-2016 section 9.4.2.21.7.
+ * 802.11-2016 section 9.4.2.21.7. A caller passes one to `wifi_setRMBeaconRequest()` to
+ * ask a peer STA to measure beacons and report what it heard.
+ *
+ * The optional subelements follow the same pairing as `wifi_NeighborReport_t`: a `BOOL`
+ * named `<field>Present` followed by the field itself, and the field is meaningful only
+ * where the flag is `TRUE`.
+ *
+ * @see wifi_setRMBeaconRequest
+ * @see wifi_BeaconReport_t
  */
 typedef struct
 {
-    UCHAR opClass; /**< Operating class. */
-    UCHAR channel; /**< Channel number. */
-    USHORT randomizationInterval; /**< Randomization interval. */
-    USHORT duration; /**< Duration. */
-    UCHAR mode; /**< Mode. */
-    bssid_t bssid; /**< BSSID. */
-    BOOL ssidPresent; /**< Whether the SSID field is present. */
-    ssid_t ssid; /**< SSID. */
+    UCHAR opClass; /**< Operating class the measurement is to be made in, which is what
+                        gives `channel` its band and width. */
+    UCHAR channel; /**< Channel the STA is to measure, within `opClass`. 802.11 reserves 0
+                        to mean every channel in the operating class, and 255 to mean the
+                        channels named by `channelReport`. */
+    USHORT randomizationInterval; /**< Upper bound of the random delay the STA applies
+                        before starting the measurement, in time units of 1024
+                        microseconds. Zero means start as soon as possible. */
+    USHORT duration; /**< Length of the measurement, in time units of 1024
+                        microseconds. */
+    UCHAR mode; /**< Measurement mode, selecting passive, active or beacon-table
+                        measurement. */
+    bssid_t bssid; /**< BSSID the measurement is scoped to. The all-ones broadcast address
+                        requests every BSSID. */
+    BOOL ssidPresent; /**< `TRUE` if `ssid` carries an SSID to scope the measurement
+                        to. */
+    ssid_t ssid; /**< SSID the measurement is scoped to, valid only where `ssidPresent` is
+                        `TRUE`. Held in the 32-octet `ssid_t` of `wifi_hal_generic.h` and
+                        not necessarily NUL-terminated. */
     BOOL beaconReportingPresent; /**< Whether the Beacon Reporting Detail field is present. */
     wifi_BeaconReporting_t beaconReporting; /**< Beacon reporting configuration. */
-    BOOL reportingRetailPresent; /**< Whether the Reporting Detail field is present. */
-    UCHAR reportingDetail; /**< Reporting detail. */
+    BOOL reportingRetailPresent; /**< `TRUE` if `reportingDetail` carries a reporting
+                        detail level. The member name misspells "reporting detail"; it is
+                        the presence flag for `reportingDetail` and nothing else. */
+    UCHAR reportingDetail; /**< How much of each measured beacon the STA is to report: no
+                        fixed fields or elements, the fixed fields plus the requested
+                        elements, or all fixed fields and elements. Valid only where
+                        `reportingRetailPresent` is `TRUE`. */
     BOOL wideBandWidthChannelPresent; /**< Whether the Wide Bandwidth Channel field is present. */
     wifi_WideBWChannel_t wideBandwidthChannel; /**< Wide Bandwidth Channel information. */
     BOOL requestedElementIDSPresent; /**< Whether the Requested Element IDs field is present. */
     wifi_RequestedElementIDS_t requestedElementIDS; /**< Requested element IDs. */
     BOOL extdRequestedElementIDSPresent; /**< Whether the Extended Requested Element IDs field is present. */
     wifi_ExtdRequestedElementIDS_t extdRequestedElementIDS; /**< Extended requested element IDs. */
-    BOOL channelReportPresent; /**< Whether the Channel Report field is present. */
-    wifi_ChannelReport_t channelReport; /**< Channel report. */
-    BOOL vendorSpecificPresent; /**< Whether the Vendor Specific field is present. */
-    wifi_VendorSpecific_t vendorSpecific; /**< Vendor Specific information. */
-    USHORT numRepetitions; /**< Number of repetitions. */
+    BOOL channelReportPresent; /**< `TRUE` if `channelReport` names the channels to
+                        measure, which is what makes a `channel` of 255 meaningful. */
+    wifi_ChannelReport_t channelReport; /**< Channels to measure, valid only where
+                        `channelReportPresent` is `TRUE`. */
+    BOOL vendorSpecificPresent; /**< `TRUE` if `vendorSpecific` carries a vendor-specific
+                        subelement. */
+    wifi_VendorSpecific_t vendorSpecific; /**< Vendor-specific subelement, valid only where
+                        `vendorSpecificPresent` is `TRUE`. */
+    USHORT numRepetitions; /**< Number of times the measurement is to be repeated after the
+                        first. Zero means measure once and do not repeat; 65535 means
+                        repeat until cancelled, which is what
+                        `wifi_cancelRMBeaconRequest()` stops. */
 } wifi_BeaconRequest_t;
 
 /**
  * @brief Beacon Report.
  *
  * This structure represents the Beacon Report frame, as defined in
- * 802.11-2016 section 9.4.2.22.7.
+ * 802.11-2016 section 9.4.2.22.7. One instance describes one measured BSS, and the `HAL`
+ * delivers them to a registered `wifi_RMBeaconReport_callback` handler.
+ *
+ * @see wifi_RMBeaconReport_callback
+ * @see wifi_BeaconRequest_t
  */
 typedef struct
 {
-    UCHAR opClass; /**< Operating class. */
-    UCHAR channel; /**< Channel number. */
-    ULLONG startTime; /**< Start time. */
-    USHORT duration; /**< Duration. */
-    UCHAR frameInfo; /**< Frame information. */
-    UCHAR rcpi; /**< Received Channel Power Indicator (RCPI). */
-    UCHAR rsni; /**< Received Signal to Noise Indicator (RSNI). */
-    bssid_t bssid; /**< BSSID. */
-    UCHAR antenna; /**< Antenna ID. */
-    UINT tsf; /**< Timing Synchronization Function (TSF) value. */
-    BOOL wideBandWidthChannelPresent; /**< Whether the Wide Bandwidth Channel field is present. */
-    wifi_WideBWChannel_t wideBandwidthChannel; /**< Wide Bandwidth Channel information. */
-    USHORT numRepetitions; /**< Number of repetitions. */
+    UCHAR opClass; /**< Operating class the measurement was made in, which is what gives
+                        `channel` its band and width. */
+    UCHAR channel; /**< Channel the reported BSS was measured on, within `opClass`. */
+    ULLONG startTime; /**< Value of the measuring STA's TSF timer when the measurement
+                        started. An 8-octet TSF value, so it is comparable only against
+                        other timestamps from the same STA. */
+    USHORT duration; /**< Length of the measurement, in time units of 1024 microseconds. */
+    UCHAR frameInfo; /**< Reported Frame Information field, carrying the PHY type of the
+                        reported frame and whether it was a beacon, probe response or
+                        measurement pilot. */
+    UCHAR rcpi; /**< Received Channel Power Indicator for the reported frame, as the 802.11
+                        RCPI encoding: an unsigned value in 0.5dBm steps from -110dBm,
+                        rather than a signed dBm figure. */
+    UCHAR rsni; /**< Received Signal to Noise Indicator for the reported frame, as the
+                        802.11 RSNI encoding: an unsigned value in 0.5dB steps from
+                        -10dB. */
+    bssid_t bssid; /**< BSSID of the reported BSS. */
+    UCHAR antenna; /**< Antenna ID the measurement was taken on. Zero means the antenna is
+                        unknown or not reported. */
+    UINT tsf; /**< TSF value of the reported BSS at the time of measurement. Held in a
+                        `UINT`, so it carries the lower half of an 8-octet TSF rather than
+                        the whole of one, unlike `startTime`. */
+    BOOL wideBandWidthChannelPresent; /**< `TRUE` if `wideBandwidthChannel` carries wide
+                        bandwidth channel information for the reported BSS. */
+    wifi_WideBWChannel_t wideBandwidthChannel; /**< Wide bandwidth channel information,
+                        valid only where `wideBandWidthChannelPresent` is `TRUE`. */
+    USHORT numRepetitions; /**< Number of repetitions remaining for the measurement this
+                        report answers, echoing the `numRepetitions` of the
+                        `wifi_BeaconRequest_t` that started it. */
 } wifi_BeaconReport_t;
 /** @} */  //END OF GROUP WIFI_HAL_TYPES
 
@@ -896,15 +1373,61 @@ typedef struct
  * should be pre-filled with the channel numbers to query, and the function will 
  * fill the corresponding elements with the channel statistics.
  * 
- * This function should be non-blocking.
+ * This is the survey call a steering or channel-selection caller uses to compare
+ * candidate channels: the busy-time accumulators in each element are what a caller
+ * differences to obtain channel occupancy.
  *
- * @param[in] radioIndex              The index of the radio.
- * @param[in,out] input_output_channelStats_array The array of channel statistics.
- * @param[in] array_size              The size of the `input_output_channelStats_array`.
+ * @param[in] radioIndex              Index of the radio to survey. The indices this
+ *                                    interface defines are `RADIO_INDEX_1` to
+ *                                    `RADIO_INDEX_3` in `wifi_hal_generic.h`, bounded by
+ *                                    `MAX_NUM_RADIOS`, which is 2 or 3 depending on
+ *                                    whether `WIFI_HAL_VERSION_3` is defined.
+ * @param[in,out] input_output_channelStats_array Array of `wifi_channelStats_t` that
+ *                                    carries the request in and the result out. The caller
+ *                                    allocates and owns it, per `Memory Model` in
+ *                                    `docs/pages/halSpec.md`, and the `HAL` retains no
+ *                                    reference to it after returning. On the way in the
+ *                                    caller sets only `ch_number` in each of the first
+ *                                    `array_size` elements; on the way out the `HAL`
+ *                                    writes every other member of those elements and
+ *                                    leaves `ch_number` as the caller set it. It must hold
+ *                                    at least `array_size` elements, and at least one
+ *                                    element even when `array_size` is 0.
+ * @param[in] array_size              Number of elements the `HAL` may read and write,
+ *                                    which bounds `input_output_channelStats_array`. A
+ *                                    value of 0 selects the ONCHAN-only form, in which the
+ *                                    `HAL` ignores the input channel numbers and writes
+ *                                    one element describing the radio's current operating
+ *                                    channel.
+ *
+ * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
+ *      in `docs/pages/halSpec.md`. A call made beforehand does not meet the runtime
+ *      requirements and, per `Component Runtime Execution Requirements`, likely results
+ *      in undefined behaviour.
+ * @post On success the first `array_size` elements have been written, or the single ONCHAN
+ *       element where `array_size` is 0. On failure this interface does not state whether
+ *       any element was written, so a caller must treat the whole array as undefined
+ *       rather than reading the elements it believes were reached.
  *
  * @returns The status of the operation.
- * @retval WIFI_HAL_SUCCESS If successful.
- * @retval WIFI_HAL_ERROR   If any error is detected.
+ * @retval WIFI_HAL_SUCCESS The requested statistics were written.
+ * @retval WIFI_HAL_ERROR   `radioIndex` is not a valid radio,
+ *                          `input_output_channelStats_array` is NULL, `array_size` is
+ *                          negative, a requested channel is not one the radio can survey,
+ *                          or the vendor layer could not supply the statistics. The caller
+ *                          should validate its arguments, discard the array contents, and
+ *                          treat channel occupancy as unknown rather than as zero, since
+ *                          a zeroed accumulator is indistinguishable from an idle channel.
+ *
+ * @warning An `array_size` of 0 still causes one element to be written, so passing 0 with
+ *          a NULL or zero-length array overruns the caller's storage.
+ * @note This call does not block, per `Blocking calls` in `docs/pages/halSpec.md`, so a
+ *       caller must not assume it triggers a fresh off-channel survey; the interface does
+ *       not state how recent the returned statistics are.
+ * @note The `HAL` is expected to be thread safe, per `Threading Model` in
+ *       `docs/pages/halSpec.md`.
+ *
+ * @see wifi_channelStats_t
  */
 INT wifi_getRadioChannelStats(INT radioIndex, wifi_channelStats_t *input_output_channelStats_array, INT array_size);
 
@@ -916,22 +1439,77 @@ INT wifi_getRadioChannelStats(INT radioIndex, wifi_channelStats_t *input_output_
  * in the `stats_array`, which is allocated by the HAL and should be freed
  * by the caller.
  * 
- * This function should be non-blocking.
+ * One array element is returned per rate the client has received at, identified by the
+ * element's `nss`, `mcs` and `bw` members. `handle` lets a caller tell a counter that grew
+ * from one that restarted because the client re-associated.
  *
- * @param[in] radioIndex          The index of the radio array.
- * @param[in] clientMacAddress    The MAC address of the client.
+ * @param[in] radioIndex          Index of the radio the client is associated on. The
+ *                                indices this interface defines are `RADIO_INDEX_1` to
+ *                                `RADIO_INDEX_3` in `wifi_hal_generic.h`, bounded by
+ *                                `MAX_NUM_RADIOS`.
+ * @param[in] clientMacAddress    Pointer to the six-octet MAC address of the client to
+ *                                report on. The caller allocates and owns it and the `HAL`
+ *                                reads it during the call. One address is passed, not an
+ *                                array.
  * @param[out] stats_array         Pointer to a pointer to an array of
- *                                 `wifi_associated_dev_rate_info_rx_stats_t`
- *                                 structures to store the receive statistics.
- * @param[out] output_array_size   Pointer to a variable to store the size of
- *                                 the returned array.
- * @param[out] handle              Pointer to a status validation handle used
- *                                 to determine reconnections. This handle is
- *                                 incremented for every association.
+ *                                 `wifi_associated_dev_rate_info_rx_stats_t` structures to
+ *                                 store the receive statistics. The array is allocated by
+ *                                 the HAL layer and should be freed by the caller. That is
+ *                                 an explicit exception to `Memory Model` in
+ *                                 `docs/pages/halSpec.md`, under which memory the `HAL`
+ *                                 creates stays `HAL`-owned, and the exception applies
+ *                                 only to this array. On success it holds
+ *                                 `*output_array_size` elements. This interface does not
+ *                                 name the function the `HAL` allocated it with, so the
+ *                                 matching release function is a platform convention
+ *                                 rather than something established here.
+ * @param[out] output_array_size   Pointer to a variable to store the size of the returned
+ *                                 array, in elements. The caller allocates and owns the
+ *                                 variable. It bounds `*stats_array`, so a caller must
+ *                                 read it before indexing the array. A value of zero means
+ *                                 the client has received at no rate the `HAL` tracks, and
+ *                                 this interface does not state whether `*stats_array` is
+ *                                 a usable pointer in that case.
+ * @param[out] handle              Pointer to a status validation handle used to determine
+ *                                 reconnections. This handle is incremented for every
+ *                                 association, so a caller that stores it alongside a
+ *                                 previous sample can detect that the client
+ *                                 re-associated and that the counters therefore restarted.
+ *                                 The caller allocates and owns the variable. This
+ *                                 interface states neither the value the handle starts
+ *                                 from nor how long it stays valid, so a caller should
+ *                                 compare it only against its own previous reading for the
+ *                                 same client and must not treat it as an identifier it
+ *                                 can pass anywhere else.
+ *
+ * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
+ *      in `docs/pages/halSpec.md`. A call made beforehand does not meet the runtime
+ *      requirements and, per `Component Runtime Execution Requirements`, likely results
+ *      in undefined behaviour.
+ * @post On success `*stats_array` points to an array of `*output_array_size` elements that
+ *       the caller is responsible for freeing, and `*handle` carries the association
+ *       generation the counters belong to. On failure this interface does not state whether
+ *       any output was written, so a caller must treat all three as undefined and must not
+ *       release `*stats_array`.
  *
  * @returns The status of the operation.
- * @retval WIFI_HAL_SUCCESS If successful.
- * @retval WIFI_HAL_ERROR   If any error is detected.
+ * @retval WIFI_HAL_SUCCESS The statistics were retrieved and the outputs written.
+ * @retval WIFI_HAL_ERROR   `radioIndex` is not a valid radio, any pointer argument is
+ *                          NULL, the client named by `clientMacAddress` is not associated
+ *                          on that radio, or the vendor layer could not supply the
+ *                          statistics. The caller should validate its arguments, release
+ *                          nothing, and retry rather than treating the result as a client
+ *                          with no receive traffic.
+ *
+ * @warning The `HAL` allocates a fresh array on each successful call and nothing in this
+ *          interface releases a previous one, so a caller that samples repeatedly must free
+ *          every array it is given.
+ * @note This call does not block, per `Blocking calls` in `docs/pages/halSpec.md`.
+ * @note The `HAL` is expected to be thread safe, per `Threading Model` in
+ *       `docs/pages/halSpec.md`.
+ *
+ * @see wifi_associated_dev_rate_info_rx_stats_t
+ * @see wifi_getApAssociatedDeviceTxStatsResult
  */
 INT wifi_getApAssociatedDeviceRxStatsResult(INT radioIndex, mac_address_t *clientMacAddress, wifi_associated_dev_rate_info_rx_stats_t **stats_array, UINT *output_array_size, ULLONG *handle);
 
@@ -943,22 +1521,65 @@ INT wifi_getApAssociatedDeviceRxStatsResult(INT radioIndex, mac_address_t *clien
  * in the `stats_array`, which is allocated by the HAL and should be freed
  * by the caller.
  * 
- * This function should be non-blocking.
+ * One array element is returned per rate the client has been transmitted to at, identified
+ * by the element's `nss`, `mcs` and `bw` members. This is the transmit counterpart of
+ * `wifi_getApAssociatedDeviceRxStatsResult()` and follows the same ownership and handle
+ * rules.
  *
- * @param[in] radioIndex          The index of the radio array.
- * @param[in] clientMacAddress    The MAC address of the client.
+ * @param[in] radioIndex          Index of the radio the client is associated on. The
+ *                                indices this interface defines are `RADIO_INDEX_1` to
+ *                                `RADIO_INDEX_3` in `wifi_hal_generic.h`, bounded by
+ *                                `MAX_NUM_RADIOS`.
+ * @param[in] clientMacAddress    Pointer to the six-octet MAC address of the client to
+ *                                report on. The caller allocates and owns it and the `HAL`
+ *                                reads it during the call.
  * @param[out] stats_array         Pointer to a pointer to an array of
- *                                 `wifi_associated_dev_rate_info_tx_stats_t`
- *                                 structures to store the transmit statistics.
- * @param[out] output_array_size   Pointer to a variable to store the size of
- *                                 the returned array.
- * @param[out] handle              Pointer to a status validation handle used
- *                                 to determine reconnections. This handle is
- *                                 incremented for every association.
+ *                                 `wifi_associated_dev_rate_info_tx_stats_t` structures to
+ *                                 store the transmit statistics. The array is allocated by
+ *                                 the HAL layer and should be freed by the caller, which
+ *                                 is an explicit exception to `Memory Model` in
+ *                                 `docs/pages/halSpec.md` applying only to this array. On
+ *                                 success it holds `*output_array_size` elements, and this
+ *                                 interface does not name the matching release function.
+ * @param[out] output_array_size   Pointer to a variable to store the size of the returned
+ *                                 array, in elements. The caller allocates and owns it. It
+ *                                 bounds `*stats_array`, so a caller must read it before
+ *                                 indexing the array. Zero means the client has been
+ *                                 transmitted to at no rate the `HAL` tracks.
+ * @param[out] handle              Pointer to a status validation handle used to determine
+ *                                 reconnections. This handle is incremented for every
+ *                                 association, so a caller can detect that the counters
+ *                                 restarted. The caller allocates and owns the variable.
+ *                                 This interface states neither its starting value nor its
+ *                                 lifetime, so it should be compared only against the
+ *                                 caller's own previous reading for the same client.
+ *
+ * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
+ *      in `docs/pages/halSpec.md`. A call made beforehand does not meet the runtime
+ *      requirements and, per `Component Runtime Execution Requirements`, likely results
+ *      in undefined behaviour.
+ * @post On success `*stats_array` points to an array of `*output_array_size` elements that
+ *       the caller is responsible for freeing, and `*handle` carries the association
+ *       generation the counters belong to. On failure all three outputs must be treated as
+ *       undefined and `*stats_array` must not be released.
  *
  * @returns The status of the operation.
- * @retval WIFI_HAL_SUCCESS If successful.
- * @retval WIFI_HAL_ERROR   If any error is detected.
+ * @retval WIFI_HAL_SUCCESS The statistics were retrieved and the outputs written.
+ * @retval WIFI_HAL_ERROR   `radioIndex` is not a valid radio, any pointer argument is
+ *                          NULL, the client is not associated on that radio, or the vendor
+ *                          layer could not supply the statistics. The caller should
+ *                          validate its arguments, release nothing, and retry rather than
+ *                          treating the result as a client with no transmit traffic.
+ *
+ * @warning The `HAL` allocates a fresh array on each successful call and nothing in this
+ *          interface releases a previous one, so a caller that samples repeatedly must free
+ *          every array it is given.
+ * @note This call does not block, per `Blocking calls` in `docs/pages/halSpec.md`.
+ * @note The `HAL` is expected to be thread safe, per `Threading Model` in
+ *       `docs/pages/halSpec.md`.
+ *
+ * @see wifi_associated_dev_rate_info_tx_stats_t
+ * @see wifi_getApAssociatedDeviceRxStatsResult
  */
 INT wifi_getApAssociatedDeviceTxStatsResult(INT radioIndex, mac_address_t *clientMacAddress, wifi_associated_dev_rate_info_tx_stats_t **stats_array, UINT *output_array_size, ULLONG *handle);
 
@@ -968,18 +1589,55 @@ INT wifi_getApAssociatedDeviceTxStatsResult(INT radioIndex, mac_address_t *clien
  * This function retrieves the TID (Traffic Identifier) statistics for an
  * associated client on the specified radio.
  * 
- * This function should be non-blocking.
+ * The result covers all sixteen traffic identifiers in one fixed-size structure, so unlike
+ * the per-rate statistics calls it allocates nothing and returns no element count.
  *
- * @param[in] radioIndex        The index of the radio array.
- * @param[in] clientMacAddress  The MAC address of the client.
- * @param[out] tid_stats        Pointer to a `wifi_associated_dev_tid_stats_t`
- *                             structure to store the TID statistics.
- * @param[in] handle           Status validation handle used to determine
- *                             reconnections, incremented for every association.
+ * @param[in] radioIndex        Index of the radio the client is associated on. The indices
+ *                              this interface defines are `RADIO_INDEX_1` to
+ *                              `RADIO_INDEX_3` in `wifi_hal_generic.h`, bounded by
+ *                              `MAX_NUM_RADIOS`.
+ * @param[in] clientMacAddress  Pointer to the six-octet MAC address of the client to
+ *                              report on. The caller allocates and owns it and the `HAL`
+ *                              reads it during the call.
+ * @param[out] tid_stats        Pointer to a `wifi_associated_dev_tid_stats_t` structure to
+ *                              store the TID statistics. The caller allocates and owns the
+ *                              storage, per `Memory Model` in `docs/pages/halSpec.md`; the
+ *                              `HAL` writes it during the call and retains no reference to
+ *                              it afterwards. One structure is written, not an array, and
+ *                              it always carries all sixteen TID entries indexed by TID.
+ * @param[in] handle           Status validation handle used to determine reconnections,
+ *                             incremented for every association. The caller allocates and
+ *                             owns the variable.
+ *
+ * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
+ *      in `docs/pages/halSpec.md`. A call made beforehand does not meet the runtime
+ *      requirements and, per `Component Runtime Execution Requirements`, likely results
+ *      in undefined behaviour.
+ * @post On success every element of `tid_stats->tid_array` has been written, with a zero
+ *       `num_msdus` for a TID that carried no traffic. On failure the contents are
+ *       undefined and must not be read.
  *
  * @returns The status of the operation.
- * @retval WIFI_HAL_SUCCESS If successful.
- * @retval WIFI_HAL_ERROR   If any error is detected.
+ * @retval WIFI_HAL_SUCCESS The statistics were retrieved.
+ * @retval WIFI_HAL_ERROR   `radioIndex` is not a valid radio, any pointer argument is
+ *                          NULL, the client is not associated on that radio, or the vendor
+ *                          layer could not supply the statistics. The caller should
+ *                          validate its arguments and treat the per-TID latencies as
+ *                          unknown rather than as zero.
+ *
+ * @note This interface documents `handle` as an input here and on
+ *       `wifi_getApAssociatedDeviceStats()`, but as an output on
+ *       `wifi_getApAssociatedDeviceRxStatsResult()` and
+ *       `wifi_getApAssociatedDeviceTxStatsResult()`, while declaring it as `ULLONG *` in
+ *       all four. The direction is therefore not consistently established by this
+ *       interface, so a caller should initialise the variable before the call and re-read
+ *       it afterwards rather than relying on either behaviour.
+ * @note This call does not block, per `Blocking calls` in `docs/pages/halSpec.md`.
+ * @note The `HAL` is expected to be thread safe, per `Threading Model` in
+ *       `docs/pages/halSpec.md`.
+ *
+ * @see wifi_associated_dev_tid_stats_t
+ * @see wifi_associated_dev_tid_entry_t
  */
 INT wifi_getApAssociatedDeviceTidStatsResult(INT radioIndex, mac_address_t *clientMacAddress, wifi_associated_dev_tid_stats_t *tid_stats, ULLONG *handle);
 
@@ -989,20 +1647,53 @@ INT wifi_getApAssociatedDeviceTidStatsResult(INT radioIndex, mac_address_t *clie
  * This function retrieves the statistics for an associated client on the
  * specified Access Point.
  * 
- * This function should be non-blocking.
+ * The counters are aggregates over all rates, which makes this the cheap summary call: a
+ * caller that needs the per-rate breakdown uses
+ * `wifi_getApAssociatedDeviceRxStatsResult()` or its transmit counterpart instead. This is
+ * also the only call in this header that is scoped by AP rather than by radio.
  *
- * @param[in] apIndex              The index of the Access Point array.
- * @param[in] clientMacAddress     The MAC address of the client.
- * @param[out] associated_dev_stats Pointer to a
- *                                   `wifi_associated_dev_stats_t` structure to
- *                                   store the device statistics.
+ * @param[in] apIndex              Index of the AP the client is associated with. The
+ *                                 indices this interface defines are `AP_INDEX_1` to
+ *                                 `AP_INDEX_24` in `wifi_hal_generic.h`.
+ * @param[in] clientMacAddress     Pointer to the six-octet MAC address of the client to
+ *                                 report on. The caller allocates and owns it and the
+ *                                 `HAL` reads it during the call.
+ * @param[out] associated_dev_stats Pointer to a `wifi_associated_dev_stats_t` structure to
+ *                                   store the device statistics. The caller allocates and
+ *                                   owns the storage, per `Memory Model` in
+ *                                   `docs/pages/halSpec.md`; the `HAL` writes it during the
+ *                                   call and retains no reference to it afterwards. One
+ *                                   structure is written, not an array.
  * @param[in] handle               Status validation handle used to determine
  *                                 reconnections. This handle is incremented for
- *                                 every association.
+ *                                 every association. The caller allocates and owns the
+ *                                 variable.
+ *
+ * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
+ *      in `docs/pages/halSpec.md`. A call made beforehand does not meet the runtime
+ *      requirements and, per `Component Runtime Execution Requirements`, likely results
+ *      in undefined behaviour.
+ * @post On success every member of `*associated_dev_stats` has been written, including
+ *       both RSSI snapshots. On failure the contents are undefined and must not be read.
  *
  * @returns The status of the operation.
- * @retval WIFI_HAL_SUCCESS If successful.
- * @retval WIFI_HAL_ERROR   If any error is detected.
+ * @retval WIFI_HAL_SUCCESS The statistics were retrieved.
+ * @retval WIFI_HAL_ERROR   `apIndex` is not a valid AP, any pointer argument is NULL, the
+ *                          client named by `clientMacAddress` is not associated with that
+ *                          AP, or the vendor layer could not supply the statistics. The
+ *                          caller should validate its arguments and treat the client's
+ *                          traffic and signal level as unknown rather than as zero.
+ *
+ * @note This interface documents `handle` as an input here and on
+ *       `wifi_getApAssociatedDeviceTidStatsResult()`, but as an output on the two per-rate
+ *       statistics calls, while declaring it as `ULLONG *` in all four, so the direction is
+ *       not consistently established.
+ * @note This call does not block, per `Blocking calls` in `docs/pages/halSpec.md`.
+ * @note The `HAL` is expected to be thread safe, per `Threading Model` in
+ *       `docs/pages/halSpec.md`.
+ *
+ * @see wifi_associated_dev_stats_t
+ * @see wifi_getApAssociatedDeviceRxStatsResult
  */
 INT wifi_getApAssociatedDeviceStats(INT apIndex, mac_address_t *clientMacAddress, wifi_associated_dev_stats_t *associated_dev_stats, ULLONG *handle);
 
@@ -1012,14 +1703,41 @@ INT wifi_getApAssociatedDeviceStats(INT apIndex, mac_address_t *clientMacAddress
  * This function retrieves the index of the radio associated with the
  * specified SSID entry.
  * 
- * This function should be non-blocking.
+ * It is the lookup that lets a caller holding an SSID index address the radio-scoped calls
+ * in this header, such as `wifi_getRadioChannelStats()`, whose `radioIndex` argument this
+ * supplies.
  *
- * @param[in] ssidIndex  SSID index.
- * @param[out] radioIndex Pointer to a variable to store the radio index.
+ * @param[in] ssidIndex  Index of the SSID entry to resolve. This interface does not define
+ *                       a separate SSID index space, and the indices it defines for the
+ *                       equivalent VAP-scoped arguments are `AP_INDEX_1` to `AP_INDEX_24`
+ *                       in `wifi_hal_generic.h`.
+ * @param[out] radioIndex Pointer to a variable to store the radio index. The caller
+ *                       allocates and owns the variable; the `HAL` writes it during the
+ *                       call. On success it holds one of the radio indices this interface
+ *                       defines, `RADIO_INDEX_1` to `RADIO_INDEX_3`, bounded by
+ *                       `MAX_NUM_RADIOS`.
+ *
+ * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
+ *      in `docs/pages/halSpec.md`. A call made beforehand does not meet the runtime
+ *      requirements and, per `Component Runtime Execution Requirements`, likely results
+ *      in undefined behaviour.
+ * @post On success `*radioIndex` holds the index of the radio the SSID entry belongs to.
+ *       On failure it must be treated as undefined and must not be used to address another
+ *       call.
  *
  * @returns The status of the operation.
- * @retval WIFI_HAL_SUCCESS If successful.
- * @retval WIFI_HAL_ERROR   If any error is detected.
+ * @retval WIFI_HAL_SUCCESS The radio index was written.
+ * @retval WIFI_HAL_ERROR   `ssidIndex` does not name a configured SSID entry, `radioIndex`
+ *                          is NULL, or the vendor layer could not resolve the mapping. The
+ *                          caller should validate `ssidIndex` and must not fall back to a
+ *                          default radio index, since addressing the wrong radio would
+ *                          apply a subsequent call to the wrong hardware.
+ *
+ * @note This call does not block, per `Blocking calls` in `docs/pages/halSpec.md`.
+ * @note The `HAL` is expected to be thread safe, per `Threading Model` in
+ *       `docs/pages/halSpec.md`.
+ *
+ * @see wifi_applySSIDSettings
  */
 INT wifi_getSSIDRadioIndex(INT ssidIndex, INT *radioIndex);
 
@@ -1029,29 +1747,99 @@ INT wifi_getSSIDRadioIndex(INT ssidIndex, INT *radioIndex);
  * This function applies the SSID and AP (in the case of Access Point
  * devices) settings to the hardware.
  * 
- * This function should be non-blocking.
+ * It is the commit step for configuration a caller has already staged through the setter
+ * calls elsewhere in this interface: until it is called, those settings need not be in
+ * force on the hardware.
  *
- * @param[in] ssidIndex SSID index.
+ * @param[in] ssidIndex SSID index whose staged settings are to be applied. This interface
+ *                      does not define a separate SSID index space, and the indices it
+ *                      defines for the equivalent VAP-scoped arguments are `AP_INDEX_1` to
+ *                      `AP_INDEX_24` in `wifi_hal_generic.h`.
+ *
+ * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
+ *      in `docs/pages/halSpec.md`. A call made beforehand does not meet the runtime
+ *      requirements and, per `Component Runtime Execution Requirements`, likely results
+ *      in undefined behaviour.
+ * @post On success the `HAL` has accepted the request to apply the settings for
+ *       `ssidIndex`. This interface does not state whether the hardware has finished
+ *       applying them when the call returns, nor whether applying them interrupts
+ *       associated clients, so a caller must not read a successful return as evidence that
+ *       the new configuration is already in force.
  *
  * @returns The status of the operation.
- * @retval WIFI_HAL_SUCCESS If successful.
- * @retval WIFI_HAL_ERROR   If any error is detected.
+ * @retval WIFI_HAL_SUCCESS The `HAL` accepted the request for `ssidIndex`.
+ * @retval WIFI_HAL_ERROR   `ssidIndex` does not name a configured SSID entry, the staged
+ *                          configuration is not one the hardware can accept, or the vendor
+ *                          layer refused the request. This interface does not state
+ *                          whether a failure leaves the previous configuration in force or
+ *                          the hardware partly reconfigured, so the caller should read the
+ *                          affected settings back rather than assuming either.
+ *
+ * @note This call does not block, per `Blocking calls` in `docs/pages/halSpec.md`, and
+ *       this interface establishes no completion notification for it.
+ * @note The `HAL` is expected to be thread safe, per `Threading Model` in
+ *       `docs/pages/halSpec.md`.
+ *
+ * @see wifi_getSSIDRadioIndex
  */
 INT wifi_applySSIDSettings(INT ssidIndex);
 
 /**
  * @brief Starts a neighbor scan.
  *
- * @param[in] apIndex    The index of the Access Point array.
- * @param[in] scan_mode  Scan mode.
- * @param[in] dwell_time Amount of time spent on each channel in the hopping
- *                       sequence.
- * @param[in] chan_num   The channel number.
- * @param[in] chan_list  List of channels.
+ * The call asks the radio behind an AP to survey the air for neighbouring BSSs, visiting
+ * each channel in turn and dwelling on it for `dwell_time`. It is how a caller populates
+ * its own picture of the RF neighbourhood before making a channel or steering decision.
+ *
+ * @param[in] apIndex    Index of the AP whose radio performs the scan. The indices this
+ *                       interface defines are `AP_INDEX_1` to `AP_INDEX_24` in
+ *                       `wifi_hal_generic.h`.
+ * @param[in] scan_mode  Scan mode, as one of the `wifi_neighborScanMode_t` values declared
+ *                       in `wifi_hal_ap.h`: none, full, on-channel, off-channel, survey or
+ *                       selected-channels. Only the selected-channels mode gives `chan_num`
+ *                       and `chan_list` a meaning; this interface does not state what the
+ *                       `HAL` does with a channel list supplied alongside any other mode.
+ * @param[in] dwell_time Time the radio spends on each channel in the hopping sequence, in
+ *                       milliseconds. This interface states neither a legal range nor the
+ *                       meaning of zero, so a caller should supply a positive value and
+ *                       must not read zero as "use a platform default".
+ * @param[in] chan_num   Number of entries in `chan_list`, which bounds that array. Zero
+ *                       means no channel list is supplied, in which case the scope of the
+ *                       scan is whatever `scan_mode` alone implies.
+ * @param[in] chan_list  Array of channel numbers to scan, holding `chan_num` entries. The
+ *                       caller allocates and owns it, per `Memory Model` in
+ *                       `docs/pages/halSpec.md`; the `HAL` reads it during the call and
+ *                       must not be assumed to retain it afterwards. This interface does
+ *                       not carry a band alongside the channel numbers, so they are
+ *                       interpreted in the band of the radio behind `apIndex`.
+ *
+ * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
+ *      in `docs/pages/halSpec.md`. A call made beforehand does not meet the runtime
+ *      requirements and, per `Component Runtime Execution Requirements`, likely results
+ *      in undefined behaviour.
+ * @post On success the `HAL` has accepted the scan request for `apIndex`. The scan is not
+ *       complete when the call returns.
  *
  * @returns The status of the operation.
- * @retval WIFI_HAL_SUCCESS If successful.
- * @retval WIFI_HAL_ERROR   If any error is detected.
+ * @retval WIFI_HAL_SUCCESS The `HAL` accepted the scan request.
+ * @retval WIFI_HAL_ERROR   `apIndex` is not a valid AP, `scan_mode` is not a supported
+ *                          mode, `chan_num` is non-zero with a NULL `chan_list`, a listed
+ *                          channel is not one the radio supports, or the vendor layer
+ *                          could not start the scan. The caller should validate its
+ *                          arguments and retry rather than waiting for results that will
+ *                          not arrive.
+ *
+ * @note This call does not block, per `Blocking calls` in `docs/pages/halSpec.md`, so it
+ *       returns before the scan has run and does not itself wait out `dwell_time`.
+ * @note This interface does not establish how the completion of a scan started here is
+ *       signalled, nor which call returns its results, so a caller must not assume a
+ *       notification and must not infer a completion time from `dwell_time` and
+ *       `chan_num`.
+ * @note The `HAL` is expected to be thread safe, per `Threading Model` in
+ *       `docs/pages/halSpec.md`. This interface does not state what happens when a scan is
+ *       started while one is already running on the same radio.
+ *
+ * @see wifi_setApScanFilter
  */
 INT wifi_startNeighborScan(INT apIndex, wifi_neighborScanMode_t scan_mode, INT dwell_time, UINT chan_num, UINT *chan_list);
 
@@ -1063,36 +1851,97 @@ INT wifi_startNeighborScan(INT apIndex, wifi_neighborScanMode_t scan_mode, INT d
  * deauthenticate clients before switching to a new channel, in the event that
  * some clients do not support or react to CSA.
  *
- * @param[in] apIndex The index of the Access Point array.
+ * The setting is a policy that persists for subsequent channel switches on that AP; the
+ * call itself neither announces a channel switch nor deauthenticates anything.
+ *
+ * @param[in] apIndex The index of the Access Point array. The indices this interface
+ *                    defines are `AP_INDEX_1` to `AP_INDEX_24` in `wifi_hal_generic.h`.
  * @param[in] mode    Enum value indicating the deauthentication mode:
  *                    0 = none,
  *                    1 = unicast,
  *                    2 = broadcast.
+ *                    Those three are the whole legal range; this interface defines no
+ *                    enumeration type for them, so a caller passes the bare value.
+ *
+ * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
+ *      in `docs/pages/halSpec.md`. A call made beforehand does not meet the runtime
+ *      requirements and, per `Component Runtime Execution Requirements`, likely results
+ *      in undefined behaviour.
+ * @post On success the mode is in force for subsequent channel switches on `apIndex`. This
+ *       interface provides no getter for the setting, so a caller that needs to know the
+ *       current mode must track what it last set.
  *
  * @returns The status of the operation.
- * @retval WIFI_HAL_SUCCESS If successful.
- * @retval WIFI_HAL_ERROR   If any error is detected.
+ * @retval WIFI_HAL_SUCCESS The mode was set for `apIndex`.
+ * @retval WIFI_HAL_ERROR   `apIndex` is not a valid AP, `mode` is outside the range 0 to
+ *                          2, or the vendor layer refused the request. This interface does
+ *                          not state whether a failure leaves the previous mode in force,
+ *                          so the caller should re-apply the mode it wants rather than
+ *                          assuming either outcome.
+ *
+ * @note This call does not block, per `Blocking calls` in `docs/pages/halSpec.md`.
+ * @note The `HAL` is expected to be thread safe, per `Threading Model` in
+ *       `docs/pages/halSpec.md`.
  */
 INT wifi_setApCsaDeauth(INT apIndex, INT mode);
 
 /**
  * @brief Enables or disables the scan filter in the driver.
  *
- * When the scan filter is enabled, two values are configured:
- *   - `enable`: Whether the filter is enabled (true/false).
- *   - `essid`: The ESSID to filter on.
+ * When the filter is enabled the driver reports only the BSSs whose ESSID matches, which
+ * narrows what a subsequent `wifi_startNeighborScan()` returns. Two values make up the
+ * setting: `mode`, which turns the filter on or off, and `essid`, which names what to
+ * match.
  *
+ * The interface describes the two forms of the call in terms of both arguments together.
  * When `essid` is blank (`apIndex` is -1), the configured SSID on the
  * interface is used. When `essid` is not empty (`apIndex` is 0 to 15), the
  * filter will apply to the provided ESSID.
  *
- * @param[in] apIndex The index of the Access Point array.
- * @param[in] mode    Whether the filter is disabled or enabled.
- * @param[in] essid   The ESSID to filter on.
+ * @param[in] apIndex The index of the Access Point array. This call is the one place in
+ *                    this header where a negative index is meaningful: -1 selects the
+ *                    blank-ESSID form described above, and the positive range the
+ *                    interface states for this argument is 0 to 15, which is narrower than
+ *                    the `AP_INDEX_1` to `AP_INDEX_24` range `wifi_hal_generic.h` defines.
+ * @param[in] mode    Whether the filter is disabled or enabled. This interface does not
+ *                    define an enumeration for it, and treats it as the boolean the
+ *                    description calls out, so a caller should pass 0 to disable and 1 to
+ *                    enable.
+ * @param[in] essid   The ESSID to filter on, as a caller-allocated, NUL-terminated string.
+ *                    The caller owns the storage, per `Memory Model` in
+ *                    `docs/pages/halSpec.md`; the `HAL` reads it during the call and must
+ *                    not be assumed to retain it afterwards. A blank string selects the
+ *                    form that filters on the interface's own configured SSID. This
+ *                    interface states no maximum length for the argument; the `ssid_t` type
+ *                    it uses for an SSID elsewhere is 32 octets, so a caller should not
+ *                    exceed 32 characters plus the terminator.
+ *
+ * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
+ *      in `docs/pages/halSpec.md`. A call made beforehand does not meet the runtime
+ *      requirements and, per `Component Runtime Execution Requirements`, likely results
+ *      in undefined behaviour.
+ * @post On success the filter setting is in force for subsequent scans on that interface.
+ *       This interface provides no getter for it, so a caller that needs to know the
+ *       current setting must track what it last set, and must disable the filter
+ *       explicitly rather than expecting a scan to clear it.
  *
  * @returns The status of the operation.
- * @retval WIFI_HAL_SUCCESS If successful.
- * @retval WIFI_HAL_ERROR   If any error is detected.
+ * @retval WIFI_HAL_SUCCESS The filter setting was applied.
+ * @retval WIFI_HAL_ERROR   `apIndex` is neither -1 nor an index in the range the interface
+ *                          states, `essid` is NULL, the ESSID is longer than the driver
+ *                          accepts, or the vendor layer refused the request. The caller
+ *                          should validate its arguments and must not start a scan
+ *                          expecting the filter to be in force, since a failed call leaves
+ *                          the previous setting in an unspecified state.
+ *
+ * @warning A filter left enabled suppresses non-matching BSSs from every later scan on
+ *          that interface, so a caller that scans for neighbours after filtering will see
+ *          an incomplete neighbourhood rather than an empty one.
+ * @note This call does not block, per `Blocking calls` in `docs/pages/halSpec.md`.
+ * @note The `HAL` is expected to be thread safe, per `Threading Model` in
+ *       `docs/pages/halSpec.md`.
+ *
+ * @see wifi_startNeighborScan
  */
 INT wifi_setApScanFilter(INT apIndex, INT mode, CHAR *essid);
 
@@ -1103,15 +1952,58 @@ INT wifi_setApScanFilter(INT apIndex, INT mode, CHAR *essid);
  * This function adds a steering group, which defines a group of Access Points
  * (APs) that can have steering done between them.
  *
- * @param[in] steeringGroupIndex The index of the steering group.
- * @param[in] numElements        The number of elements in the `cfgArray`.
+ * The group is the unit every other steering call is addressed to: a client can only be
+ * configured, measured, disconnected or reported on within a group that already exists.
+ * Each element of `cfgArray` also sets the sampling intervals that govern how often the
+ * channel-utilization and client-activity events fire for its AP.
+ *
+ * @param[in] steeringGroupIndex The index of the steering group to create or replace. This
+ *                               interface states no range for it and defines no maximum
+ *                               number of groups, so a caller should use the indices its
+ *                               own configuration allocates. Note that the client calls in
+ *                               this header spell the same argument `steeringgroupIndex`,
+ *                               with a lower-case "g".
+ * @param[in] numElements        The number of elements in the `cfgArray`, which bounds that
+ *                               array. This interface does not state whether zero is legal
+ *                               or what it would mean.
  * @param[in] cfgArray           The array of `wifi_steering_apConfig_t`
  *                               structures, containing the settings for each
- *                               AP in the group.
+ *                               AP in the group. It holds `numElements` entries. The caller
+ *                               allocates and owns the array, per `Memory Model` in
+ *                               `docs/pages/halSpec.md`, and this interface does not state
+ *                               whether the `HAL` copies the contents during the call or
+ *                               retains the pointer, so a caller must keep the array
+ *                               allocated and unmodified for as long as the group exists
+ *                               rather than freeing it when the call returns.
+ *
+ * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
+ *      in `docs/pages/halSpec.md`. A call made beforehand does not meet the runtime
+ *      requirements and, per `Component Runtime Execution Requirements`, likely results
+ *      in undefined behaviour.
+ * @post On success the group exists and the client calls in this header may be addressed
+ *       to `steeringGroupIndex`. This interface does not state whether calling it again
+ *       with an existing index replaces the group or is rejected, nor does it provide a
+ *       call that removes a group.
  *
  * @returns The status of the operation.
  * @retval RETURN_OK If successful.
  * @retval RETURN_ERR If any error is detected.
+ *
+ * @note `RETURN_OK` and `RETURN_ERR`, defined in `wifi_hal_generic.h`, carry the same
+ *       values as the `WIFI_HAL_SUCCESS` and `WIFI_HAL_ERROR` codes the rest of this
+ *       interface uses for the same two outcomes. The two codes above are the whole
+ *       return-code contract of this call, per `Internal Error Handling` in
+ *       `docs/pages/halSpec.md`. On failure the caller should validate its arguments and
+ *       must not address client calls to the group, since this interface does not state
+ *       whether a partly configured group is left behind.
+ * @note This call does not block, per `Blocking calls` in `docs/pages/halSpec.md`.
+ * @note The `HAL` is expected to be thread safe, per `Threading Model` in
+ *       `docs/pages/halSpec.md`.
+ * @note This declaration is compiled only where `WIFI_HAL_VERSION_3_PHASE2` is defined.
+ *
+ * @see wifi_steering_apConfig_t
+ * @see wifi_steering_clientSet
+ * @see wifi_steering_eventRegister
  */
 INT wifi_steering_setGroup(UINT steeringGroupIndex, UINT numElements, wifi_steering_apConfig_t *cfgArray);
 #endif
@@ -1153,87 +2045,313 @@ typedef struct
     wifi_steer_type_t type; /**< Steering type. */
     wifi_steer_matching_condition_t cond; /**< Matching condition. */
 } wifi_steer_trigger_data_t;
-
-/**
- * @addtogroup WIFI_HAL_APIS
- * @{
- */
- 
-/**
- * @brief Wi-Fi steering triggered callback function.
- *
- * @param[in] apIndex Index of the Access Point.
- * @param[in] data    Pointer to the steering trigger data.
- *
- * @returns The status of the operation.
- */
-typedef INT (*wifi_steerTriggered_callback)(INT apIndex, wifi_steer_trigger_data_t *data);
 /** @} */  //END OF GROUP WIFI_HAL_TYPES
 
 /**
  * @addtogroup WIFI_HAL_TYPES
  * @{
  */
+ 
+/**
+ * @brief Wi-Fi steering triggered callback function.
+ *
+ * A caller installs a handler of this type with
+ * `wifi_steerTriggered_callback_register()`. The `HAL` then invokes it whenever a steering
+ * decision is triggered for a client, passing the steering type that fired and the source
+ * and destination BSSs involved.
+ *
+ * @param[in] apIndex Index of the AP the trigger relates to. The indices this interface
+ *                    defines are `AP_INDEX_1` to `AP_INDEX_24` in `wifi_hal_generic.h`.
+ * @param[in] data    Pointer to the steering trigger data. The `HAL` owns this storage and
+ *                    it is valid only for the duration of the call; the client is
+ *                    responsible for creating a copy of the data it needs afterwards, per
+ *                    `Asynchronous Notification Model` in `docs/pages/halSpec.md`. That
+ *                    applies to the `module` string the structure carries as much as to the
+ *                    structure itself.
+ *
+ * @returns The status of the operation, returned by the handler to the `HAL`.
+ * @retval WIFI_HAL_SUCCESS The handler accepted the trigger.
+ * @retval WIFI_HAL_ERROR   The handler could not process the trigger.
+ *
+ * @note This interface does not state how the `HAL` acts on a non-success return, so a
+ *       handler must not rely on the trigger being retried or re-delivered, and must not
+ *       use the return value to veto the steering decision.
+ * @note The handler must not suspend and must not invoke any blocking system calls; it
+ *       should do no more than pass the event to its own event handler task, per
+ *       `Blocking calls` in `docs/pages/halSpec.md`.
+ * @note The `HAL` is expected to be thread safe and may enter the handler on a `HAL`
+ *       thread, so the handler must serialise its own access to caller state; see
+ *       `Threading Model` in `docs/pages/halSpec.md`.
+ *
+ * @see wifi_steerTriggered_callback_register
+ * @see wifi_steer_trigger_data_t
+ */
+typedef INT (*wifi_steerTriggered_callback)(INT apIndex, wifi_steer_trigger_data_t *data);
+/** @} */  //END OF GROUP WIFI_HAL_TYPES
+
+/**
+ * @addtogroup WIFI_HAL_APIS
+ * @{
+ */
 /**
  * @brief Registers a callback function for steering triggered events.
  *
- * @param[in] callback_proc Pointer to the callback function to register.
- * @param[in] module        Module name.
+ * After registration the `HAL` reports each steering trigger through the supplied handler,
+ * so a caller can observe steering decisions without polling. The `module` argument names
+ * the registering component, which is what the `module` member of
+ * `wifi_steer_trigger_data_t` carries back on each event.
+ *
+ * @param[in] callback_proc Pointer to the callback function to register, of type
+ *                          `wifi_steerTriggered_callback`. The `HAL` retains this function
+ *                          pointer and invokes it until it is replaced, so the function
+ *                          must remain callable for that whole period. The effect of
+ *                          passing NULL is not specified by this interface.
+ * @param[in] module        Name identifying the registering component, as a
+ *                          caller-allocated, NUL-terminated string. This interface defines
+ *                          neither the set of legal names, nor a maximum length, nor
+ *                          whether the `HAL` copies the string or retains the pointer, so
+ *                          a caller must keep the storage allocated and unmodified for as
+ *                          long as the handler stays registered. It is the only registrar
+ *                          in this interface that takes such an argument.
+ *
+ * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
+ *      in `docs/pages/halSpec.md`. The effect of registering beforehand is not specified
+ *      by this interface.
+ * @post The handler is installed and is invoked on each subsequent steering trigger.
+ *
+ * @execution callback
+ * @sideeffect None
+ *
+ * @note This call returns no status, so a caller cannot tell from it whether the
+ *       registration succeeded and must not treat its return as a confirmation; observing
+ *       a first callback is the only evidence this interface offers.
+ * @note This interface defines a single registration point and describes neither a list of
+ *       handlers nor a way to unregister, so a caller should treat a later registration as
+ *       replacing an earlier one and must not assume a handler can be removed.
+ * @note The registration call itself is synchronous and does not block, per
+ *       `Blocking calls` in `docs/pages/halSpec.md`; delivery of `wifi_steerTriggered_callback` is
+ *       asynchronous.
+ * @note The `HAL` is expected to be thread safe, per `Threading Model` in
+ *       `docs/pages/halSpec.md`.
+ *
+ * @see wifi_steerTriggered_callback
+ * @see wifi_steer_trigger_data_t
  */
 void wifi_steerTriggered_callback_register(wifi_steerTriggered_callback callback_proc, CHAR *module);
 
 /**
  * @brief Wi-Fi steering event callback function.
  *
- * @param[in] steeringgroupIndex Steering group index.
- * @param[in] event              Pointer to the steering event.
+ * A caller installs a handler of this type with `wifi_steering_eventRegister()` and removes
+ * it with `wifi_steering_eventUnregister()`. The `HAL` then delivers every steering event
+ * through it: probe requests, client connect and disconnect, activity changes, channel
+ * utilization, RSSI crossings, the reply to `wifi_steering_clientMeasure()`, and auth
+ * failures.
+ *
+ * @param[in] steeringgroupIndex Index of the steering group the event belongs to, as passed
+ *                               to `wifi_steering_setGroup()` - which spells the same
+ *                               argument `steeringGroupIndex`, with a capital "G".
+ * @param[in] event              Pointer to the steering event. The `HAL` owns this storage
+ *                               and it is valid only for the duration of the call; the
+ *                               client is responsible for creating a copy of the data it
+ *                               needs afterwards, per `Asynchronous Notification Model` in
+ *                               `docs/pages/halSpec.md`. The handler must read the `type`
+ *                               member first and then only the union member `type` selects,
+ *                               as `wifi_steering_event_t` sets out.
+ *
+ * @note This handler returns `void`, so a handler cannot report a processing failure back
+ *       to the `HAL` and the `HAL` has no way to learn that an event was not consumed.
+ * @note The handler must not suspend and must not invoke any blocking system calls; it
+ *       should do no more than pass the event to its own event handler task, per
+ *       `Blocking calls` in `docs/pages/halSpec.md`.
+ * @note The `HAL` is expected to be thread safe and may enter the handler on a `HAL`
+ *       thread, so the handler must serialise its own access to caller state; see
+ *       `Threading Model` in `docs/pages/halSpec.md`.
+ *
+ * @see wifi_steering_eventRegister
+ * @see wifi_steering_eventUnregister
+ * @see wifi_steering_event_t
  */
 typedef void (*wifi_steering_eventCB_t)(UINT steeringgroupIndex, wifi_steering_event_t *event);
 
 /**
  * @brief Registers for steering event callbacks.
  *
- * @param[in] event_cb Pointer to the callback function to register.
+ * This is the single delivery point for every steering event across every group: the
+ * handler is not registered per group, and the group each event came from is carried in the
+ * handler's own `steeringgroupIndex` argument. A caller that wants events must register
+ * before the events it cares about occur, since this interface offers no way to retrieve
+ * past ones.
+ *
+ * @param[in] event_cb Pointer to the callback function to register, of type
+ *                     `wifi_steering_eventCB_t`. The `HAL` retains this function pointer
+ *                     and invokes it until it is unregistered or replaced, so the function
+ *                     must remain callable for that whole period. The effect of passing
+ *                     NULL is not specified by this interface; a caller that wants to stop
+ *                     delivery should call `wifi_steering_eventUnregister()` instead.
+ *
+ * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
+ *      in `docs/pages/halSpec.md`. The effect of registering beforehand is not specified by
+ *      this interface.
+ * @post On success the handler is installed and receives subsequent steering events. This
+ *       interface does not state whether events are delivered for groups created after the
+ *       registration, nor whether a second registration replaces the first or is rejected.
  *
  * @returns The status of the operation.
  * @retval RETURN_OK If successful.
  * @retval RETURN_ERR If any error is detected.
+ *
+ * @execution callback
+ * @sideeffect None
+ *
+ * @note `RETURN_OK` and `RETURN_ERR`, defined in `wifi_hal_generic.h`, carry the same
+ *       values as the `WIFI_HAL_SUCCESS` and `WIFI_HAL_ERROR` codes the rest of this
+ *       interface uses for the same two outcomes, and are the whole return-code contract of
+ *       this call. On `RETURN_ERR` the caller should assume no handler is installed and
+ *       must not wait for events; retrying the registration is the only recovery this
+ *       interface offers.
+ * @note The registration call itself is synchronous and does not block, per
+ *       `Blocking calls` in `docs/pages/halSpec.md`; delivery of `wifi_steering_eventCB_t` is
+ *       asynchronous.
+ * @note The `HAL` is expected to be thread safe, per `Threading Model` in
+ *       `docs/pages/halSpec.md`.
+ *
+ * @see wifi_steering_eventCB_t
+ * @see wifi_steering_eventUnregister
+ * @see wifi_steering_setGroup
  */
 INT wifi_steering_eventRegister(wifi_steering_eventCB_t event_cb);
 
 /**
  * @brief Unregisters for steering event callbacks.
  *
+ * This is the teardown counterpart of `wifi_steering_eventRegister()`. It takes no
+ * arguments because the interface holds a single registration rather than a list, so there
+ * is no handler to name and no group to scope the removal to.
+ *
+ * @pre A handler must have been installed with `wifi_steering_eventRegister()`. This
+ *      interface does not state what unregistering without a registration does, so a caller
+ *      should not rely on it being harmless.
+ * @post On success no steering events are delivered. This interface does not state whether
+ *       an event already being delivered is allowed to complete, so a caller must keep the
+ *       state its handler touches valid until it can be sure no handler is running.
+ *
  * @returns The status of the operation.
  * @retval RETURN_OK If successful.
  * @retval RETURN_ERR If any error is detected.
+ *
+ * @note `RETURN_OK` and `RETURN_ERR` carry the same values as `WIFI_HAL_SUCCESS` and
+ *       `WIFI_HAL_ERROR`, and are the whole return-code contract of this call. On
+ *       `RETURN_ERR` the caller must assume the handler may still be invoked and so must
+ *       not free anything the handler uses.
+ * @note This call does not block, per `Blocking calls` in `docs/pages/halSpec.md`.
+ * @note The `HAL` is expected to be thread safe, per `Threading Model` in
+ *       `docs/pages/halSpec.md`.
+ *
+ * @see wifi_steering_eventRegister
+ * @see wifi_steering_eventCB_t
  */
 INT wifi_steering_eventUnregister(void);
 
 /**
  * @brief Adds or modifies client configuration for an AP.
  *
- * @param[in] steeringgroupIndex Steering group index.
- * @param[in] apIndex            Access Point index.
- * @param[in] client_mac         Client MAC address.
- * @param[in] config             Pointer to the client configuration.
+ * The configuration supplied here is what makes the AP treat one client differently from
+ * the rest: it sets the RSSI ranges within which probe and auth requests are answered, and
+ * the thresholds whose crossing produces a `WIFI_STEERING_EVENT_RSSI_XING` event. Until a
+ * client has been set on an AP, none of that applies to it.
+ *
+ * @param[in] steeringgroupIndex Index of the steering group the AP belongs to, as passed to
+ *                               `wifi_steering_setGroup()` - which spells the same argument
+ *                               `steeringGroupIndex`, with a capital "G".
+ * @param[in] apIndex            Index of the AP within the group that the configuration
+ *                               applies to. The indices this interface defines are
+ *                               `AP_INDEX_1` to `AP_INDEX_24` in `wifi_hal_generic.h`, and
+ *                               the AP must be one of those named in the group's
+ *                               `cfgArray`.
+ * @param[in] client_mac         MAC address of the client to configure, as the six octets of
+ *                               `mac_address_t` in `wifi_hal_generic.h`. Because that type
+ *                               is an array, the argument is passed as a pointer to the
+ *                               caller's storage: the caller owns it and the `HAL` reads it
+ *                               during the call.
+ * @param[in] config             Pointer to the client configuration. One structure is
+ *                               passed, not an array. The caller allocates and owns it, per
+ *                               `Memory Model` in `docs/pages/halSpec.md`, and this
+ *                               interface does not state whether the `HAL` copies the
+ *                               contents or retains the pointer, so a caller must keep the
+ *                               structure allocated and unmodified while the client remains
+ *                               configured.
+ *
+ * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
+ *      in `docs/pages/halSpec.md`. A call made beforehand does not meet the runtime
+ *      requirements and, per `Component Runtime Execution Requirements`, likely results
+ *      in undefined behaviour.
+ * @pre The group named by `steeringgroupIndex` must already exist, having been created by
+ *      `wifi_steering_setGroup()`. This interface does not state what happens if it does
+ *      not, so a caller must not rely on the group being created implicitly.
+ * @post On success the configuration is in force for that client on that AP, replacing any
+ *       previous configuration for the same client and AP. This interface provides no
+ *       getter, so a caller that needs the current configuration must track what it set.
  *
  * @returns The status of the operation.
  * @retval RETURN_OK If successful.
  * @retval RETURN_ERR If any error is detected.
+ *
+ * @note `RETURN_OK` and `RETURN_ERR`, defined in `wifi_hal_generic.h`, carry the same
+ *       values as the `WIFI_HAL_SUCCESS` and `WIFI_HAL_ERROR` codes the rest of this
+ *       interface uses, and are the whole return-code contract of this call. On
+ *       `RETURN_ERR` the caller should validate the group, AP and pointer arguments, and
+ *       must not assume the client is being steered - nor that a previous configuration for
+ *       it survived, which this interface does not state.
+ * @note This call does not block, per `Blocking calls` in `docs/pages/halSpec.md`.
+ * @note The `HAL` is expected to be thread safe, per `Threading Model` in
+ *       `docs/pages/halSpec.md`.
+ *
+ * @see wifi_steering_clientConfig_t
+ * @see wifi_steering_clientRemove
+ * @see wifi_steering_setGroup
  */
 INT wifi_steering_clientSet(UINT steeringgroupIndex, INT apIndex, mac_address_t client_mac, wifi_steering_clientConfig_t *config);
 
 /**
  * @brief Removes client configuration from an AP.
  *
- * @param[in] steeringgroupIndex Steering group index.
- * @param[in] apIndex            Access Point index.
- * @param[in] client_mac         Client MAC address.
+ * This is the teardown counterpart of `wifi_steering_clientSet()`. Removing the
+ * configuration stops the RSSI ranges and crossing thresholds being applied to that client
+ * on that AP; it does not disconnect the client, which is what
+ * `wifi_steering_clientDisconnect()` does.
+ *
+ * @param[in] steeringgroupIndex Index of the steering group the AP belongs to.
+ * @param[in] apIndex            Index of the AP the configuration is removed from. The
+ *                               indices this interface defines are `AP_INDEX_1` to
+ *                               `AP_INDEX_24` in `wifi_hal_generic.h`.
+ * @param[in] client_mac         MAC address of the client whose configuration is removed,
+ *                               as the six octets of `mac_address_t`. The caller owns the
+ *                               storage and the `HAL` reads it during the call.
+ *
+ * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
+ *      in `docs/pages/halSpec.md`. A call made beforehand does not meet the runtime
+ *      requirements and, per `Component Runtime Execution Requirements`, likely results
+ *      in undefined behaviour.
+ * @post On success the client is no longer configured on that AP, and the interface's
+ *       default treatment applies to it. After removal the caller may release the
+ *       `wifi_steering_clientConfig_t` it passed to `wifi_steering_clientSet()`.
  *
  * @returns The status of the operation.
  * @retval RETURN_OK If successful.
  * @retval RETURN_ERR If any error is detected.
+ *
+ * @note `RETURN_OK` and `RETURN_ERR` carry the same values as `WIFI_HAL_SUCCESS` and
+ *       `WIFI_HAL_ERROR`, and are the whole return-code contract of this call. This
+ *       interface does not distinguish a client that was not configured in the first place
+ *       from a genuine failure, so on `RETURN_ERR` the caller must not release the
+ *       configuration structure and should retry the removal.
+ * @note This call does not block, per `Blocking calls` in `docs/pages/halSpec.md`.
+ * @note The `HAL` is expected to be thread safe, per `Threading Model` in
+ *       `docs/pages/halSpec.md`.
+ *
+ * @see wifi_steering_clientSet
+ * @see wifi_steering_clientDisconnect
  */
 INT wifi_steering_clientRemove(UINT steeringgroupIndex, INT apIndex, mac_address_t client_mac);
 
@@ -1249,31 +2367,105 @@ INT wifi_steering_clientRemove(UINT steeringgroupIndex, INT apIndex, mac_address
  * Instant measurement improves user experience by not reacting to
  * false-positive RSSI crossings.
  *
- * @param[in] steeringgroupIndex Steering group index.
- * @param[in] apIndex            Access Point index.
- * @param[in] client_mac         Client MAC address.
+ * @param[in] steeringgroupIndex Index of the steering group the AP belongs to.
+ * @param[in] apIndex            Index of the AP the client is associated with. The indices
+ *                               this interface defines are `AP_INDEX_1` to `AP_INDEX_24` in
+ *                               `wifi_hal_generic.h`.
+ * @param[in] client_mac         MAC address of the client to measure, as the six octets of
+ *                               `mac_address_t`. The caller owns the storage and the `HAL`
+ *                               reads it during the call. The same address is echoed in the
+ *                               `client_mac` member of the event that reports the result.
+ *
+ * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
+ *      in `docs/pages/halSpec.md`. A call made beforehand does not meet the runtime
+ *      requirements and, per `Component Runtime Execution Requirements`, likely results
+ *      in undefined behaviour.
+ * @pre A handler must be registered with `wifi_steering_eventRegister()` before the call,
+ *      because the measured value is reported only through the
+ *      `WIFI_STEERING_EVENT_RSSI` event and this call returns no RSSI of its own. This
+ *      interface does not state whether the measurement is attempted when no handler is
+ *      registered.
+ * @post On success the `HAL` has accepted the measurement request. The measurement has not
+ *       been taken when the call returns: the result arrives later as a
+ *       `WIFI_STEERING_EVENT_RSSI` event carrying `wifi_steering_evRssi_t`. This interface
+ *       does not state a time by which that event arrives, nor whether one is delivered at
+ *       all if the client does not answer, so a caller must apply its own timeout rather
+ *       than waiting indefinitely.
  *
  * @returns The status of the operation.
  * @retval RETURN_OK  If successful.
  * @retval RETURN_ERR If any error is detected.
+ *
+ * @note `RETURN_OK` and `RETURN_ERR` carry the same values as `WIFI_HAL_SUCCESS` and
+ *       `WIFI_HAL_ERROR`, and are the whole return-code contract of this call. `RETURN_OK`
+ *       reports only that the request was accepted, not that a measurement succeeded; on
+ *       `RETURN_ERR` the caller should validate the group, AP and client, and must not wait
+ *       for an event.
+ * @note This interface carries no request identifier on either the call or the event, so a
+ *       caller with several measurements outstanding can only match a result to a request
+ *       by the client MAC address it echoes.
+ * @note This call does not block, per `Blocking calls` in `docs/pages/halSpec.md`, so it
+ *       returns before the NULL frames have been sent and their ACKs averaged.
+ * @note The `HAL` is expected to be thread safe, per `Threading Model` in
+ *       `docs/pages/halSpec.md`.
+ *
+ * @see wifi_steering_evRssi_t
+ * @see wifi_steering_eventRegister
  */
 INT wifi_steering_clientMeasure(UINT steeringgroupIndex, INT apIndex, mac_address_t client_mac);
 
 /**
  * @brief Initiates a client disconnect.
  *
- * @param[in] steeringgroupIndex Steering group index.
- * @param[in] apIndex            Access Point index.
- * @param[in] client_mac         Client MAC address.
- * @param[in] type               Disconnect type.
+ * This is the enforcement step of a steering decision: having decided a client belongs on
+ * another AP in the group, the caller drops it here so that it re-associates. The `reason`
+ * code the client is given is what tells it whether to come back to this AP.
+ *
+ * @param[in] steeringgroupIndex Index of the steering group the AP belongs to.
+ * @param[in] apIndex            Index of the AP the client is disconnected from. The
+ *                               indices this interface defines are `AP_INDEX_1` to
+ *                               `AP_INDEX_24` in `wifi_hal_generic.h`.
+ * @param[in] client_mac         MAC address of the client to disconnect, as the six octets
+ *                               of `mac_address_t`. The caller owns the storage and the
+ *                               `HAL` reads it during the call.
+ * @param[in] type               How to disconnect the client, as one of the
+ *                               `wifi_disconnectType_t` values: disassociation,
+ *                               deauthentication or reconnection.
+ *                               `DISCONNECT_TYPE_UNKNOWN` is defined for reporting a
+ *                               disconnect whose type is not known, so it is not a
+ *                               meaningful request here.
  * @param[in] reason             Reason code to provide in the deauthentication
- *                               or disassociation frame.
+ *                               or disassociation frame, as an IEEE 802.11 reason code; see
+ *                               the reference below. This interface does not state which
+ *                               code the `HAL` uses if an unrecognised one is passed.
+ *
+ * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
+ *      in `docs/pages/halSpec.md`. A call made beforehand does not meet the runtime
+ *      requirements and, per `Component Runtime Execution Requirements`, likely results
+ *      in undefined behaviour.
+ * @post On success the `HAL` has accepted the disconnect request. This interface does not
+ *       state whether the client has been dropped by the time the call returns, so a caller
+ *       that must observe the outcome should watch for the
+ *       `WIFI_STEERING_EVENT_CLIENT_DISCONNECT` event, whose `source` and `type` members
+ *       report how the client actually left. Nothing here prevents the client
+ *       re-associating with the same AP.
  *
  * @returns The status of the operation.
  * @retval RETURN_OK  If successful.
  * @retval RETURN_ERR If any error is detected.
  *
+ * @note `RETURN_OK` and `RETURN_ERR` carry the same values as `WIFI_HAL_SUCCESS` and
+ *       `WIFI_HAL_ERROR`, and are the whole return-code contract of this call. This
+ *       interface does not distinguish a client that was not associated from a genuine
+ *       failure, so on `RETURN_ERR` the caller should read the client's association state
+ *       rather than inferring it, and must not repeat the disconnect blindly.
+ * @note This call does not block, per `Blocking calls` in `docs/pages/halSpec.md`.
+ * @note The `HAL` is expected to be thread safe, per `Threading Model` in
+ *       `docs/pages/halSpec.md`.
+ *
  * @see https://supportforums.cisco.com/document/141136/80211-association-status-80211-deauth-reason-codes
+ * @see wifi_disconnectType_t
+ * @see wifi_steering_evDisconnect_t
  */
 INT wifi_steering_clientDisconnect(UINT steeringgroupIndex, INT apIndex, mac_address_t client_mac, wifi_disconnectType_t type, UINT reason);
 
@@ -1314,6 +2506,27 @@ INT wifi_steering_clientDisconnect(UINT steeringgroupIndex, INT apIndex, mac_add
  * @returns The status of the operation.
  * @retval WIFI_HAL_SUCCESS The operation was successful.
  * @retval WIFI_HAL_ERROR An error occurred during the operation.
+ *
+ * @note On `WIFI_HAL_ERROR` this interface does not state what the driver sends to the
+ *       STA, so a handler that cannot build a request should still leave `request` in a
+ *       consistent state rather than partly filled.
+ * @note `query` is owned by the `HAL` and is valid only for the duration of the call; a
+ *       handler that needs the query afterwards must copy it, per
+ *       `Asynchronous Notification Model` in `docs/pages/halSpec.md`. `request` is the caller's own
+ *       storage and the driver reads it once the handler returns.
+ * @note The handler must not suspend and must not invoke any blocking system calls, per
+ *       `Blocking calls` in `docs/pages/halSpec.md`. It runs on the path that answers the
+ *       STA, so a slow handler delays the BTM response.
+ * @note The `HAL` is expected to be thread safe and may enter the handler on a `HAL`
+ *       thread, so the handler must serialise its own access to caller state; see
+ *       `Threading Model` in `docs/pages/halSpec.md`.
+ * @note In this build `peerMac` is a `mac_address_t`, the six raw octets; where
+ *       `WIFI_HAL_VERSION_3_PHASE2` is not defined the same argument is a `CHAR *`
+ *       instead, so a handler written against one form does not compile against the other.
+ *
+ * @see wifi_BTMQueryRequest_callback_register
+ * @see wifi_BTMQuery_t
+ * @see wifi_BTMRequest_t
  */
 typedef INT (*wifi_BTMQueryRequest_callback)(UINT apIndex,
                                                     mac_address_t peerMac,
@@ -1336,6 +2549,27 @@ typedef INT (*wifi_BTMQueryRequest_callback)(UINT apIndex,
  * @returns The status of the operation.
  * @retval WIFI_HAL_SUCCESS The operation was successful.
  * @retval WIFI_HAL_ERROR An error occurred during the operation.
+ *
+ * @note This is a notification rather than a request for a frame, so the return value
+ *       reports only whether the handler consumed it. This interface does not state how the
+ *       `HAL` acts on `WIFI_HAL_ERROR`, so a handler must not rely on redelivery.
+ * @note `response` is owned by the `HAL` and is valid only for the duration of the call; a
+ *       handler that needs it afterwards must copy it, per
+ *       `Asynchronous Notification Model` in `docs/pages/halSpec.md`. Its `token` member is what matches the response
+ *       to the request that prompted it, and its `status` member is what says whether the
+ *       STA accepted the transition.
+ * @note The handler must not suspend and must not invoke any blocking system calls, per
+ *       `Blocking calls` in `docs/pages/halSpec.md`.
+ * @note The `HAL` is expected to be thread safe and may enter the handler on a `HAL`
+ *       thread, so the handler must serialise its own access to caller state; see
+ *       `Threading Model` in `docs/pages/halSpec.md`.
+ * @note In this build `peerMac` is a `mac_address_t`, the six raw octets; where
+ *       `WIFI_HAL_VERSION_3_PHASE2` is not defined the same argument is a `CHAR *`
+ *       instead.
+ *
+ * @see wifi_BTMQueryRequest_callback_register
+ * @see wifi_BTMResponse_t
+ * @see wifi_setBTMRequest
  */
 typedef INT (*wifi_BTMResponse_callback)(UINT apIndex,
                                             mac_address_t peerMac,
@@ -1371,6 +2605,28 @@ typedef INT (*wifi_BTMResponse_callback)(UINT apIndex,
  * @returns The status of the operation.
  * @retval WIFI_HAL_SUCCESS The operation was successful.
  * @retval WIFI_HAL_ERROR An error occurred during the operation.
+ *
+ * @note On `WIFI_HAL_ERROR` this interface does not state what the driver sends to the
+ *       STA, so a handler that cannot build a request should still leave `request` in a
+ *       consistent state rather than partly filled.
+ * @note `query` and `peerMac` are owned by the `HAL` and are valid only for the duration of
+ *       the call; a handler that needs either afterwards must copy it, per
+ *       `Asynchronous Notification Model` in `docs/pages/halSpec.md`. `request` is the caller's own
+ *       storage and the driver reads it once the handler returns.
+ * @note The handler must not suspend and must not invoke any blocking system calls, per
+ *       `Blocking calls` in `docs/pages/halSpec.md`. It runs on the path that answers the
+ *       STA, so a slow handler delays the BTM response.
+ * @note The `HAL` is expected to be thread safe and may enter the handler on a `HAL`
+ *       thread, so the handler must serialise its own access to caller state; see
+ *       `Threading Model` in `docs/pages/halSpec.md`.
+ * @note In this build `peerMac` is a `CHAR *`. This interface does not state whether it
+ *       points at a NUL-terminated MAC address string or at six raw octets, so a handler
+ *       must not assume either; where `WIFI_HAL_VERSION_3_PHASE2` is defined the same
+ *       argument is a `mac_address_t` and the question does not arise.
+ *
+ * @see wifi_BTMQueryRequest_callback_register
+ * @see wifi_BTMQuery_t
+ * @see wifi_BTMRequest_t
  */
 typedef INT (*wifi_BTMQueryRequest_callback)(UINT apIndex,
                                                     CHAR *peerMac,
@@ -1393,11 +2649,32 @@ typedef INT (*wifi_BTMQueryRequest_callback)(UINT apIndex,
  * @returns The status of the operation.
  * @retval WIFI_HAL_SUCCESS The operation was successful.
  * @retval WIFI_HAL_ERROR An error occurred during the operation.
+ *
+ * @note This is a notification rather than a request for a frame, so the return value
+ *       reports only whether the handler consumed it. This interface does not state how the
+ *       `HAL` acts on `WIFI_HAL_ERROR`, so a handler must not rely on redelivery.
+ * @note `response` and `peerMac` are owned by the `HAL` and are valid only for the duration
+ *       of the call; a handler that needs either afterwards must copy it, per
+ *       `Asynchronous Notification Model` in `docs/pages/halSpec.md`. The response's `token` member is
+ *       what matches it to the request that prompted it, and its `status` member is what
+ *       says whether the STA accepted the transition.
+ * @note The handler must not suspend and must not invoke any blocking system calls, per
+ *       `Blocking calls` in `docs/pages/halSpec.md`.
+ * @note The `HAL` is expected to be thread safe and may enter the handler on a `HAL`
+ *       thread, so the handler must serialise its own access to caller state; see
+ *       `Threading Model` in `docs/pages/halSpec.md`.
+ * @note In this build `peerMac` is a `CHAR *`, and this interface does not state whether it
+ *       points at a NUL-terminated MAC address string or at six raw octets; where
+ *       `WIFI_HAL_VERSION_3_PHASE2` is defined the same argument is a `mac_address_t`.
+ *
+ * @see wifi_BTMQueryRequest_callback_register
+ * @see wifi_BTMResponse_t
  */
 typedef INT (*wifi_BTMResponse_callback)(UINT apIndex,
                                             CHAR *peerMac,
                                             wifi_BTMResponse_t *response);
 #endif
+/** @} */  //END OF GROUP WIFI_HAL_TYPES
 
 /**
  * @addtogroup WIFI_HAL_APIS
@@ -1406,14 +2683,52 @@ typedef INT (*wifi_BTMResponse_callback)(UINT apIndex,
 /**
  * @brief Registers a callback function for BTM queries.
  *
- * @param[in] apIndex            Access Point index.
- * @param[in] btmQueryCallback  Pointer to the callback function for BTM queries.
+ * The two handlers cover the two halves of an 802.11v BSS Transition Management
+ * transaction, and they are installed together per AP. `btmQueryCallback` is invoked when a
+ * STA asks to be transitioned and must return the request frame the driver sends back;
+ * `btmResponseCallback` is invoked when a STA answers a request, whether that request came
+ * from the query handler or from `wifi_setBTMRequest()`.
+ *
+ * @param[in] apIndex            Index of the AP the handlers are installed for. The indices
+ *                               this interface defines are `AP_INDEX_1` to `AP_INDEX_24` in
+ *                               `wifi_hal_generic.h`. Registration is per AP, so a caller
+ *                               that serves several VAPs must register for each.
+ * @param[in] btmQueryCallback  Pointer to the callback function for BTM queries, of type
+ *                               `wifi_BTMQueryRequest_callback`. The `HAL` retains this
+ *                               function pointer and invokes it until it is replaced, so it
+ *                               must remain callable for that whole period.
  * @param[in] btmResponseCallback Pointer to the callback function for BTM
- *                                responses.
+ *                                responses, of type `wifi_BTMResponse_callback`, retained
+ *                                on the same terms. This interface does not state whether
+ *                                either pointer may be NULL to install only one handler, so
+ *                                a caller should supply both.
+ *
+ * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
+ *      in `docs/pages/halSpec.md`. The effect of registering beforehand is not specified by
+ *      this interface.
+ * @post On success both handlers are installed for `apIndex`. This interface defines no
+ *       unregister call for them, so a caller should treat a later registration as
+ *       replacing an earlier one and must not assume the handlers can be removed.
  *
  * @returns The status of the operation.
- * @retval WIFI_HAL_SUCCESS If successful.
- * @retval WIFI_HAL_ERROR   If any error is detected.
+ * @retval WIFI_HAL_SUCCESS The handlers were installed for `apIndex`.
+ * @retval WIFI_HAL_ERROR   `apIndex` is not a valid AP, a callback pointer is not one the
+ *                          `HAL` accepts, or the vendor layer refused the request. On
+ *                          failure the caller should assume no handler is installed, and
+ *                          must not call `wifi_setBTMRequest()` expecting a response
+ *                          notification.
+ *
+ * @execution callback
+ * @sideeffect None
+ *
+ * @note The registration call itself is synchronous and does not block, per
+ *       `Blocking calls` in `docs/pages/halSpec.md`; delivery of both handlers is asynchronous.
+ * @note The `HAL` is expected to be thread safe, per `Threading Model` in
+ *       `docs/pages/halSpec.md`.
+ *
+ * @see wifi_BTMQueryRequest_callback
+ * @see wifi_BTMResponse_callback
+ * @see wifi_setBTMRequest
  */
 INT wifi_BTMQueryRequest_callback_register(UINT apIndex, wifi_BTMQueryRequest_callback btmQueryCallback, wifi_BTMResponse_callback btmResponseCallback);
 
@@ -1421,13 +2736,56 @@ INT wifi_BTMQueryRequest_callback_register(UINT apIndex, wifi_BTMQueryRequest_ca
 /**
  * @brief Sends a BTM request to a non-AP STA.
  *
- * @param[in] apIndex  Access Point index.
- * @param[in] peerMac  MAC address of the peer STA.
- * @param[in] request  Pointer to the BTM request frame to send.
+ * This is the AP-initiated half of 802.11v BSS Transition Management: the AP asks a STA to
+ * move, without the STA having queried first. It is how a steering decision is delivered to
+ * a client that supports BTM, in place of the disconnect that
+ * `wifi_steering_clientDisconnect()` performs. The STA's answer arrives through the
+ * `wifi_BTMResponse_callback` handler.
+ *
+ * @param[in] apIndex  Index of the AP to send the request from. The indices this interface
+ *                     defines are `AP_INDEX_1` to `AP_INDEX_24` in `wifi_hal_generic.h`.
+ * @param[in] peerMac  MAC address of the peer STA, as the six octets of `mac_address_t`.
+ *                     The caller owns the storage and the `HAL` reads it during the call.
+ * @param[in] request  Pointer to the BTM request frame to send. One frame is passed, not an
+ *                     array. The caller allocates and owns it, per `Memory Model` in
+ *                     `docs/pages/halSpec.md`; the `HAL` reads it during the call and must
+ *                     not be assumed to retain it afterwards. The caller sets `token` to
+ *                     the dialog token it will match the response against, sets
+ *                     `numCandidates` to bound the `candidates` array and `urlLen` to bound
+ *                     `url`, and must set `requestMode` consistently with the optional
+ *                     fields it has populated.
+ *
+ * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
+ *      in `docs/pages/halSpec.md`. A call made beforehand does not meet the runtime
+ *      requirements and, per `Component Runtime Execution Requirements`, likely results
+ *      in undefined behaviour.
+ * @pre A `wifi_BTMResponse_callback` handler should be installed for `apIndex` with
+ *      `wifi_BTMQueryRequest_callback_register()` before the request is sent, since that
+ *      handler is the only way this interface reports the STA's answer.
+ * @post On success the `HAL` has accepted the request for transmission. The STA has not
+ *       answered when the call returns, and this interface states neither a time by which
+ *       the response callback arrives nor what happens if the STA never answers, so a caller
+ *       must apply its own timeout. A successful return is not evidence that the STA
+ *       transitioned; only a response carrying an accepting `status` is.
  *
  * @returns The status of the operation.
- * @retval WIFI_HAL_SUCCESS If successful.
- * @retval WIFI_HAL_ERROR   If any error is detected.
+ * @retval WIFI_HAL_SUCCESS The `HAL` accepted the request for transmission.
+ * @retval WIFI_HAL_ERROR   `apIndex` is not a valid AP, `request` is NULL or internally
+ *                          inconsistent, the peer is not associated or does not support
+ *                          BTM, or the vendor layer could not send the frame. The caller
+ *                          should validate its arguments and fall back to
+ *                          `wifi_steering_clientDisconnect()` if it must move a client that
+ *                          cannot be transitioned.
+ *
+ * @note This call does not block, per `Blocking calls` in `docs/pages/halSpec.md`, so it
+ *       returns before the frame is acknowledged.
+ * @note This declaration is compiled only where `WIFI_HAL_VERSION_3_PHASE2` is defined.
+ * @note The `HAL` is expected to be thread safe, per `Threading Model` in
+ *       `docs/pages/halSpec.md`.
+ *
+ * @see wifi_BTMRequest_t
+ * @see wifi_BTMResponse_callback
+ * @see wifi_BTMQueryRequest_callback_register
  */
 INT wifi_setBTMRequest(UINT apIndex, mac_address_t peerMac, wifi_BTMRequest_t *request);
 #endif
@@ -1452,16 +2810,49 @@ INT wifi_setBTMRequest(UINT apIndex, mac_address_t peerMac, wifi_BTMRequest_t *r
  * When a triggered autonomous report causes the callback to be invoked, the 
  * dialog token and measurement token are both set to 0.
  *
- * @param[in] apIndex      Access Point index.
+ * @param[in] apIndex      Index of the AP that received the report. The indices this
+ *                         interface defines are `AP_INDEX_1` to `AP_INDEX_24` in
+ *                         `wifi_hal_generic.h`.
  * @param[out] out_struct  Pointer to a `wifi_BeaconReport_t` structure to store
- *                         the beacon report.
+ *                         the beacon report. The argument is marked as an output, and the
+ *                         handler is the party that writes it: the `HAL` supplies the
+ *                         storage and invokes the handler to fill it, so the handler must
+ *                         write at most `*out_array_size` elements and must not free or
+ *                         retain the pointer.
  * @param[out] out_array_size Pointer to a variable to store the size of the
- *                         beacon report array.
- * @param[out] out_DialogToken Pointer to a variable to store the dialog token.
+ *                         beacon report array, in elements. It bounds `out_struct`, so a
+ *                         handler must read it before writing more than one element. This
+ *                         interface does not state whether the `HAL` supplies the capacity
+ *                         here on entry or expects the handler to report the count it
+ *                         wrote, so a handler should write no more than one element unless
+ *                         the value it reads on entry says otherwise.
+ * @param[out] out_DialogToken Pointer to a variable to store the dialog token, matching the
+ *                         token `wifi_setRMBeaconRequest()` returned for the request being
+ *                         answered. For a triggered autonomous report it is 0, as the
+ *                         description above states, which is how a handler tells a solicited
+ *                         report from an unsolicited one.
  *
  * @returns The status of the operation.
  * @retval RETURN_OK If successful.
  * @retval RETURN_ERR If any error is detected.
+ *
+ * @note `RETURN_OK` and `RETURN_ERR`, defined in `wifi_hal_generic.h`, carry the same
+ *       values as the `WIFI_HAL_SUCCESS` and `WIFI_HAL_ERROR` codes the rest of this
+ *       interface uses. This interface does not state how the `HAL` acts on `RETURN_ERR`,
+ *       so a handler must not rely on redelivery.
+ * @note All three pointers are owned by the `HAL` and are valid only for the duration of
+ *       the call; a handler that needs the report afterwards must copy it, per
+ *       `Asynchronous Notification Model` in `docs/pages/halSpec.md`.
+ * @note The handler must not suspend and must not invoke any blocking system calls, per
+ *       `Blocking calls` in `docs/pages/halSpec.md`.
+ * @note The `HAL` is expected to be thread safe and may enter the handler on a `HAL`
+ *       thread, so the handler must serialise its own access to caller state; see
+ *       `Threading Model` in `docs/pages/halSpec.md`.
+ *
+ * @see wifi_RMBeaconRequestCallbackRegister
+ * @see wifi_RMBeaconRequestCallbackUnregister
+ * @see wifi_BeaconReport_t
+ * @see wifi_setRMBeaconRequest
  */
 typedef INT (*wifi_RMBeaconReport_callback)(UINT apIndex,
                                             wifi_BeaconReport_t *out_struct,
@@ -1477,36 +2868,134 @@ typedef INT (*wifi_RMBeaconReport_callback)(UINT apIndex,
 /**
  * @brief Registers a callback function for Beacon Requests.
  *
- * @param[in] apIndex              Access Point index.
- * @param[in] beaconReportCallback Pointer to the callback function to register.
+ * The handler installed here is where every 802.11k beacon report for the AP arrives,
+ * whether it answers a `wifi_setRMBeaconRequest()` or is a triggered autonomous report.
+ * `wifi_setRMBeaconRequest()` returns an error if no handler has been registered for the
+ * AP, so this call comes first in that sequence.
+ *
+ * @param[in] apIndex              Index of the AP the handler is installed for. The indices
+ *                                 this interface defines are `AP_INDEX_1` to `AP_INDEX_24`
+ *                                 in `wifi_hal_generic.h`. Registration is per AP, so a
+ *                                 caller that serves several VAPs must register for each.
+ * @param[in] beaconReportCallback Pointer to the callback function to register, of type
+ *                                 `wifi_RMBeaconReport_callback`. The `HAL` retains this
+ *                                 function pointer and invokes it until it is unregistered,
+ *                                 so the function must remain callable for that whole
+ *                                 period. The effect of passing NULL is not specified by
+ *                                 this interface.
+ *
+ * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
+ *      in `docs/pages/halSpec.md`. The effect of registering beforehand is not specified by
+ *      this interface.
+ * @post On success beacon reports for `apIndex` are delivered to the handler. This interface
+ *       does not state whether registering a second handler for the same AP adds to a list
+ *       or replaces the first, so a caller should keep one handler per AP.
  *
  * @returns The status of the operation.
- * @retval WIFI_HAL_SUCCESS If successful.
- * @retval WIFI_HAL_ERROR   If any error is detected.
+ * @retval WIFI_HAL_SUCCESS The handler was installed for `apIndex`.
+ * @retval WIFI_HAL_ERROR   `apIndex` is not a valid AP, the callback pointer is not one the
+ *                          `HAL` accepts, or the vendor layer refused the request. On
+ *                          failure the caller should not issue a beacon request, since it
+ *                          would be rejected for want of a handler and no report would
+ *                          arrive.
+ *
+ * @execution callback
+ * @sideeffect None
+ *
+ * @note The registration call itself is synchronous and does not block, per
+ *       `Blocking calls` in `docs/pages/halSpec.md`; delivery of the report is asynchronous.
+ * @note The `HAL` is expected to be thread safe, per `Threading Model` in
+ *       `docs/pages/halSpec.md`.
+ *
+ * @see wifi_RMBeaconReport_callback
+ * @see wifi_RMBeaconRequestCallbackUnregister
+ * @see wifi_setRMBeaconRequest
  */
 INT wifi_RMBeaconRequestCallbackRegister(UINT apIndex, wifi_RMBeaconReport_callback beaconReportCallback);
 
 /**
  * @brief Unregisters a callback function for Beacon Requests.
  *
- * @param[in] apIndex              Access Point index.
- * @param[in] beaconReportCallback Pointer to the callback function to unregister.
+ * This is the teardown counterpart of `wifi_RMBeaconRequestCallbackRegister()`. Unlike
+ * `wifi_steering_eventUnregister()`, it names both the AP and the handler being removed.
+ *
+ * @param[in] apIndex              Index of the AP the handler was installed for. The indices
+ *                                 this interface defines are `AP_INDEX_1` to `AP_INDEX_24`
+ *                                 in `wifi_hal_generic.h`.
+ * @param[in] beaconReportCallback Pointer to the callback function to unregister. It must be
+ *                                 the same function pointer that was registered for
+ *                                 `apIndex`; this interface does not state what happens when
+ *                                 a different one is passed.
+ *
+ * @pre A handler must have been installed for `apIndex` with
+ *      `wifi_RMBeaconRequestCallbackRegister()`.
+ * @post On success no further beacon reports are delivered for `apIndex`. This interface
+ *       does not state whether a report already being delivered is allowed to complete, nor
+ *       whether requests still outstanding are cancelled, so a caller should cancel them
+ *       with `wifi_cancelRMBeaconRequest()` first and must keep the state its handler
+ *       touches valid until it can be sure no handler is running.
  *
  * @returns The status of the operation.
- * @retval WIFI_HAL_SUCCESS If successful.
- * @retval WIFI_HAL_ERROR   If any error is detected.
+ * @retval WIFI_HAL_SUCCESS The handler was removed for `apIndex`.
+ * @retval WIFI_HAL_ERROR   `apIndex` is not a valid AP, the callback pointer does not match
+ *                          a registered handler, or the vendor layer refused the request. On
+ *                          failure the caller must assume the handler may still be invoked
+ *                          and so must not free anything the handler uses.
+ *
+ * @note This call does not block, per `Blocking calls` in `docs/pages/halSpec.md`. It is a
+ *       teardown call rather than a registration, so it carries no callback-execution
+ *       marker.
+ * @note The `HAL` is expected to be thread safe, per `Threading Model` in
+ *       `docs/pages/halSpec.md`.
+ *
+ * @see wifi_RMBeaconRequestCallbackRegister
+ * @see wifi_cancelRMBeaconRequest
  */
 INT wifi_RMBeaconRequestCallbackUnregister(UINT apIndex, wifi_RMBeaconReport_callback beaconReportCallback);
 
 /**
  * @brief Cancels a pending radio measurement beacon request.
  *
- * @param[in] apIndex     Access Point index.
- * @param[in] dialogToken Dialog token of the request to cancel.
+ * A beacon request configured to repeat continues producing reports until it is cancelled,
+ * so this is how a caller ends a repeating measurement it started with
+ * `wifi_setRMBeaconRequest()`.
+ *
+ * @param[in] apIndex     Index of the AP the request was sent from. The indices this
+ *                        interface defines are `AP_INDEX_1` to `AP_INDEX_24` in
+ *                        `wifi_hal_generic.h`.
+ * @param[in] dialogToken Dialog token of the request to cancel, which is the value
+ *                        `wifi_setRMBeaconRequest()` wrote to its `out_DialogToken` output
+ *                        for that request. This interface pairs the two through this
+ *                        argument and states no other correlation mechanism, so a caller
+ *                        must keep the token it was given in order to be able to cancel.
+ *                        The token is a single octet, and this interface does not state
+ *                        whether 0 is legal here, so a caller should not pass it: 0 is the
+ *                        value a triggered autonomous report carries instead of a real
+ *                        token.
+ *
+ * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
+ *      in `docs/pages/halSpec.md`. A call made beforehand does not meet the runtime
+ *      requirements and, per `Component Runtime Execution Requirements`, likely results
+ *      in undefined behaviour.
+ * @post On success the `HAL` has accepted the cancellation. This interface does not state
+ *       whether a report already in flight is still delivered, so a caller must be ready to
+ *       receive one after cancelling and must keep its handler usable until it is.
  *
  * @returns The status of the operation.
- * @retval WIFI_HAL_SUCCESS If successful.
- * @retval WIFI_HAL_ERROR   If any error is detected.
+ * @retval WIFI_HAL_SUCCESS The `HAL` accepted the cancellation.
+ * @retval WIFI_HAL_ERROR   `apIndex` is not a valid AP, no request with that dialog token is
+ *                          outstanding on it, or the vendor layer refused the request. This
+ *                          interface does not separate an unknown token from a genuine
+ *                          failure, so the caller should treat the measurement as possibly
+ *                          still running and must not release its handler on the strength of
+ *                          this code alone.
+ *
+ * @note This call does not block, per `Blocking calls` in `docs/pages/halSpec.md`.
+ * @note The `HAL` is expected to be thread safe, per `Threading Model` in
+ *       `docs/pages/halSpec.md`.
+ *
+ * @see wifi_setRMBeaconRequest
+ * @see wifi_RMBeaconRequestCallbackUnregister
  */
 INT wifi_cancelRMBeaconRequest(UINT apIndex, UCHAR dialogToken);
 
@@ -1518,14 +3007,70 @@ INT wifi_cancelRMBeaconRequest(UINT apIndex, UCHAR dialogToken);
  * request is sent based on the information in the `in_request` parameter.
  * Returns an error if a callback has not been registered for the AP.
  *
- * @param[in] apIndex        Index of the VAP to send the request from.
- * @param[in] peer           MAC address of the peer device to send the request to.
- * @param[in] in_request     Pointer to a `wifi_BeaconRequest_t` structure containing the beacon request information.
- * @param[out] out_DialogToken Pointer to a variable to store the dialog token chosen by the STA.
+ * This is how a caller learns what a client can hear: the STA measures beacons on the
+ * requested channels and reports them back through the registered
+ * `wifi_RMBeaconReport_callback`, which is the input a steering decision needs and which no
+ * AP-side survey can supply.
+ *
+ * @param[in] apIndex        Index of the VAP to send the request from. The indices this
+ *                           interface defines are `AP_INDEX_1` to `AP_INDEX_24` in
+ *                           `wifi_hal_generic.h`.
+ * @param[in] peer           MAC address of the peer device to send the request to, as the
+ *                           six octets of `mac_address_t`. The caller owns the storage and
+ *                           the `HAL` reads it during the call.
+ * @param[in] in_request     Pointer to a `wifi_BeaconRequest_t` structure containing the
+ *                           beacon request information. One request is passed, not an
+ *                           array. The caller allocates and owns it, per `Memory Model` in
+ *                           `docs/pages/halSpec.md`; the `HAL` reads it during the call and
+ *                           must not be assumed to retain it afterwards. Each optional
+ *                           subelement is read only where its `<field>Present` flag is
+ *                           `TRUE`, and `numRepetitions` decides whether the measurement
+ *                           runs once or repeats until cancelled.
+ * @param[out] out_DialogToken Pointer to a variable to store the dialog token chosen by the
+ *                           STA. The caller allocates and owns the single-octet variable.
+ *                           On success it holds the token that identifies this request: it
+ *                           is echoed in the `out_DialogToken` of each report the handler
+ *                           receives, and it is the value `wifi_cancelRMBeaconRequest()`
+ *                           takes. A caller that intends to cancel or to correlate reports
+ *                           must therefore keep it.
+ *
+ * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
+ *      in `docs/pages/halSpec.md`. A call made beforehand does not meet the runtime
+ *      requirements and, per `Component Runtime Execution Requirements`, likely results
+ *      in undefined behaviour.
+ * @pre A handler must be registered for `apIndex` with
+ *      `wifi_RMBeaconRequestCallbackRegister()`. The description above states that this
+ *      call returns an error otherwise, so the registration is a hard pre-condition rather
+ *      than a recommendation.
+ * @post On success the request has been accepted for transmission and `*out_DialogToken`
+ *       holds its token. No measurement has been made when the call returns: reports arrive
+ *       later through the registered handler. This interface states neither a time by which
+ *       a report arrives nor what happens if the STA never answers, so a caller must apply
+ *       its own timeout and cancel a repeating request it no longer wants. On failure
+ *       `*out_DialogToken` must be treated as undefined.
  *
  * @returns The status of the operation.
  * @retval RETURN_OK  If successful.
  * @retval RETURN_ERR If any error is detected.
+ *
+ * @note `RETURN_OK` and `RETURN_ERR`, defined in `wifi_hal_generic.h`, carry the same
+ *       values as the `WIFI_HAL_SUCCESS` and `WIFI_HAL_ERROR` codes the rest of this
+ *       interface uses, and are the whole return-code contract of this call. `RETURN_ERR`
+ *       covers an invalid `apIndex`, a NULL pointer argument, a request the STA's
+ *       capabilities do not support, a peer that is not associated, and the registered-
+ *       handler pre-condition not being met; the caller should confirm the registration and
+ *       the peer's RM capabilities with `wifi_getRMCapabilities()` before retrying.
+ * @note This call does not block, per `Blocking calls` in `docs/pages/halSpec.md`, so it
+ *       returns before the measurement has been made and does not wait out the request's
+ *       `duration`.
+ * @note This declaration is compiled only where `WIFI_HAL_VERSION_3_PHASE2` is defined.
+ * @note The `HAL` is expected to be thread safe, per `Threading Model` in
+ *       `docs/pages/halSpec.md`.
+ *
+ * @see wifi_BeaconRequest_t
+ * @see wifi_RMBeaconReport_callback
+ * @see wifi_cancelRMBeaconRequest
+ * @see wifi_getRMCapabilities
  */
 INT wifi_setRMBeaconRequest(UINT apIndex,
                             mac_address_t peer,
@@ -1535,12 +3080,55 @@ INT wifi_setRMBeaconRequest(UINT apIndex,
 /**
  * @brief Gets the Radio Measurement capabilities of a peer device.
  *
- * @param[in] peer            MAC address of the peer device.
- * @param[out] out_Capabilities Pointer to an array to store the capabilities, as defined in 802.11-2016
+ * A caller uses this to find out whether a client can service a beacon measurement before
+ * asking it to, since `wifi_setRMBeaconRequest()` only reports that a request was accepted
+ * for transmission and not that the STA is able to answer it. Unlike every other call in
+ * this header, it is scoped by peer alone and takes no AP or radio index.
+ *
+ * @param[in] peer            MAC address of the peer device, as the six octets of
+ *                            `mac_address_t`. The caller owns the storage and the `HAL`
+ *                            reads it during the call.
+ * @param[out] out_Capabilities Pointer to an array to store the capabilities, as defined in
+ *                            802.11-2016. The array is a fixed five octets, which is the
+ *                            length of the RM Enabled Capabilities element and the same
+ *                            encoding the `capabilities` member of
+ *                            `wifi_RMEnabledCapabilities_t` carries. The caller allocates
+ *                            and owns the storage and must provide all five octets; the
+ *                            `HAL` writes them during the call and retains no reference
+ *                            afterwards. The array is exactly as long as it is declared, so
+ *                            there is no count argument and none is needed. This interface
+ *                            does not name the individual bits, so which octet and bit
+ *                            carries a given capability follows 802.11-2016 rather than
+ *                            anything established here; `wifi_steering_rrmCaps_t` names the
+ *                            subset of those capabilities that steering uses, in decoded
+ *                            form.
+ *
+ * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
+ *      in `docs/pages/halSpec.md`. A call made beforehand does not meet the runtime
+ *      requirements and, per `Component Runtime Execution Requirements`, likely results
+ *      in undefined behaviour.
+ * @post On success all five octets have been written. On failure the contents are undefined
+ *       and must not be decoded; in particular a caller must not read an all-zero array as
+ *       a peer that supports nothing.
  *
  * @returns The status of the operation.
- * @retval WIFI_HAL_SUCCESS If successful.
- * @retval WIFI_HAL_ERROR   If any error is detected.
+ * @retval WIFI_HAL_SUCCESS The capabilities were written.
+ * @retval WIFI_HAL_ERROR   `peer` or `out_Capabilities` is NULL, the peer is not associated
+ *                          or its capabilities are not known to the `HAL`, or the vendor
+ *                          layer could not supply them. The caller should treat the peer's
+ *                          RM support as unknown rather than absent, and may still issue a
+ *                          beacon request and rely on its return code.
+ *
+ * @note This call does not block, per `Blocking calls` in `docs/pages/halSpec.md`, so it
+ *       reports capabilities the `HAL` already holds from association rather than querying
+ *       the peer over the air.
+ * @note This declaration is compiled only where `WIFI_HAL_VERSION_3_PHASE2` is defined.
+ * @note The `HAL` is expected to be thread safe, per `Threading Model` in
+ *       `docs/pages/halSpec.md`.
+ *
+ * @see wifi_RMEnabledCapabilities_t
+ * @see wifi_steering_rrmCaps_t
+ * @see wifi_setRMBeaconRequest
  */
 INT wifi_getRMCapabilities(mac_address_t peer, UCHAR out_Capabilities[5]);
 #endif
