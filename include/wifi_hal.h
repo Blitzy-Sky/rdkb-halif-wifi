@@ -77,6 +77,44 @@
 #ifndef __WIFI_HAL_H__
 #define __WIFI_HAL_H__
 /**
+ * @file wifi_hal.h
+ * @brief Aggregates the RDK-B Wi-Fi HAL interface headers into a single entry point.
+ *
+ * Include this header to obtain the complete Wi-Fi HAL surface in one step. It
+ * declares no function or type of its own; every declaration reaches a caller
+ * through one of the per-area headers included below. The `Notes:` block above
+ * records the interface changes for releases 2.2.0 through 3.0.0, and that record
+ * continues in wifi_hal_generic.h, which also declares the interface version macros
+ * a caller can compile against.
+ *
+ * @note Of the per-area headers, only wifi_hal_generic.h and wifi_hal_telemetry.h
+ *       compile in isolation. The others use the base types wifi_hal_generic.h
+ *       declares, so reach them through this umbrella rather than including one on
+ *       its own.
+ *
+ * @note wifi_hal_emu.h carries a banner naming this module, but no header includes
+ *       it, so it contributes nothing to the compile surface. The generated
+ *       documentation extracts it regardless, because the generator recurses over
+ *       the include directory; it is not part of the documented Wi-Fi HAL contract.
+ */
+/**
+ * @defgroup WIFI_HAL_TYPES Wi-Fi HAL Data Types and Constants
+ *
+ * The structures, enumerations, typedefs and constants a caller populates or
+ * interprets when using the Wi-Fi HAL, collected from every per-area header.
+ * Callback function typedefs belong to this group, while the registration functions
+ * that install them belong to @ref WIFI_HAL_APIS.
+ */
+/**
+ * @defgroup WIFI_HAL_APIS Wi-Fi HAL APIs
+ *
+ * The callable Wi-Fi HAL functions, contributed by each per-area header included
+ * below. Complete wifi_init() successfully before invoking any other function in
+ * this group. The interface is expected to be thread safe and none of its calls
+ * should block; the "Initialization and Startup", "Threading Model" and "Blocking
+ * calls" sections of docs/pages/halSpec.md state those requirements.
+ */
+/**
  * Wifi generic API and types definition used across multiples modules.
  * Includes wifi_init(), wifi_factoryReset(), wifi_setLED(), etc.
  */
@@ -98,11 +136,16 @@
 #include "wifi_hal_sta.h"
 /**
  * Wifi measurement and Telemetry specific APIs.
- * 
+ * Includes API to read radio and SSID traffic statistics, neighbouring-AP scan
+ * results, associated-device diagnostics and VAP and unassociated-station metrics,
+ * and to enable the statistics those reads report.
  */
 #include "wifi_hal_telemetry.h"
 /**
 * Wifi client management specific APIs.
+* Includes API to configure band steering, associated-device high-watermark
+* counters, EAP parameters, 802.11r Fast BSS Transition, and the 802.11v BSS
+* Transition and 802.11k Neighbor Report switches.
  */
 #include "wifi_hal_client_mgt.h"
 /**
@@ -111,10 +154,22 @@
  */
 #include "wifi_hal_extender.h"
 
-//TODO: This header file needs to be corrected, some API's defined in it are currently in use, and require correction or removal.
 /**
 * Wifi deprecated APIs.
 * APIs to be deprecated. Not add new function or structure!
+*
+* Including the header here puts its declarations on the public compile surface of
+* every translation unit that includes wifi_hal.h, and the generated documentation
+* extracts them as well. They are nonetheless outside the documented Wi-Fi HAL
+* contract: the RDK-B HAL inventory that consumes this repository declares
+* wifi_hal_deprecated.h out of scope, so its declarations carry no per-function
+* documentation and no test is generated against them.
+*
+* @warning No replacement is named for any declaration the header marks "Deprecated:
+*          used for old RDKB code.", so this interface states no mapping from a
+*          deprecated name to a supported one. Take the supported declaration for a
+*          functional area from that area's header above - generic, radio, ap, sta,
+*          telemetry, client management or extender.
 */
 #include "wifi_hal_deprecated.h"
 
