@@ -45,44 +45,44 @@ extern "C"{
  */
 typedef struct _wifi_channelStats
 {
-    INT ch_number; /**< IEEE 802.11 channel number, always a 20MHz channel. Set by the
+    INT ch_number; /*!< IEEE 802.11 channel number, always a 20MHz channel. Set by the
                         caller to select the channel and echoed by the `HAL`. This
                         interface does not carry the band in this structure, so the
                         channel number alone must identify the channel for the radio
                         being queried. */
-    BOOL ch_in_pool; /**< Whether the channel is in the radio's scan pool, as a `BOOL`
+    BOOL ch_in_pool; /*!< Whether the channel is in the radio's scan pool, as a `BOOL`
                         (`unsigned char`, `TRUE` or `FALSE`). When `FALSE` the driver
                         does not need to scan this channel, so a caller should not read
                         the remaining members as a fresh survey of it. */
-    INT ch_noise; /**< Average noise floor on the channel, in dBm. Normally negative. */
-    BOOL ch_radar_noise; /**< Whether radar was detected on the channel. Meaningful on
+    INT ch_noise; /*!< Average noise floor on the channel, in dBm. Normally negative. */
+    BOOL ch_radar_noise; /*!< Whether radar was detected on the channel. Meaningful on
                         5GHz only; this interface does not state what the member carries
                         for a 2.4GHz or 6GHz channel. */
-    INT ch_max_80211_rssi; /**< Strongest RSSI observed from a neighbouring AP on this
+    INT ch_max_80211_rssi; /*!< Strongest RSSI observed from a neighbouring AP on this
                         channel, in dBm. Normally negative. */
-    INT ch_non_80211_noise; /**< Average noise attributed to non-802.11 sources. This
+    INT ch_non_80211_noise; /*!< Average noise attributed to non-802.11 sources. This
                         interface does not state the unit of this member; the two noise
                         and RSSI members above it are expressed in dBm. */
-    INT ch_utilization; /**< 802.11 utilization of the channel, as a percentage in the
+    INT ch_utilization; /*!< 802.11 utilization of the channel, as a percentage in the
                         range 0 to 100. */
-    ULLONG ch_utilization_total; /**< Accumulated time the radio was able to observe the
+    ULLONG ch_utilization_total; /*!< Accumulated time the radio was able to observe the
                         channel, which is the denominator for the five busy accumulators
                         below. This interface does not state the time unit or the epoch
                         the accumulator counts from, so a caller must use it only as a
                         ratio or a difference, never as an absolute duration. */
-    ULLONG ch_utilization_busy; /**< Accumulated time the channel was busy, where busy is
+    ULLONG ch_utilization_busy; /*!< Accumulated time the channel was busy, where busy is
                         Rx + Tx + interference. Same unit and epoch as
                         `ch_utilization_total`. */
-    ULLONG ch_utilization_busy_tx; /**< Accumulated time the radio spent transmitting on
+    ULLONG ch_utilization_busy_tx; /*!< Accumulated time the radio spent transmitting on
                         the channel. A component of `ch_utilization_busy`. */
-    ULLONG ch_utilization_busy_rx; /**< Accumulated time the radio spent receiving on the
+    ULLONG ch_utilization_busy_rx; /*!< Accumulated time the radio spent receiving on the
                         channel, where Rx is Rx_obss + Rx_self + Rx_err, the last covering
                         both self and OBSS errors. A component of
                         `ch_utilization_busy`. */
-    ULLONG ch_utilization_busy_self; /**< Accumulated time the radio spent receiving from
+    ULLONG ch_utilization_busy_self; /*!< Accumulated time the radio spent receiving from
                         its own connected clients. A component of
                         `ch_utilization_busy_rx`. */
-    ULLONG ch_utilization_busy_ext; /**< Accumulated time the 40MHz extension channel was
+    ULLONG ch_utilization_busy_ext; /*!< Accumulated time the 40MHz extension channel was
                         busy. Reported for the extension channel, not for the 20MHz
                         channel named by `ch_number`, so it is meaningful only where the
                         radio is operating at 40MHz or wider. */
@@ -134,37 +134,37 @@ typedef struct _wifi_channelStats
  */
 typedef struct _wifi_associated_dev_rate_info_rx_stats
 {
-    UCHAR nss; /**< Number of spatial streams: 0 for the legacy OFDM and CCK rates, 1 or
+    UCHAR nss; /*!< Number of spatial streams: 0 for the legacy OFDM and CCK rates, 1 or
                         more for HT and VHT. Together with `mcs` and `bw` this identifies
                         the rate the counters below belong to, as laid out in the rate
                         table above this structure. */
-    UCHAR mcs; /**< MCS index for the rate: 0 to 7 for HT, 0 to 9 for VHT, and for the
+    UCHAR mcs; /*!< MCS index for the rate: 0 to 7 for HT, 0 to 9 for VHT, and for the
                         legacy rates the table index above rather than an MCS - 0 to 7 for
                         OFDM and 8 to 14 for CCK. */
-    USHORT bw; /**< Bandwidth of the rate in MHz - 20, 40, 80 or 160. Note that this
+    USHORT bw; /*!< Bandwidth of the rate in MHz - 20, 40, 80 or 160. Note that this
                         member is a count of MHz, unlike the `bw` column of the rate table
                         above, which is an index. */
-    ULLONG flags; /**< Bitmask stating which of the members below the `HAL` actually
+    ULLONG flags; /*!< Bitmask stating which of the members below the `HAL` actually
                         populated, so a caller can tell an unpopulated counter from a
                         genuine zero. This interface names the flags HAS_BYTES, HAS_MSDUS,
                         HAS_MPDUS, HAS_PPDUS, HAS_BW_80P80, HAS_RSSI_COMB and
                         HAS_RSSI_ARRAY but does not define their values anywhere, so a
                         caller cannot test them portably from this header alone and the
                         bit positions are a platform convention. */
-    ULLONG bytes; /**< Bytes received at this rate. A monotonically increasing counter;
+    ULLONG bytes; /*!< Bytes received at this rate. A monotonically increasing counter;
                         valid only if the HAS_BYTES flag is set. */
-    ULLONG msdus; /**< MSDUs received at this rate. Valid only if the HAS_MSDUS flag is
+    ULLONG msdus; /*!< MSDUs received at this rate. Valid only if the HAS_MSDUS flag is
                         set. */
-    ULLONG mpdus; /**< MPDUs received at this rate. Valid only if the HAS_MPDUS flag is
+    ULLONG mpdus; /*!< MPDUs received at this rate. Valid only if the HAS_MPDUS flag is
                         set. */
-    ULLONG ppdus; /**< PPDUs received at this rate. Valid only if the HAS_PPDUS flag is
+    ULLONG ppdus; /*!< PPDUs received at this rate. Valid only if the HAS_PPDUS flag is
                         set. */
-    ULLONG retries; /**< Frames received at this rate that were marked as retries. `flags` above is
+    ULLONG retries; /*!< Frames received at this rate that were marked as retries. `flags` above is
                          what says which counters of this structure are valid, and it names no flag
                          for this member, so this interface does not establish when it may be read;
                          the counter is a subset of the frames counted elsewhere for the same rate
                          rather than an addition to them. */
-    UCHAR rssi_combined; /**< Most recent RSSI across all chains for this rate, valid only
+    UCHAR rssi_combined; /*!< Most recent RSSI across all chains for this rate, valid only
                         if the HAS_RSSI_COMB flag is set. Carried as an unsigned octet
                         above the noise floor rather than as a signed dBm value, on the
                         same basis as `rssi_array` below. */
@@ -179,7 +179,7 @@ typedef struct _wifi_associated_dev_rate_info_rx_stats
         |  ...      |  ...
         |  8        |  rssi  [pri20,sec20,sec40,sec80 ]
         -----------------------------------------------    */    
-    UCHAR rssi_array[8][4]; /**< Per-chain RSSI above the noise floor, valid only if the
+    UCHAR rssi_array[8][4]; /*!< Per-chain RSSI above the noise floor, valid only if the
                         HAS_RSSI_ARRAY flag is set. The first index is the chain, 0 to 7
                         for up to eight chains, and the second is the 20MHz sub-band
                         within the operating bandwidth in the order primary, secondary,
@@ -204,30 +204,30 @@ typedef struct _wifi_associated_dev_rate_info_rx_stats
  */
 typedef struct _wifi_associated_dev_rate_info_tx_stats
 {
-    UCHAR nss; /**< Number of spatial streams: 0 for the legacy OFDM and CCK rates, 1 or
+    UCHAR nss; /*!< Number of spatial streams: 0 for the legacy OFDM and CCK rates, 1 or
                         more for HT and VHT. Together with `mcs` and `bw` this identifies
                         the rate the counters below belong to, as laid out in the rate
                         table above `wifi_associated_dev_rate_info_rx_stats_t`. */
-    UCHAR mcs; /**< MCS index for the rate: 0 to 7 for HT, 0 to 9 for VHT, and for the
+    UCHAR mcs; /*!< MCS index for the rate: 0 to 7 for HT, 0 to 9 for VHT, and for the
                         legacy rates the table index rather than an MCS. */
-    USHORT bw; /**< Bandwidth of the rate in MHz - 20, 40, 80 or 160. */
-    ULLONG flags; /**< Bitmask stating which of the members below the `HAL` actually
+    USHORT bw; /*!< Bandwidth of the rate in MHz - 20, 40, 80 or 160. */
+    ULLONG flags; /*!< Bitmask stating which of the members below the `HAL` actually
                         populated, so a caller can tell an unpopulated counter from a
                         genuine zero. The flag names are those listed for
                         `wifi_associated_dev_rate_info_rx_stats_t`, and this interface
                         does not define their values, so the bit positions are a platform
                         convention. The RSSI flags do not apply here, because this
                         structure carries no RSSI member. */
-    ULLONG bytes; /**< Bytes transmitted at this rate. A monotonically increasing counter;
+    ULLONG bytes; /*!< Bytes transmitted at this rate. A monotonically increasing counter;
                         valid only if the HAS_BYTES flag is set. */
-    ULLONG msdus; /**< MSDUs transmitted at this rate. Valid only if the HAS_MSDUS flag is
+    ULLONG msdus; /*!< MSDUs transmitted at this rate. Valid only if the HAS_MSDUS flag is
                         set. */
-    ULLONG mpdus; /**< MPDUs transmitted at this rate. Valid only if the HAS_MPDUS flag is
+    ULLONG mpdus; /*!< MPDUs transmitted at this rate. Valid only if the HAS_MPDUS flag is
                         set. */
-    ULLONG ppdus; /**< PPDUs transmitted at this rate. Valid only if the HAS_PPDUS flag is
+    ULLONG ppdus; /*!< PPDUs transmitted at this rate. Valid only if the HAS_PPDUS flag is
                         set. */
-    ULLONG retries; /**< Retransmissions at this rate. A subset of `attempts`. */
-    ULLONG attempts; /**< Transmit attempts at this rate, counting the first attempt and
+    ULLONG retries; /*!< Retransmissions at this rate. A subset of `attempts`. */
+    ULLONG attempts; /*!< Transmit attempts at this rate, counting the first attempt and
                         every retry, so `attempts` is at least `retries` and the
                         difference is the number of frames first attempted at this
                         rate. */
@@ -243,20 +243,20 @@ typedef struct _wifi_associated_dev_rate_info_tx_stats
  */
 typedef struct wifi_associated_dev_tid_entry
 {
-    UCHAR ac; /**< IEEE 802.11e access category the TID maps into - background, best
+    UCHAR ac; /*!< IEEE 802.11e access category the TID maps into - background, best
                         effort, video or voice. This interface does not define the
                         numeric encoding of this member. */
-    UCHAR tid; /**< Traffic identifier this entry describes, in the range 0 to 15. In
+    UCHAR tid; /*!< Traffic identifier this entry describes, in the range 0 to 15. In
                         `wifi_associated_dev_tid_stats_t` the entry's array index carries
                         the same value. */
-    ULLONG ewma_time_ms; /**< Exponentially weighted moving average of MSDU transmit
+    ULLONG ewma_time_ms; /*!< Exponentially weighted moving average of MSDU transmit
                         latency for this TID, in milliseconds, taken over the most recent
                         MSDUs. This interface does not state the averaging window or the
                         weighting used. */
-    ULLONG sum_time_ms; /**< Total MSDU transmit time accumulated for this TID over the
+    ULLONG sum_time_ms; /*!< Total MSDU transmit time accumulated for this TID over the
                         reporting interval, in milliseconds. Dividing it by `num_msdus`
                         gives the mean latency for the interval. */
-    ULLONG num_msdus; /**< MSDUs transmitted for this TID over the reporting interval, and
+    ULLONG num_msdus; /*!< MSDUs transmitted for this TID over the reporting interval, and
                         the divisor for `sum_time_ms`. A value of zero means no traffic,
                         in which case `sum_time_ms` carries no useful mean. */
 } wifi_associated_dev_tid_entry_t;
@@ -272,7 +272,7 @@ typedef struct wifi_associated_dev_tid_entry
  */
 typedef struct wifi_associated_dev_tid_stats
 {
-    wifi_associated_dev_tid_entry_t tid_array[16]; /**< Statistics for all sixteen traffic
+    wifi_associated_dev_tid_entry_t tid_array[16]; /*!< Statistics for all sixteen traffic
                         identifiers. The array is fixed at sixteen elements and is indexed
                         by TID, so element `n` describes TID `n` and every element is
                         addressable; there is no separate count member and a caller must
@@ -296,38 +296,38 @@ typedef struct wifi_associated_dev_tid_stats
  */
 typedef struct _wifi_associated_dev_stats
 {
-    ULLONG cli_rx_bytes; /**< Bytes received from the client, including framing
+    ULLONG cli_rx_bytes; /*!< Bytes received from the client, including framing
                         characters. */
-    ULLONG cli_tx_bytes; /**< Bytes transmitted to the client, including framing
+    ULLONG cli_tx_bytes; /*!< Bytes transmitted to the client, including framing
                         characters. */
-    ULLONG cli_rx_frames; /**< Frames received from the client. `cli_rx_retries` below is the subset
+    ULLONG cli_rx_frames; /*!< Frames received from the client. `cli_rx_retries` below is the subset
                                of them marked as retries; this interface states neither the interval
                                the counter covers nor when it resets, so a caller should difference
                                successive reads. */
-    ULLONG cli_tx_frames; /**< Frames transmitted to the client, counting first attempts.
+    ULLONG cli_tx_frames; /*!< Frames transmitted to the client, counting first attempts.
                                `cli_tx_retries` below counts retransmissions in addition to these,
                                so the two must not be added as though they partitioned one total. */
-    ULLONG cli_rx_retries; /**< Frames received from the client that were marked as
+    ULLONG cli_rx_retries; /*!< Frames received from the client that were marked as
                         retries. A subset of `cli_rx_frames`. */
-    ULLONG cli_tx_retries; /**< Frames retransmitted to the client. Counted in addition to
+    ULLONG cli_tx_retries; /*!< Frames retransmitted to the client. Counted in addition to
                         the first attempt, so it is not bounded by `cli_tx_frames`. */
-    ULLONG cli_rx_errors; /**< Receive errors on frames from the client, for example a
+    ULLONG cli_rx_errors; /*!< Receive errors on frames from the client, for example a
                         failed FCS check. */
-    ULLONG cli_tx_errors; /**< Transmit errors on frames to the client, for example a
+    ULLONG cli_tx_errors; /*!< Transmit errors on frames to the client, for example a
                         frame discarded after exhausting its retry limit. */
-    double cli_rx_rate; /**< Mean receive data rate for the client. This interface does
+    double cli_rx_rate; /*!< Mean receive data rate for the client. This interface does
                         not state the unit of this member or the interval it is averaged
                         over; comparable rate members elsewhere in the interface are
                         expressed in Mbps. */
-    double cli_tx_rate; /**< Mean transmit data rate for the client, on the same terms as
+    double cli_tx_rate; /*!< Mean transmit data rate for the client, on the same terms as
                         `cli_rx_rate`. */
-    wifi_rssi_snapshot_t cli_rssi_bcn; /**< RSSI of the last four beacons received, which
+    wifi_rssi_snapshot_t cli_rssi_bcn; /*!< RSSI of the last four beacons received, which
                         is the snapshot a client `VAP` (STA role) can report. Each of the
                         four entries in `wifi_rssi_snapshot_t` - declared in
                         `wifi_hal_telemetry.h` - carries its own relative age in seconds,
                         and its `count` member is the frame sequence number rather than a
                         count of valid entries. */
-    wifi_rssi_snapshot_t cli_rssi_ack; /**< RSSI of the last four ACKs received, which is
+    wifi_rssi_snapshot_t cli_rssi_ack; /*!< RSSI of the last four ACKs received, which is
                         the snapshot an AP `VAP` can report, on the same terms as
                         `cli_rssi_bcn`. */
 } wifi_associated_dev_stats_t;
@@ -350,16 +350,16 @@ typedef struct _wifi_associated_dev_stats
  */
 typedef struct
 {
-    INT apIndex; /**< Index of the AP this entry configures. The indices this interface
+    INT apIndex; /*!< Index of the AP this entry configures. The indices this interface
                         defines are `AP_INDEX_1` to `AP_INDEX_24` in
                         `wifi_hal_generic.h`. */
-    UINT utilCheckIntervalSec; /**< Channel utilization sampling period, in seconds. */
-    UINT utilAvgCount; /**< Number of samples averaged before a
+    UINT utilCheckIntervalSec; /*!< Channel utilization sampling period, in seconds. */
+    UINT utilAvgCount; /*!< Number of samples averaged before a
                         `WIFI_STEERING_EVENT_CHAN_UTILIZATION` event is sent, so an event
                         is reported roughly every `utilCheckIntervalSec * utilAvgCount`
                         seconds. */
-    UINT inactCheckIntervalSec; /**< Client activity check period, in seconds. */
-    UINT inactCheckThresholdSec; /**< Idle time after which a client is marked inactive,
+    UINT inactCheckIntervalSec; /*!< Client activity check period, in seconds. */
+    UINT inactCheckThresholdSec; /*!< Idle time after which a client is marked inactive,
                         in seconds. Crossing it in either direction sends a
                         `WIFI_STEERING_EVENT_CLIENT_ACTIVITY` event. */
 } wifi_steering_apConfig_t;
@@ -384,30 +384,30 @@ typedef struct
  */
 typedef struct
 {
-    UINT rssiProbeHWM;     /**< Upper bound of the RSSI range in which probe requests are
+    UINT rssiProbeHWM;     /*!< Upper bound of the RSSI range in which probe requests are
                                 answered. A probe request whose RSSI is outside the
                                 `rssiProbeLWM` to `rssiProbeHWM` range is not responded
                                 to. */
-    UINT rssiProbeLWM;     /**< Lower bound of the range `rssiProbeHWM` above closes: a probe
+    UINT rssiProbeLWM;     /*!< Lower bound of the range `rssiProbeHWM` above closes: a probe
                                 request whose RSSI falls below it is not responded to. This
                                 interface states no unit for the value, and carries it as a `UINT`,
                                 so a caller must not pass a negative dBm figure here. */
-    UINT rssiAuthHWM;      /**< Upper bound of the RSSI range in which auth requests are
+    UINT rssiAuthHWM;      /*!< Upper bound of the RSSI range in which auth requests are
                                 answered. An auth request outside the `rssiAuthLWM` to
                                 `rssiAuthHWM` range is rejected with `authRejectReason`,
                                 or silently ignored when that member is zero. */
-    UINT rssiAuthLWM;      /**< Lower bound of the range `rssiAuthHWM` above closes: an auth request
+    UINT rssiAuthLWM;      /*!< Lower bound of the range `rssiAuthHWM` above closes: an auth request
                                 below it is rejected with `authRejectReason`, or silently ignored
                                 where that member is zero. Carried as a `UINT` with no unit stated,
                                 so a negative dBm figure must not be passed. */
-    UINT rssiInactXing;    /**< RSSI threshold whose crossing marks the inactivity
+    UINT rssiInactXing;    /*!< RSSI threshold whose crossing marks the inactivity
                                 transition in a `WIFI_STEERING_EVENT_RSSI_XING` event,
                                 reported in the event's `inactveXing` member. */
-    UINT rssiHighXing;     /**< RSSI threshold whose crossing is reported in the event's
+    UINT rssiHighXing;     /*!< RSSI threshold whose crossing is reported in the event's
                                 `highXing` member. */
-    UINT rssiLowXing;      /**< RSSI threshold whose crossing is reported in the event's
+    UINT rssiLowXing;      /*!< RSSI threshold whose crossing is reported in the event's
                                 `lowXing` member. */
-    UINT authRejectReason; /**< IEEE 802.11 status code returned when an auth request is
+    UINT authRejectReason; /*!< IEEE 802.11 status code returned when an auth request is
                                 rejected for falling outside the `rssiAuthLWM` to
                                 `rssiAuthHWM` range. Zero disables rejection, so such a
                                 request is silently ignored instead; see the reason-code
@@ -480,27 +480,27 @@ typedef enum
  */
 typedef struct
 {
-    UINT maxChwidth;        /**< Widest channel bandwidth the STA supports. This interface
+    UINT maxChwidth;        /*!< Widest channel bandwidth the STA supports. This interface
                                  does not state whether the member is a count of MHz or a
                                  bandwidth code, so a caller must not compare it against
                                  either without knowing the platform convention. */
-    UINT maxStreams;        /**< Highest number of spatial streams the STA supports, as a
+    UINT maxStreams;        /*!< Highest number of spatial streams the STA supports, as a
                                  count. */
-    UINT phyMode;           /**< PHY mode the STA supports. This interface does not define
+    UINT phyMode;           /*!< PHY mode the STA supports. This interface does not define
                                  the encoding of this member. */
-    UINT maxMCS;            /**< Highest MCS index the STA supports. This interface states no
+    UINT maxMCS;            /*!< Highest MCS index the STA supports. This interface states no
                                  accepted range and does not say which 802.11 generation numbers the
                                  index, so a caller must not compare it against an index taken from
                                  a different generation; `maxStreams` above is the separate
                                  spatial-stream count. */
-    UINT maxTxpower;        /**< Highest transmit power the STA supports. This interface
+    UINT maxTxpower;        /*!< Highest transmit power the STA supports. This interface
                                  does not state the unit of this member. */
-    UINT isStaticSmps;      /**< Non-zero if the STA is operating in static spatial
+    UINT isStaticSmps;      /*!< Non-zero if the STA is operating in static spatial
                                  multiplexing power save mode, which restricts it to a
                                  single receive chain. Carried as a `UINT` rather than a
                                  `BOOL`, so a caller should test for non-zero rather than
                                  compare against `TRUE`. */
-    UINT isMUMimoSupported; /**< Non-zero if the STA supports MU-MIMO, on the same terms as
+    UINT isMUMimoSupported; /*!< Non-zero if the STA supports MU-MIMO, on the same terms as
                                  `isStaticSmps`. */
 } wifi_steering_datarateInfo_t;
 
@@ -509,24 +509,24 @@ typedef struct
  */
 typedef struct
 {
-    BOOL linkMeas;      /**< `TRUE` where the STA reports support for 802.11 link measurement. Every
+    BOOL linkMeas;      /*!< `TRUE` where the STA reports support for 802.11 link measurement. Every
                              member of this structure is one decoded bit of the five-octet RM
                              Enabled Capabilities field that `wifi_getRMCapabilities()` returns, so
                              an absent capability here means the bit was clear rather than that the
                              STA was not asked. */
-    BOOL neighRpt;      /**< `TRUE` where the STA reports support for neighbour reports, decoded
+    BOOL neighRpt;      /*!< `TRUE` where the STA reports support for neighbour reports, decoded
                              from the same RM Enabled Capabilities field. `bcnRptPassive`,
                              `bcnRptActive` and `bcnRptTable` below are the separate beacon-report
                              capabilities and are not implied by this one. */
     BOOL bcnRptPassive; /**< Supports Passive 11k scans. */
     BOOL bcnRptActive;  /**< Supports Active 11k scans. */
-    BOOL bcnRptTable;   /**< `TRUE` where the STA can answer a beacon request from its stored beacon
+    BOOL bcnRptTable;   /*!< `TRUE` where the STA can answer a beacon request from its stored beacon
                              table rather than by scanning. It is independent of `bcnRptPassive` and
                              `bcnRptActive` above, so a caller must test the mode it intends to
                              request. */
-    BOOL lciMeas;       /**< `TRUE` where the STA reports support for location civic and LCI
+    BOOL lciMeas;       /*!< `TRUE` where the STA reports support for location civic and LCI
                              measurement, decoded from the same RM Enabled Capabilities field. */
-    BOOL ftmRangeRpt;   /**< `TRUE` where the STA reports support for fine timing measurement range
+    BOOL ftmRangeRpt;   /*!< `TRUE` where the STA reports support for fine timing measurement range
                              reporting, decoded from the same RM Enabled Capabilities field. This
                              interface declares no call that requests such a report, so the member
                              states a capability only. */
@@ -539,16 +539,16 @@ typedef struct
  */
 typedef struct
 {
-    mac_address_t client_mac; /**< MAC address of the probing client, as the six octets of
+    mac_address_t client_mac; /*!< MAC address of the probing client, as the six octets of
                               `mac_address_t` in `wifi_hal_generic.h`. */
-    UINT rssi;           /**< RSSI of the received probe request. Held in a `UINT`, so it
+    UINT rssi;           /*!< RSSI of the received probe request. Held in a `UINT`, so it
                               is not a signed dBm value; the interface does not state the
                               encoding, and the RSSI members of the other steering events
                               use the same one, which is the value compared against the
                               `wifi_steering_clientConfig_t` water marks. */
-    BOOL broadcast;      /**< `TRUE` if the probe request was a broadcast probe rather than
+    BOOL broadcast;      /*!< `TRUE` if the probe request was a broadcast probe rather than
                               one directed at a specific SSID. */
-    BOOL blocked;        /**< `TRUE` if the AP suppressed its probe response, which happens
+    BOOL blocked;        /*!< `TRUE` if the AP suppressed its probe response, which happens
                               when `rssi` falls outside the `rssiProbeLWM` to
                               `rssiProbeHWM` range configured for the client. */
 } wifi_steering_evProbeReq_t;
@@ -575,21 +575,21 @@ typedef struct
  */
 typedef struct
 {
-    mac_address_t client_mac; /**< MAC address of the client that associated, as the six
+    mac_address_t client_mac; /*!< MAC address of the client that associated, as the six
                                    octets of `mac_address_t` in `wifi_hal_generic.h`. It is
                                    the key that ties this event to the disconnect, activity
                                    and RSSI events for the same client. */
-    UINT isBTMSupported; /**< Non-zero if the client supports BSS Transition Management,
+    UINT isBTMSupported; /*!< Non-zero if the client supports BSS Transition Management,
                               which is what makes an 802.11v steer possible for it through
                               `wifi_setBTMRequest()`. Carried as a `UINT` rather than a
                               `BOOL`, so a caller should test for non-zero rather than
                               compare against `TRUE`. */
-    UINT isRRMSupported; /**< Non-zero if the client supports Radio Resource Management,
+    UINT isRRMSupported; /*!< Non-zero if the client supports Radio Resource Management,
                               which is what makes a beacon measurement possible for it
                               through `wifi_setRMBeaconRequest()`. Carried as a `UINT` on
                               the same terms as `isBTMSupported`. The decoded detail of
                               what it supports is in `rrmCaps`. */
-    wifi_freq_bands_t bandsCap; /**< Bands the client is capable of, as a bitwise OR of
+    wifi_freq_bands_t bandsCap; /*!< Bands the client is capable of, as a bitwise OR of
                                      `wifi_freq_bands_t` values from `wifi_hal_generic.h`.
                                      The type is an enumeration used as a bitmask, so a
                                      caller must test individual bits rather than compare
@@ -598,12 +598,12 @@ typedef struct
                                      `WIFI_FREQUENCY_5H_BAND`) and `WIFI_FREQUENCY_60_BAND`
                                      cases that the three-`BOOL` form of the other arm
                                      cannot. */
-    wifi_steering_datarateInfo_t datarateInfo; /**< Client's PHY capabilities - widest
+    wifi_steering_datarateInfo_t datarateInfo; /*!< Client's PHY capabilities - widest
                                      bandwidth, spatial streams, PHY mode, highest MCS and
                                      transmit power, and the two power-save and MU-MIMO
                                      flags. The member-by-member caveats are on
                                      `wifi_steering_datarateInfo_t` itself. */
-    wifi_steering_rrmCaps_t rrmCaps; /**< Decoded RM Enabled Capabilities of the client:
+    wifi_steering_rrmCaps_t rrmCaps; /*!< Decoded RM Enabled Capabilities of the client:
                                      which measurements it will accept. Meaningful only
                                      where `isRRMSupported` is non-zero; this interface does
                                      not state what the member carries otherwise. */
@@ -631,32 +631,32 @@ typedef struct
  */
 typedef struct
 {
-    mac_address_t client_mac; /**< MAC address of the client that associated, as the six
+    mac_address_t client_mac; /*!< MAC address of the client that associated, as the six
                                    octets of `mac_address_t` in `wifi_hal_generic.h`. It is
                                    the key that ties this event to the disconnect, activity
                                    and RSSI events for the same client. */
-    UINT isBTMSupported; /**< Non-zero if the client supports BSS Transition Management,
+    UINT isBTMSupported; /*!< Non-zero if the client supports BSS Transition Management,
                               which is what makes an 802.11v steer possible for it. Carried
                               as a `UINT` rather than a `BOOL`, so a caller should test for
                               non-zero rather than compare against `TRUE`. */
-    UINT isRRMSupported; /**< Non-zero if the client supports Radio Resource Management,
+    UINT isRRMSupported; /*!< Non-zero if the client supports Radio Resource Management,
                               which is what makes a beacon measurement possible for it.
                               Carried as a `UINT` on the same terms as `isBTMSupported`. The
                               decoded detail of what it supports is in `rrmCaps`. */
-    BOOL bandCap2G; /**< `TRUE` if the client is 2.4GHz capable. */
-    BOOL bandCap5G; /**< `TRUE` if the client is 5GHz capable. This form carries one flag
+    BOOL bandCap2G; /*!< `TRUE` if the client is 2.4GHz capable. */
+    BOOL bandCap5G; /*!< `TRUE` if the client is 5GHz capable. This form carries one flag
                          for the whole 5GHz band, so it does not distinguish the low and
                          high halves that `WIFI_FREQUENCY_5L_BAND` and
                          `WIFI_FREQUENCY_5H_BAND` name in the other arm. */
-    BOOL bandCap6G; /**< `TRUE` if the client is 6GHz capable. This form has no member for
+    BOOL bandCap6G; /*!< `TRUE` if the client is 6GHz capable. This form has no member for
                          60GHz, so a 60GHz capability is not reportable in this
                          configuration. */
-    wifi_steering_datarateInfo_t datarateInfo; /**< Client's PHY capabilities - widest
+    wifi_steering_datarateInfo_t datarateInfo; /*!< Client's PHY capabilities - widest
                                      bandwidth, spatial streams, PHY mode, highest MCS and
                                      transmit power, and the two power-save and MU-MIMO
                                      flags. The member-by-member caveats are on
                                      `wifi_steering_datarateInfo_t` itself. */
-    wifi_steering_rrmCaps_t rrmCaps; /**< Decoded RM Enabled Capabilities of the client:
+    wifi_steering_rrmCaps_t rrmCaps; /*!< Decoded RM Enabled Capabilities of the client:
                                      which measurements it will accept. Meaningful only
                                      where `isRRMSupported` is non-zero; this interface does
                                      not state what the member carries otherwise. */
@@ -670,15 +670,15 @@ typedef struct
  */
 typedef struct
 {
-    mac_address_t client_mac; /**< Address of the client that disconnected, as the six raw octets of
+    mac_address_t client_mac; /*!< Address of the client that disconnected, as the six raw octets of
                                    `mac_address_t` rather than text. `reason` and `source` below say
                                    why it went and which end initiated it. */
-    UINT reason; /**< IEEE 802.11 reason code carried in the deauthentication or
+    UINT reason; /*!< IEEE 802.11 reason code carried in the deauthentication or
                         disassociation frame; see the reason-code reference on
                         `wifi_steering_clientConfig_t`. */
-    wifi_disconnectSource_t source; /**< Which end initiated the disconnect, or
+    wifi_disconnectSource_t source; /*!< Which end initiated the disconnect, or
                         `DISCONNECT_SOURCE_UNKNOWN` where the `HAL` cannot tell. */
-    wifi_disconnectType_t type; /**< How the client was disconnected, or
+    wifi_disconnectType_t type; /*!< How the client was disconnected, or
                         `DISCONNECT_TYPE_UNKNOWN` where the `HAL` cannot tell. */
 } wifi_steering_evDisconnect_t;
 
@@ -689,10 +689,10 @@ typedef struct
  */
 typedef struct
 {
-    mac_address_t client_mac; /**< Address of the client whose activity changed. `mac_address_t` is
+    mac_address_t client_mac; /*!< Address of the client whose activity changed. `mac_address_t` is
                                    six raw octets rather than text, so it carries no terminator;
                                    `active` beside it says which way the activity changed. */
-    BOOL active; /**< `TRUE` where the client has become active and `FALSE` where it has become
+    BOOL active; /*!< `TRUE` where the client has become active and `FALSE` where it has become
                       idle; the event reports the change rather than a level, so a caller tracks
                       state from the sequence of events. This interface states no idle threshold or
                       timeout behind the transition. */
@@ -715,16 +715,16 @@ typedef struct
  */
 typedef struct
 {
-    mac_address_t client_mac; /**< MAC address of the client whose RSSI crossed a
+    mac_address_t client_mac; /*!< MAC address of the client whose RSSI crossed a
                         threshold. */
-    UINT rssi; /**< Client's RSSI at the crossing, in the same encoding as the RSSI members
+    UINT rssi; /*!< Client's RSSI at the crossing, in the same encoding as the RSSI members
                         of the other steering events. */
-    wifi_steering_rssiChange_t inactveXing; /**< Direction in which `rssi` crossed
+    wifi_steering_rssiChange_t inactveXing; /*!< Direction in which `rssi` crossed
                         `rssiInactXing`, or `WIFI_STEERING_RSSI_UNCHANGED` if it did not.
                         The member name omits the "i" of "inactive". */
-    wifi_steering_rssiChange_t highXing; /**< Direction in which `rssi` crossed
+    wifi_steering_rssiChange_t highXing; /*!< Direction in which `rssi` crossed
                         `rssiHighXing`, or `WIFI_STEERING_RSSI_UNCHANGED` if it did not. */
-    wifi_steering_rssiChange_t lowXing; /**< Direction in which `rssi` crossed
+    wifi_steering_rssiChange_t lowXing; /*!< Direction in which `rssi` crossed
                         `rssiLowXing`, or `WIFI_STEERING_RSSI_UNCHANGED` if it did not. */
 } wifi_steering_evRssiXing_t;
 
@@ -736,9 +736,9 @@ typedef struct
  */
 typedef struct
 {
-    mac_address_t client_mac; /**< MAC address of the measured client, matching the
+    mac_address_t client_mac; /*!< MAC address of the measured client, matching the
                         `client_mac` passed to `wifi_steering_clientMeasure()`. */
-    UINT rssi; /**< Measured RSSI for the client, in the same encoding as the RSSI members
+    UINT rssi; /*!< Measured RSSI for the client, in the same encoding as the RSSI members
                         of the other steering events. Where the measurement follows the
                         recommended method this is the average over the ACKs to five NULL
                         frames, as `wifi_steering_clientMeasure()` describes. */
@@ -751,18 +751,18 @@ typedef struct
  */
 typedef struct
 {
-    mac_address_t client_mac; /**< MAC address of the client whose authentication
+    mac_address_t client_mac; /*!< MAC address of the client whose authentication
                         failed. */
-    UINT rssi; /**< RSSI of the received auth frame, in the same encoding as the RSSI
+    UINT rssi; /*!< RSSI of the received auth frame, in the same encoding as the RSSI
                         members of the other steering events. This is the value compared
                         against the `rssiAuthLWM` to `rssiAuthHWM` range. */
-    UINT reason; /**< IEEE 802.11 status code sent in the rejection, which is the
+    UINT reason; /*!< IEEE 802.11 status code sent in the rejection, which is the
                         `authRejectReason` configured for the client. Meaningful only where
                         `bsRejected` is `TRUE`. */
-    BOOL bsBlocked; /**< `TRUE` if band steering suppressed the auth response deliberately,
+    BOOL bsBlocked; /*!< `TRUE` if band steering suppressed the auth response deliberately,
                         because `rssi` fell outside the configured auth range, rather than
                         the authentication failing for another cause. */
-    BOOL bsRejected; /**< `TRUE` if band steering sent an explicit rejection carrying
+    BOOL bsRejected; /*!< `TRUE` if band steering sent an explicit rejection carrying
                         `reason`. `bsBlocked` `TRUE` with this `FALSE` is the silent-ignore
                         case that an `authRejectReason` of zero selects. */
 } wifi_steering_evAuthFail_t;
@@ -795,35 +795,35 @@ typedef struct
  */
 typedef struct
 {
-    wifi_steering_eventType_t type; /**< Event type, and the discriminant that selects
+    wifi_steering_eventType_t type; /*!< Event type, and the discriminant that selects
                         which member of `data` is valid. */
-    INT apIndex; /**< Index of the AP the event came from. The indices this interface
+    INT apIndex; /*!< Index of the AP the event came from. The indices this interface
                         defines are `AP_INDEX_1` to `AP_INDEX_24` in
                         `wifi_hal_generic.h`. */
-    ULLONG timestamp_ms; /**< Time the event occurred, in milliseconds. Optional: this
+    ULLONG timestamp_ms; /*!< Time the event occurred, in milliseconds. Optional: this
                         interface neither states the epoch it is measured from nor defines
                         a value that means "not supplied", so a caller should use it only
                         to order events from the same source. */
     union
     {
-        wifi_steering_evProbeReq_t probeReq; /**< Valid when `type` is
+        wifi_steering_evProbeReq_t probeReq; /*!< Valid when `type` is
                         `WIFI_STEERING_EVENT_PROBE_REQ`. */
-        wifi_steering_evConnect_t connect; /**< Valid when `type` is
+        wifi_steering_evConnect_t connect; /*!< Valid when `type` is
                         `WIFI_STEERING_EVENT_CLIENT_CONNECT`. */
-        wifi_steering_evDisconnect_t disconnect; /**< Valid when `type` is
+        wifi_steering_evDisconnect_t disconnect; /*!< Valid when `type` is
                         `WIFI_STEERING_EVENT_CLIENT_DISCONNECT`. */
-        wifi_steering_evActivity_t activity; /**< Valid when `type` is
+        wifi_steering_evActivity_t activity; /*!< Valid when `type` is
                         `WIFI_STEERING_EVENT_CLIENT_ACTIVITY`. */
-        wifi_steering_evChanUtil_t chanUtil; /**< Valid when `type` is
+        wifi_steering_evChanUtil_t chanUtil; /*!< Valid when `type` is
                         `WIFI_STEERING_EVENT_CHAN_UTILIZATION`. */
-        wifi_steering_evRssiXing_t rssiXing; /**< Valid when `type` is
+        wifi_steering_evRssiXing_t rssiXing; /*!< Valid when `type` is
                         `WIFI_STEERING_EVENT_RSSI_XING`. */
-        wifi_steering_evRssi_t rssi; /**< Valid when `type` is
+        wifi_steering_evRssi_t rssi; /*!< Valid when `type` is
                         `WIFI_STEERING_EVENT_RSSI`, which is the reply to
                         `wifi_steering_clientMeasure()`. */
-        wifi_steering_evAuthFail_t authFail; /**< Valid when `type` is
+        wifi_steering_evAuthFail_t authFail; /*!< Valid when `type` is
                         `WIFI_STEERING_EVENT_AUTH_FAIL`. */
-    } data; /**< The event payload, selected by `type`: exactly one arm is valid, the one
+    } data; /*!< The event payload, selected by `type`: exactly one arm is valid, the one
                         whose own comment names the `type` value it belongs to. The arms
                         overlap in storage, so a handler must switch on `type` before
                         reading this member, and must treat no arm as readable where it does
@@ -870,11 +870,11 @@ typedef struct
  */
 typedef struct
 {
-    ULONG tsf; /**< Value of the 8-octet TSF timer at which the BSS termination takes
+    ULONG tsf; /*!< Value of the 8-octet TSF timer at which the BSS termination takes
                         effect. Carried in a `ULONG`, which is not 8 octets wide on every
                         platform, so a caller must not assume the full TSF range is
                         representable here. */
-    USHORT duration; /**< Length of time the BSS will be down from `tsf`, in minutes, as
+    USHORT duration; /*!< Length of time the BSS will be down from `tsf`, in minutes, as
                         802.11 defines the subelement. */
 } wifi_BTMTerminationDuration_t;
 
@@ -883,7 +883,7 @@ typedef struct
  */
 typedef struct
 {
-    CHAR condensedStr[3]; /**< First two octets of the `dot11CountryString` MIB value,
+    CHAR condensedStr[3]; /*!< First two octets of the `dot11CountryString` MIB value,
                         which are the two-character ISO 3166-1 country code. The array is
                         three octets, one more than the code itself needs; this interface
                         does not state what the third octet holds, nor whether the `HAL`
@@ -899,9 +899,9 @@ typedef struct
  */
 typedef struct
 {
-    USHORT offset; /**< Time until the neighbour AP's next beacon, in units of 512
+    USHORT offset; /*!< Time until the neighbour AP's next beacon, in units of 512
                         microseconds, measured from the last beacon of the serving AP. */
-    USHORT interval; /**< Beacon interval of the neighbour AP, in time units of 1024
+    USHORT interval; /*!< Beacon interval of the neighbour AP, in time units of 1024
                         microseconds. */
 } wifi_TSFInfo_t;
 
@@ -910,7 +910,7 @@ typedef struct
  */
 typedef struct
 {
-    UCHAR preference; /**< Preference for transitioning to this candidate, in the range 1
+    UCHAR preference; /*!< Preference for transitioning to this candidate, in the range 1
                         to 255, where a higher value is more preferred. 802.11 reserves 0
                         to mean the candidate should not be transitioned to. */
 } wifi_BSSTransitionCandidatePreference_t;
@@ -924,10 +924,10 @@ typedef struct
  */
 typedef struct
 {
-    USHORT bearing; /**< Direction of the neighbour AP from the serving AP, in units of
+    USHORT bearing; /*!< Direction of the neighbour AP from the serving AP, in units of
                         one degree clockwise from true north. */
-    UINT dist; /**< Straight-line distance to the neighbour AP, in centimetres. */
-    USHORT height; /**< Height of the neighbour AP relative to the serving AP, in
+    UINT dist; /*!< Straight-line distance to the neighbour AP, in centimetres. */
+    USHORT height; /*!< Height of the neighbour AP relative to the serving AP, in
                         centimetres. */
 } wifi_Bearing_t;
 
@@ -939,11 +939,11 @@ typedef struct
  */
 typedef struct
 {
-    UCHAR bandwidth; /**< Channel width, as the 802.11 Channel Width code rather than a
+    UCHAR bandwidth; /*!< Channel width, as the 802.11 Channel Width code rather than a
                         count of MHz. */
-    UCHAR centerSeg0; /**< Channel index of the centre frequency of the first frequency
+    UCHAR centerSeg0; /*!< Channel index of the centre frequency of the first frequency
                         segment. */
-    UCHAR centerSeg1; /**< Channel index of the centre frequency of the second frequency
+    UCHAR centerSeg1; /*!< Channel index of the centre frequency of the second frequency
                         segment, used for 80+80MHz. Zero where there is no second
                         segment. */
 } wifi_WideBWChannel_t;
@@ -961,19 +961,19 @@ typedef struct
  */
 typedef struct
 {
-    UCHAR token; /**< Measurement token, which relates this request to the report that
+    UCHAR token; /*!< Measurement token, which relates this request to the report that
                         answers it. */
-    UCHAR mode; /**< Measurement request mode bitmask, carrying the enable, request and
+    UCHAR mode; /*!< Measurement request mode bitmask, carrying the enable, request and
                         report control bits 802.11 defines for the element. */
-    UCHAR type; /**< Measurement type, and the discriminant that selects which member of
+    UCHAR type; /*!< Measurement type, and the discriminant that selects which member of
                         `u` is valid. */
     union
     {
-        UCHAR lci; /**< Location Configuration Information (LCI) subject, valid when `type`
+        UCHAR lci; /*!< Location Configuration Information (LCI) subject, valid when `type`
                         names an LCI measurement. */
-        UCHAR lcr; /**< Location Civic Report (LCR) subject, valid when `type` names an LCR
+        UCHAR lcr; /*!< Location Civic Report (LCR) subject, valid when `type` names an LCR
                         measurement. */
-    } u; /**< The measurement subject, selected by `type`: only `lci` is valid for a
+    } u; /*!< The measurement subject, selected by `type`: only `lci` is valid for a
                         measurement of LCI type and only `lcr` for one of LCR type. The arms
                         overlap in storage, so a caller must read `type` first, and must
                         treat neither arm as readable where it does not recognise `type`. */
@@ -987,19 +987,19 @@ typedef struct
  */
 typedef struct
 {
-    USHORT info; /**< HT Capability Information field, as the 16-bit bitmask 802.11 defines
+    USHORT info; /*!< HT Capability Information field, as the 16-bit bitmask 802.11 defines
                         for the element. This interface does not name the individual
                         bits. */
-    UCHAR ampduParams; /**< A-MPDU Parameters field, carrying the maximum A-MPDU length
+    UCHAR ampduParams; /*!< A-MPDU Parameters field, carrying the maximum A-MPDU length
                         exponent and the minimum MPDU start spacing. */
-    UCHAR mcs[16]; /**< Supported MCS Set field, as 16 octets of bitmask. Fixed length,
+    UCHAR mcs[16]; /*!< Supported MCS Set field, as 16 octets of bitmask. Fixed length,
                         with no count member: all 16 octets are always present, and a
                         supported MCS is indicated by its bit rather than by an index into
                         this array. */
-    USHORT extended; /**< HT Extended Capabilities field, as a 16-bit bitmask. */
-    UINT txBeamCaps; /**< Transmit Beamforming Capabilities field, as a 32-bit
+    USHORT extended; /*!< HT Extended Capabilities field, as a 16-bit bitmask. */
+    UINT txBeamCaps; /*!< Transmit Beamforming Capabilities field, as a 32-bit
                         bitmask. */
-    UCHAR aselCaps; /**< ASEL Capability field, carrying the antenna selection
+    UCHAR aselCaps; /*!< ASEL Capability field, carrying the antenna selection
                         capabilities as a bitmask. */
 } wifi_HTCapabilities_t;
 
@@ -1023,30 +1023,30 @@ typedef struct
  */
 typedef struct
 {
-    UINT   info;                   /**< VHT Capabilities Information field, as the 32-bit
+    UINT   info;                   /*!< VHT Capabilities Information field, as the 32-bit
                                         bitmask the cited section defines: maximum MPDU
                                         length, supported channel width set, the STBC,
                                         beamformer and beamformee capability bits, and the
                                         remaining per-STA VHT capability bits. This interface
                                         names none of them individually. */
-    USHORT mcs;                    /**< Rx VHT-MCS Map, the first 16-bit subfield of the
+    USHORT mcs;                    /*!< Rx VHT-MCS Map, the first 16-bit subfield of the
                                         Supported VHT-MCS and NSS Set: two bits per spatial
                                         stream naming the highest MCS the reporting STA can
                                         receive on that stream, decoded per the cited
                                         section. It is a per-stream map, not an MCS
                                         index. */
-    USHORT rxHighestSupportedRate; /**< Rx Highest Supported Long GI Data Rate subfield,
+    USHORT rxHighestSupportedRate; /*!< Rx Highest Supported Long GI Data Rate subfield,
                                         carried in the low bits of the member with the
                                         adjacent subfield the cited section places beside it
                                         occupying the rest. A caller must therefore mask out
                                         the rate rather than read the whole member as a
                                         rate. */
-    USHORT txVHTmcs;               /**< Tx VHT-MCS Map, on the same two-bits-per-stream terms
+    USHORT txVHTmcs;               /*!< Tx VHT-MCS Map, on the same two-bits-per-stream terms
                                         as `mcs` but for what the reporting STA can
                                         transmit. The two maps are independent, so a caller
                                         must not read either as covering both
                                         directions. */
-    USHORT txHighestSupportedRate; /**< Tx Highest Supported Long GI Data Rate subfield, on
+    USHORT txHighestSupportedRate; /*!< Tx Highest Supported Long GI Data Rate subfield, on
                                         the same terms as `rxHighestSupportedRate`. */
 } wifi_VHTCapabilities_t;
 
@@ -1058,14 +1058,14 @@ typedef struct
  */
 typedef struct
 {
-    UCHAR primary; /**< Primary channel of the BSS the element describes. The element carries no
+    UCHAR primary; /*!< Primary channel of the BSS the element describes. The element carries no
                         band, and the same channel number denotes different channels in different
                         bands, so a caller must take the band from the context the element arrived
                         in. */
-    UCHAR opInfo[5]; /**< HT Operation Information field, as the five octets of bitmask
+    UCHAR opInfo[5]; /*!< HT Operation Information field, as the five octets of bitmask
                         802.11 defines for the element. Fixed length, with no count
                         member. */
-    UCHAR mcs[16]; /**< Basic MCS Set field, as 16 octets of bitmask, on the same terms as
+    UCHAR mcs[16]; /*!< Basic MCS Set field, as 16 octets of bitmask, on the same terms as
                         the `mcs` member of `wifi_HTCapabilities_t`. */
 } wifi_HTOperation_t;
 
@@ -1083,14 +1083,14 @@ typedef struct
  */
 typedef struct
 {
-    wifi_WideBWChannel_t opInfo; /**< VHT Operation Information field: the operating channel
+    wifi_WideBWChannel_t opInfo; /*!< VHT Operation Information field: the operating channel
                         width code and the centre-frequency indices of the first and second
                         frequency segments, held in the same three members as the Wide
                         Bandwidth Channel element. `bandwidth` is a channel width code rather
                         than a count of MHz, and `centerSeg1` is zero where the BSS is not
                         using 80+80MHz - see `wifi_WideBWChannel_t` for the member
                         detail. */
-    USHORT mcs_nss; /**< Basic VHT-MCS and NSS Set field, as the 16-bit bitmask the cited
+    USHORT mcs_nss; /*!< Basic VHT-MCS and NSS Set field, as the 16-bit bitmask the cited
                         section defines: two bits per spatial stream naming the highest MCS
                         every STA in the BSS is required to support on that stream. It is the
                         BSS-wide requirement, not a per-STA capability, and this interface
@@ -1106,7 +1106,7 @@ typedef struct
  */
 typedef struct
 {
-    UCHAR secondaryChOffset; /**< Position of the secondary channel relative to the
+    UCHAR secondaryChOffset; /*!< Position of the secondary channel relative to the
                         primary, as the 802.11 Secondary Channel Offset code: no secondary
                         channel, secondary above, or secondary below. */
 } wifi_SecondaryChannelOffset_t;
@@ -1119,7 +1119,7 @@ typedef struct
  */
 typedef struct
 {
-    UCHAR capabilities[5]; /**< RM Enabled Capabilities field, as the five octets of
+    UCHAR capabilities[5]; /*!< RM Enabled Capabilities field, as the five octets of
                         bitmask 802.11 defines for the element. Fixed length, with no count
                         member: all five octets are always present. This is the same
                         five-octet encoding that `wifi_getRMCapabilities()` returns, and
@@ -1135,11 +1135,11 @@ typedef struct
  */
 typedef struct
 {
-    UCHAR oui[5]; /**< Organization Identifier, which is either the first 3 octets or all 5
+    UCHAR oui[5]; /*!< Organization Identifier, which is either the first 3 octets or all 5
                         octets of this array depending on the format in use. This interface
                         carries no member stating which, so a caller must determine the
                         length from the OUI itself. */
-    UCHAR buff[MAX_VENDOR_SPECIFIC]; /**< Vendor-specific content, up to
+    UCHAR buff[MAX_VENDOR_SPECIFIC]; /*!< Vendor-specific content, up to
                         `MAX_VENDOR_SPECIFIC` octets. This interface carries no length
                         member for it, so how much of the buffer is meaningful is not
                         established here and a caller must derive it from the vendor's own
@@ -1154,9 +1154,9 @@ typedef struct
  */
 typedef struct
 {
-    UCHAR pilot; /**< Measurement Pilot Interval, in time units of 1024 microseconds. Zero
+    UCHAR pilot; /*!< Measurement Pilot Interval, in time units of 1024 microseconds. Zero
                         means measurement pilot frames are not transmitted. */
-    wifi_VendorSpecific_t vendorSpecific; /**< Optional vendor-specific subelement carried
+    wifi_VendorSpecific_t vendorSpecific; /*!< Optional vendor-specific subelement carried
                         with the pilot transmission information. This interface carries no
                         flag stating whether it is present, so a caller must treat it as
                         meaningful only where the vendor's own format says it is. */
@@ -1181,7 +1181,7 @@ typedef struct
  */
 typedef struct
 {
-    bssid_t bssid; /**< BSSID of the candidate AP, as the six octets of `bssid_t` in
+    bssid_t bssid; /*!< BSSID of the candidate AP, as the six octets of `bssid_t` in
                         `wifi_hal_generic.h`. */
     //  32 bit optional value, bit fileds are
     //  b0, b1 for reachability
@@ -1193,132 +1193,132 @@ typedef struct
     //  b12 very high throughput
     //  b13 ftm
     //  b14 to b31 reserved
-    UINT info; /**< BSSID Information field, as a 32-bit bitmask whose bit assignments are
+    UINT info; /*!< BSSID Information field, as a 32-bit bitmask whose bit assignments are
                         listed in the comment immediately above this member. */
-    UCHAR opClass; /**< Operating class of the candidate AP's channel, which is what gives
+    UCHAR opClass; /*!< Operating class of the candidate AP's channel, which is what gives
                         `channel` its band and width. */
-    UCHAR channel; /**< Channel number of the candidate AP, interpreted within
+    UCHAR channel; /*!< Channel number of the candidate AP, interpreted within
                         `opClass`. */
-    UCHAR phyTable; /**< PHY type of the candidate AP, as the 802.11 PHY type code. */
-    BOOL tsfPresent; /**< `TRUE` where `tsfInfo` below carries TSF information; where it is `FALSE`
+    UCHAR phyTable; /*!< PHY type of the candidate AP, as the 802.11 PHY type code. */
+    BOOL tsfPresent; /*!< `TRUE` where `tsfInfo` below carries TSF information; where it is `FALSE`
                           a caller must not read that member. Each optional field of this structure
                           has its own such flag, and this interface does not state what an absent
                           field's storage holds. */
-    wifi_TSFInfo_t tsfInfo; /**< TSF Information subelement for the candidate AP - when its next
+    wifi_TSFInfo_t tsfInfo; /*!< TSF Information subelement for the candidate AP - when its next
                                  beacon is due and at what interval - valid only where `tsfPresent`
                                  is `TRUE`. See `wifi_TSFInfo_t` for the units of both of its
                                  fields. */
-    BOOL condensedCountrySringPresent; /**< `TRUE` if `condensedCountryStr` carries the
+    BOOL condensedCountrySringPresent; /*!< `TRUE` if `condensedCountryStr` carries the
                         candidate AP's country code. The member name misspells "String" as
                         "Sring": the identifier a caller has to write is
                         `condensedCountrySringPresent`, and the correctly spelt form does not
                         exist in this interface. The type name `wifi_CondensedCountryString_t`
                         and the field name `condensedCountryStr` beside it are both spelt
                         normally, so the misspelling is confined to this one flag. */
-    wifi_CondensedCountryString_t condensedCountryStr; /**< Condensed Country String of the
+    wifi_CondensedCountryString_t condensedCountryStr; /*!< Condensed Country String of the
                         candidate AP, valid only where `condensedCountrySringPresent` is
                         `TRUE`. See `wifi_CondensedCountryString_t` for how much of
                         `condensedStr` a caller may read. */
-    BOOL bssTransitionCandidatePreferencePresent; /**< `TRUE` where
+    BOOL bssTransitionCandidatePreferencePresent; /*!< `TRUE` where
                                                        `bssTransitionCandidatePreference` below
                                                        carries a preference; where it is `FALSE` a
                                                        caller must not read that member. */
-    wifi_BSSTransitionCandidatePreference_t bssTransitionCandidatePreference; /**< How strongly the
+    wifi_BSSTransitionCandidatePreference_t bssTransitionCandidatePreference; /*!< How strongly the
                         serving AP prefers this candidate, valid only where
                         `bssTransitionCandidatePreferencePresent` is `TRUE`.
                         `wifi_BSSTransitionCandidatePreference_t` gives the 1 to 255 range, the
                         direction in which it increases, and what 802.11 reserves 0 for. */
-    BOOL btmTerminationDurationPresent; /**< `TRUE` where `btmTerminationDuration` below carries a
+    BOOL btmTerminationDurationPresent; /*!< `TRUE` where `btmTerminationDuration` below carries a
                                              termination time and duration; where it is `FALSE` a
                                              caller must not read that member. */
-    wifi_BTMTerminationDuration_t btmTerminationDuration; /**< When the candidate's BSS is due to
+    wifi_BTMTerminationDuration_t btmTerminationDuration; /*!< When the candidate's BSS is due to
                         terminate and for how long, valid only where `btmTerminationDurationPresent`
                         is `TRUE`. See `wifi_BTMTerminationDuration_t` for the units of both fields
                         and for the width caveat on its `tsf` member. */
-    BOOL bearingPresent; /**< `TRUE` where `bearing` below carries the candidate's direction,
+    BOOL bearingPresent; /*!< `TRUE` where `bearing` below carries the candidate's direction,
                               distance and height; where it is `FALSE` a caller must not read that
                               member. */
-    wifi_Bearing_t bearing; /**< Where the candidate AP lies relative to the serving AP, valid only
+    wifi_Bearing_t bearing; /*!< Where the candidate AP lies relative to the serving AP, valid only
                                  where `bearingPresent` is `TRUE`. See `wifi_Bearing_t` for the
                                  direction, distance and height units. */
-    BOOL wideBandWidthChannelPresent; /**< `TRUE` where `wideBandwidthChannel` below carries the
+    BOOL wideBandWidthChannelPresent; /*!< `TRUE` where `wideBandwidthChannel` below carries the
                                            candidate's channel width and centre-frequency segments;
                                            where it is `FALSE` a caller must not read that member.
                                            The flag and the member it guards are spelt differently -
                                            `wideBandWidthChannelPresent` against
                                            `wideBandwidthChannel` - so each must be written exactly
                                            as declared. */
-    wifi_WideBWChannel_t wideBandwidthChannel; /**< Channel width and centre-frequency segments the
+    wifi_WideBWChannel_t wideBandwidthChannel; /*!< Channel width and centre-frequency segments the
                         candidate AP uses, valid only where `wideBandWidthChannelPresent` is `TRUE`.
                         The flag is spelt `wideBandWidthChannelPresent` and this member
                         `wideBandwidthChannel`, so a caller must write each exactly as declared. See
                         `wifi_WideBWChannel_t`, which states that `bandwidth` is an 802.11 code
                         rather than a count of MHz. */
-    BOOL htCapsPresent; /**< `TRUE` where `htCaps` below carries the candidate's HT Capabilities
+    BOOL htCapsPresent; /*!< `TRUE` where `htCaps` below carries the candidate's HT Capabilities
                              element; where it is `FALSE` a caller must not read that member. It
                              says nothing about the VHT fields, which have their own flags. */
-    wifi_HTCapabilities_t htCaps; /**< HT Capabilities element of the candidate AP, valid only where
+    wifi_HTCapabilities_t htCaps; /*!< HT Capabilities element of the candidate AP, valid only where
                                        `htCapsPresent` above is `TRUE`. See `wifi_HTCapabilities_t`,
                                        whose fields are 802.11 bitmasks and whose supported-MCS set
                                        is a fixed 16 octets with no count member. */
-    BOOL vhtCapsPresent; /**< Whether the VHT Capabilities field is present. The flag is
+    BOOL vhtCapsPresent; /*!< Whether the VHT Capabilities field is present. The flag is
                         spelt `vhtCapsPresent` but the field it guards is spelt
                         `vbhtCaps`. */
-    wifi_VHTCapabilities_t vbhtCaps; /**< VHT Capabilities of the candidate AP, valid only
+    wifi_VHTCapabilities_t vbhtCaps; /*!< VHT Capabilities of the candidate AP, valid only
                         where `vhtCapsPresent` is `TRUE`. The member name carries a stray
                         "b": the identifier a caller has to write is `vbhtCaps`, and there is
                         no `vhtCaps` member in this structure to write instead, even though
                         `htCaps` above and `vhtOp` below are both spelt normally. The
                         misspelling is confined to this one field. See
                         `wifi_VHTCapabilities_t` for the member detail. */
-    BOOL htOpPresent; /**< `TRUE` where `htOp` below carries the candidate's HT Operation element;
+    BOOL htOpPresent; /*!< `TRUE` where `htOp` below carries the candidate's HT Operation element;
                            where it is `FALSE` a caller must not read that member. */
-    wifi_HTOperation_t htOp; /**< HT Operation element of the candidate AP, valid only where
+    wifi_HTOperation_t htOp; /*!< HT Operation element of the candidate AP, valid only where
                                   `htOpPresent` above is `TRUE`. See `wifi_HTOperation_t` for its
                                   primary channel, its five octets of operation information and its
                                   basic MCS set. */
-    BOOL vhtOpPresent; /**< `TRUE` where `vhtOp` below carries the candidate's VHT Operation
+    BOOL vhtOpPresent; /*!< `TRUE` where `vhtOp` below carries the candidate's VHT Operation
                             element; where it is `FALSE` a caller must not read that member.
                             `vhtCapsPresent` above guards the separate capabilities field. */
-    wifi_VHTOperation_t vhtOp; /**< VHT Operation element of the candidate AP, valid only where
+    wifi_VHTOperation_t vhtOp; /*!< VHT Operation element of the candidate AP, valid only where
                                     `vhtOpPresent` above is `TRUE`. See `wifi_VHTOperation_t`, whose
                                     `opInfo.bandwidth` is a channel width code rather than a count
                                     of MHz and whose `mcs_nss` is the BSS-wide requirement rather
                                     than a per-STA capability. */
-    BOOL secondaryChannelOffsetPresent; /**< `TRUE` where `secondaryChannelOffset` below carries the
+    BOOL secondaryChannelOffsetPresent; /*!< `TRUE` where `secondaryChannelOffset` below carries the
                                              offset of the candidate's secondary channel; where it
                                              is `FALSE` a caller must not read that member. */
-    wifi_SecondaryChannelOffset_t secondaryChannelOffset; /**< Position of the candidate AP's
+    wifi_SecondaryChannelOffset_t secondaryChannelOffset; /*!< Position of the candidate AP's
                         secondary channel relative to its primary, valid only where
                         `secondaryChannelOffsetPresent` is `TRUE`. `wifi_SecondaryChannelOffset_t`
                         states that the value is the 802.11 offset code rather than a count of MHz. */
-    BOOL rmEnabledCapsPresent; /**< `TRUE` where `rmEnabledCaps` below carries the candidate's radio
+    BOOL rmEnabledCapsPresent; /*!< `TRUE` where `rmEnabledCaps` below carries the candidate's radio
                                     measurement capabilities; where it is `FALSE` a caller must not
                                     read that member. */
-    wifi_RMEnabledCapabilities_t rmEnabledCaps; /**< RM Enabled Capabilities element of the
+    wifi_RMEnabledCapabilities_t rmEnabledCaps; /*!< RM Enabled Capabilities element of the
                                                      candidate AP, valid only where
                                                      `rmEnabledCapsPresent` above is `TRUE`.
                                                      `wifi_RMEnabledCapabilities_t` carries the five
                                                      octets of bitmask in the same encoding
                                                      `wifi_getRMCapabilities()` returns. */
-    BOOL msmtPilotTransmissionPresent; /**< `TRUE` where `msmtPilotTransmission` below carries the
+    BOOL msmtPilotTransmissionPresent; /*!< `TRUE` where `msmtPilotTransmission` below carries the
                                             candidate's pilot interval; where it is `FALSE` a caller
                                             must not read that member. */
-    wifi_MeasurementPilotTransmission_t msmtPilotTransmission; /**< Measurement Pilot Transmission
+    wifi_MeasurementPilotTransmission_t msmtPilotTransmission; /*!< Measurement Pilot Transmission
                         element of the candidate AP, valid only where `msmtPilotTransmissionPresent`
                         above is `TRUE`. `wifi_MeasurementPilotTransmission_t` states that its
                         interval is in units of 1024 microseconds and that zero means pilot frames
                         are not transmitted. */
-    BOOL vendorSpecificPresent; /**< `TRUE` where `vendorSpecific` below carries a Vendor Specific
+    BOOL vendorSpecificPresent; /*!< `TRUE` where `vendorSpecific` below carries a Vendor Specific
                                      element; where it is `FALSE` a caller must not read that
                                      member. The element's own content is in the vendor's format,
                                      which this interface does not define. */
-    wifi_VendorSpecific_t vendorSpecific; /**< Vendor Specific element carried with this candidate,
+    wifi_VendorSpecific_t vendorSpecific; /*!< Vendor Specific element carried with this candidate,
                         valid only where `vendorSpecificPresent` is `TRUE`. `wifi_VendorSpecific_t`
                         states that neither the length of its OUI nor the meaningful extent of its
                         buffer is established by this interface, so a caller must take both from the
                         vendor's own format. */
-    ssid_t target_ssid; /**< SSID of the candidate AP, in the 32-octet `ssid_t` of
+    ssid_t target_ssid; /*!< SSID of the candidate AP, in the 32-octet `ssid_t` of
                         `wifi_hal_generic.h`. An SSID may occupy all 32 octets, so it is
                         not necessarily NUL-terminated and a caller must not treat it as a
                         C string. This member is not paired with a presence flag, unlike
@@ -1333,39 +1333,39 @@ typedef struct
  */
 typedef struct
 {
-    UCHAR token; /**< Dialog token relating this request to the response that answers it.
+    UCHAR token; /*!< Dialog token relating this request to the response that answers it.
                         Set by the STA on a STA-initiated transaction; on an AP-initiated
                         request sent with `wifi_setBTMRequest()` the AP chooses it. */
-    UCHAR requestMode; /**< Request Mode bitmask, carrying the candidate-list-included,
+    UCHAR requestMode; /*!< Request Mode bitmask, carrying the candidate-list-included,
                         abridged, disassociation-imminent, BSS-termination-included and
                         ESS-disassociation-imminent bits 802.11 defines. */
-    USHORT timer; /**< Disassociation Timer, in TBTTs, counting down to the point at which
+    USHORT timer; /*!< Disassociation Timer, in TBTTs, counting down to the point at which
                         the AP will disassociate the STA. Zero means the AP has no
                         disassociation intent. */
-    UCHAR validityInterval; /**< Time for which the candidate list stays valid, in TBTTs,
+    UCHAR validityInterval; /*!< Time for which the candidate list stays valid, in TBTTs,
                         measured from the transmission of this frame. */
     // The optional fields may include:
     // 1. BSS Termination Duration Subelement, ID = 4. 802.11-2016 Figure 9-300.
     // 2. Session Information URL.
     // 3. BSS Transition Candidate List Entries
-    wifi_BTMTerminationDuration_t termDuration; /**< BSS Termination Duration subelement,
+    wifi_BTMTerminationDuration_t termDuration; /*!< BSS Termination Duration subelement,
                         meaningful only where `requestMode` sets the BSS-termination
                         -included bit. */
-    UCHAR disassociationImminent; /**< Non-zero if the AP intends to disassociate the STA,
+    UCHAR disassociationImminent; /*!< Non-zero if the AP intends to disassociate the STA,
                         which duplicates the corresponding bit of `requestMode`. This
                         interface does not state which takes precedence if the two
                         disagree, so a caller should set them consistently. */
-    USHORT urlLen; /**< Number of valid octets in `url`, from 0 to `MAX_URL_LEN`. Zero
+    USHORT urlLen; /*!< Number of valid octets in `url`, from 0 to `MAX_URL_LEN`. Zero
                         means no session information URL is carried. */
-    CHAR url[MAX_URL_LEN]; /**< Session Information URL, bounded by `MAX_URL_LEN` octets
+    CHAR url[MAX_URL_LEN]; /*!< Session Information URL, bounded by `MAX_URL_LEN` octets
                         and valid only for its leading `urlLen` octets. This interface does
                         not state that the `HAL` NUL-terminates it, so a caller must use
                         `urlLen` rather than treating it as a C string. */
-    UCHAR numCandidates; /**< Number of populated elements in `candidates`, from 0 to
+    UCHAR numCandidates; /*!< Number of populated elements in `candidates`, from 0 to
                         `MAX_CANDIDATES`. Zero means no candidate list is carried, which
                         should agree with the candidate-list-included bit of
                         `requestMode`. */
-    wifi_NeighborReport_t candidates[MAX_CANDIDATES]; /**< Candidate APs the STA may
+    wifi_NeighborReport_t candidates[MAX_CANDIDATES]; /*!< Candidate APs the STA may
                         transition to, in preference order. The array is bounded by
                         `MAX_CANDIDATES` and only its leading `numCandidates` elements are
                         valid; the remainder must not be read. */
@@ -1379,14 +1379,14 @@ typedef struct
  */
 typedef struct
 {
-    UCHAR token; /**< Dialog token set by the STA, which the AP must echo in the
+    UCHAR token; /*!< Dialog token set by the STA, which the AP must echo in the
                         `wifi_BTMRequest_t` it returns so the STA can relate the two. */
-    UCHAR queryReason; /**< BTM Query Reason code, stating why the STA is asking to
+    UCHAR queryReason; /*!< BTM Query Reason code, stating why the STA is asking to
                         transition. */
-    UCHAR numCandidates; /**< Number of populated elements in `candidates`, from 0 to
+    UCHAR numCandidates; /*!< Number of populated elements in `candidates`, from 0 to
                         `MAX_CANDIDATES`. Zero means the STA offered no candidates of its
                         own. */
-    wifi_NeighborReport_t candidates[MAX_CANDIDATES]; /**< Candidate APs the STA proposes,
+    wifi_NeighborReport_t candidates[MAX_CANDIDATES]; /*!< Candidate APs the STA proposes,
                         bounded by `MAX_CANDIDATES`. Only the leading `numCandidates`
                         elements are valid; the remainder must not be read. */
 } wifi_BTMQuery_t;
@@ -1399,19 +1399,19 @@ typedef struct
  */
 typedef struct
 {
-    UCHAR token; /**< Dialog token echoed from the `wifi_BTMRequest_t` this response
+    UCHAR token; /*!< Dialog token echoed from the `wifi_BTMRequest_t` this response
                         answers, which is how a caller matches the two. */
-    UCHAR status; /**< BTM Status code stating whether the STA accepted the transition and,
+    UCHAR status; /*!< BTM Status code stating whether the STA accepted the transition and,
                         where it did not, why. Zero is acceptance; every other value is a
                         rejection reason 802.11 defines. */
-    UCHAR terminationDelay; /**< Delay the STA requests before the BSS is terminated, in
+    UCHAR terminationDelay; /*!< Delay the STA requests before the BSS is terminated, in
                         TBTTs. Meaningful only where `status` is the code that reports the
                         STA is not accepting termination yet. */
-    bssid_t target; /**< BSSID the STA has chosen to transition to. Meaningful only where
+    bssid_t target; /*!< BSSID the STA has chosen to transition to. Meaningful only where
                         `status` reports acceptance. */
-    UCHAR numCandidates; /**< Number of populated elements in `candidates`, from 0 to
+    UCHAR numCandidates; /*!< Number of populated elements in `candidates`, from 0 to
                         `MAX_CANDIDATES`. */
-    wifi_NeighborReport_t candidates[MAX_CANDIDATES]; /**< Candidate APs the STA reports,
+    wifi_NeighborReport_t candidates[MAX_CANDIDATES]; /*!< Candidate APs the STA reports,
                         bounded by `MAX_CANDIDATES`. Only the leading `numCandidates`
                         elements are valid; the remainder must not be read. */
 } wifi_BTMResponse_t;
@@ -1424,16 +1424,16 @@ typedef struct
  */
 typedef struct
 {
-    UCHAR token; /**< Dialog token relating this request to the neighbour report that
+    UCHAR token; /*!< Dialog token relating this request to the neighbour report that
                         answers it. */
-    UCHAR ssidLen; /**< Number of valid octets in `ssid`, from 0 to 32. Zero means no SSID
+    UCHAR ssidLen; /*!< Number of valid octets in `ssid`, from 0 to 32. Zero means no SSID
                         is carried, so the request is not scoped to one network. */
-    ssid_t ssid; /**< SSID the request is scoped to, in the 32-octet `ssid_t` of
+    ssid_t ssid; /*!< SSID the request is scoped to, in the 32-octet `ssid_t` of
                         `wifi_hal_generic.h`, valid only for its leading `ssidLen` octets
                         and not necessarily NUL-terminated. */
-    UCHAR measCount; /**< Number of populated elements in `measurements`, which this
+    UCHAR measCount; /*!< Number of populated elements in `measurements`, which this
                         structure bounds at 2. */
-    wifi_Measurement_t measurements[2]; /**< Measurement requests carried with the
+    wifi_Measurement_t measurements[2]; /*!< Measurement requests carried with the
                         neighbour request, at most two - one LCI and one LCR. Only the
                         leading `measCount` elements are valid; the remainder must not be
                         read. */
@@ -1463,11 +1463,11 @@ typedef struct
  */
 typedef struct
 {
-    UCHAR condition; /**< Reporting Condition code, naming which comparison against
+    UCHAR condition; /*!< Reporting Condition code, naming which comparison against
                         `threshold` triggers a report - for example RCPI or RSNI rising
                         above or falling below it. Zero is 802.11's unconditional report,
                         for which `threshold` carries nothing. */
-    UCHAR threshold; /**< Reference value that `condition` compares against, in the units
+    UCHAR threshold; /*!< Reference value that `condition` compares against, in the units
                         of whichever quantity `condition` selects. */
 } wifi_BeaconReporting_t;
 
@@ -1476,7 +1476,7 @@ typedef struct
  */
 typedef struct
 {
-    UCHAR ids[MAX_REQUESTED_ELEMS]; /**< Element IDs the reporting STA is asked to include
+    UCHAR ids[MAX_REQUESTED_ELEMS]; /*!< Element IDs the reporting STA is asked to include
                         in each beacon report, bounded at `MAX_REQUESTED_ELEMS` entries.
                         The array is of fixed length and this interface carries neither a
                         count member nor a terminator for it, so how many entries are
@@ -1505,9 +1505,9 @@ typedef wifi_RequestedElementIDS_t wifi_ExtdRequestedElementIDS_t;
  */
 typedef struct
 {
-    UCHAR opClass; /**< Operating class shared by every channel in `channels`, which is
+    UCHAR opClass; /*!< Operating class shared by every channel in `channels`, which is
                         what gives those channel numbers their band and width. */
-    UCHAR channels[MAX_CHANNELS_REPORT]; /**< Channels the measurement is to cover, within
+    UCHAR channels[MAX_CHANNELS_REPORT]; /*!< Channels the measurement is to cover, within
                         `opClass`, bounded at `MAX_CHANNELS_REPORT` entries. The array is of
                         fixed length and this interface carries neither a count member nor a
                         terminator for it, so how many entries are populated is not
@@ -1534,84 +1534,84 @@ typedef struct
  */
 typedef struct
 {
-    UCHAR opClass; /**< Operating class the measurement is to be made in, which is what
+    UCHAR opClass; /*!< Operating class the measurement is to be made in, which is what
                         gives `channel` its band and width. */
-    UCHAR channel; /**< Channel the STA is to measure, within `opClass`. 802.11 reserves 0
+    UCHAR channel; /*!< Channel the STA is to measure, within `opClass`. 802.11 reserves 0
                         to mean every channel in the operating class, and 255 to mean the
                         channels named by `channelReport`. */
-    USHORT randomizationInterval; /**< Upper bound of the random delay the STA applies
+    USHORT randomizationInterval; /*!< Upper bound of the random delay the STA applies
                         before starting the measurement, in time units of 1024
                         microseconds. Zero means start as soon as possible. */
-    USHORT duration; /**< Length of the measurement, in time units of 1024
+    USHORT duration; /*!< Length of the measurement, in time units of 1024
                         microseconds. */
-    UCHAR mode; /**< Measurement mode, selecting passive, active or beacon-table
+    UCHAR mode; /*!< Measurement mode, selecting passive, active or beacon-table
                         measurement. */
-    bssid_t bssid; /**< BSSID the measurement is scoped to. The all-ones broadcast address
+    bssid_t bssid; /*!< BSSID the measurement is scoped to. The all-ones broadcast address
                         requests every BSSID. */
-    BOOL ssidPresent; /**< `TRUE` if `ssid` carries an SSID to scope the measurement
+    BOOL ssidPresent; /*!< `TRUE` if `ssid` carries an SSID to scope the measurement
                         to. */
-    ssid_t ssid; /**< SSID the measurement is scoped to, valid only where `ssidPresent` is
+    ssid_t ssid; /*!< SSID the measurement is scoped to, valid only where `ssidPresent` is
                         `TRUE`. Held in the 32-octet `ssid_t` of `wifi_hal_generic.h` and
                         not necessarily NUL-terminated. */
-    BOOL beaconReportingPresent; /**< `TRUE` where `beaconReporting` below carries the condition and
+    BOOL beaconReportingPresent; /*!< `TRUE` where `beaconReporting` below carries the condition and
                                       threshold that decide when a beacon is reported; where it is
                                       `FALSE` a caller must not read that member.
                                       `reportingRetailPresent` below guards the separate
                                       reporting-detail level. */
-    wifi_BeaconReporting_t beaconReporting; /**< Condition and threshold that decide when the STA
+    wifi_BeaconReporting_t beaconReporting; /*!< Condition and threshold that decide when the STA
                                                  reports a measured beacon, valid only where
                                                  `beaconReportingPresent` above is `TRUE`.
                                                  `wifi_BeaconReporting_t` states that a zero
                                                  condition is 802.11's unconditional report, for
                                                  which the threshold carries nothing. */
-    BOOL reportingRetailPresent; /**< `TRUE` if `reportingDetail` carries a reporting
+    BOOL reportingRetailPresent; /*!< `TRUE` if `reportingDetail` carries a reporting
                         detail level. The member name misspells "reporting detail"; it is
                         the presence flag for `reportingDetail` and nothing else. */
-    UCHAR reportingDetail; /**< How much of each measured beacon the STA is to report: no
+    UCHAR reportingDetail; /*!< How much of each measured beacon the STA is to report: no
                         fixed fields or elements, the fixed fields plus the requested
                         elements, or all fixed fields and elements. Valid only where
                         `reportingRetailPresent` is `TRUE`. */
-    BOOL wideBandWidthChannelPresent; /**< `TRUE` where `wideBandwidthChannel` below scopes the
+    BOOL wideBandWidthChannelPresent; /*!< `TRUE` where `wideBandwidthChannel` below scopes the
                                            measurement to a channel width and centre-frequency
                                            segments; where it is `FALSE` a caller must not read that
                                            member. The flag and the member it guards are spelt
                                            differently - `wideBandWidthChannelPresent` against
                                            `wideBandwidthChannel` - so each must be written exactly
                                            as declared. */
-    wifi_WideBWChannel_t wideBandwidthChannel; /**< Channel width and centre-frequency segments the
+    wifi_WideBWChannel_t wideBandwidthChannel; /*!< Channel width and centre-frequency segments the
                         measurement is scoped to, valid only where `wideBandWidthChannelPresent` is
                         `TRUE`. See `wifi_WideBWChannel_t` for the encoding of `bandwidth` and for
                         what a zero second segment means. */
-    BOOL requestedElementIDSPresent; /**< `TRUE` where `requestedElementIDS` below names the
+    BOOL requestedElementIDSPresent; /*!< `TRUE` where `requestedElementIDS` below names the
                                           elements to include in each report; where it is `FALSE` a
                                           caller must not read that member.
                                           `extdRequestedElementIDSPresent` below guards the extended
                                           IDs separately, so the two may differ. */
-    wifi_RequestedElementIDS_t requestedElementIDS; /**< Element IDs the reporting STA is asked to
+    wifi_RequestedElementIDS_t requestedElementIDS; /*!< Element IDs the reporting STA is asked to
                         include in each beacon report, valid only where `requestedElementIDSPresent`
                         is `TRUE`. `wifi_RequestedElementIDS_t` states that its array carries
                         neither a count nor a terminator, so the populated length has to be agreed
                         outside this interface; `extdRequestedElementIDS` below carries the extended
                         IDs separately. */
-    BOOL extdRequestedElementIDSPresent; /**< `TRUE` where `extdRequestedElementIDS` below names the
+    BOOL extdRequestedElementIDSPresent; /*!< `TRUE` where `extdRequestedElementIDS` below names the
                                               element ID extensions to include; where it is `FALSE`
                                               a caller must not read that member. It is independent
                                               of `requestedElementIDSPresent` above. */
-    wifi_ExtdRequestedElementIDS_t extdRequestedElementIDS; /**< Element ID extensions the reporting
+    wifi_ExtdRequestedElementIDS_t extdRequestedElementIDS; /*!< Element ID extensions the reporting
                         STA is asked to include, valid only where `extdRequestedElementIDSPresent`
                         above is `TRUE`. The type is an alias of `wifi_RequestedElementIDS_t`, so
                         its array carries neither a count nor a terminator and the populated length
                         has to be agreed outside this interface; `requestedElementIDS` above carries
                         the plain element IDs. */
-    BOOL channelReportPresent; /**< `TRUE` if `channelReport` names the channels to
+    BOOL channelReportPresent; /*!< `TRUE` if `channelReport` names the channels to
                         measure, which is what makes a `channel` of 255 meaningful. */
-    wifi_ChannelReport_t channelReport; /**< Channels to measure, valid only where
+    wifi_ChannelReport_t channelReport; /*!< Channels to measure, valid only where
                         `channelReportPresent` is `TRUE`. */
-    BOOL vendorSpecificPresent; /**< `TRUE` if `vendorSpecific` carries a vendor-specific
+    BOOL vendorSpecificPresent; /*!< `TRUE` if `vendorSpecific` carries a vendor-specific
                         subelement. */
-    wifi_VendorSpecific_t vendorSpecific; /**< Vendor-specific subelement, valid only where
+    wifi_VendorSpecific_t vendorSpecific; /*!< Vendor-specific subelement, valid only where
                         `vendorSpecificPresent` is `TRUE`. */
-    USHORT numRepetitions; /**< Number of times the measurement is to be repeated after the
+    USHORT numRepetitions; /*!< Number of times the measurement is to be repeated after the
                         first. Zero means measure once and do not repeat; 65535 means
                         repeat until cancelled, which is what
                         `wifi_cancelRMBeaconRequest()` stops. */
@@ -1629,35 +1629,35 @@ typedef struct
  */
 typedef struct
 {
-    UCHAR opClass; /**< Operating class the measurement was made in, which is what gives
+    UCHAR opClass; /*!< Operating class the measurement was made in, which is what gives
                         `channel` its band and width. */
-    UCHAR channel; /**< Channel the reported BSS was measured on, within `opClass`. */
-    ULLONG startTime; /**< Value of the measuring STA's TSF timer when the measurement
+    UCHAR channel; /*!< Channel the reported BSS was measured on, within `opClass`. */
+    ULLONG startTime; /*!< Value of the measuring STA's TSF timer when the measurement
                         started. An 8-octet TSF value, so it is comparable only against
                         other timestamps from the same STA. */
-    USHORT duration; /**< Length of the measurement, in time units of 1024 microseconds. */
-    UCHAR frameInfo; /**< Reported Frame Information field, carrying the PHY type of the
+    USHORT duration; /*!< Length of the measurement, in time units of 1024 microseconds. */
+    UCHAR frameInfo; /*!< Reported Frame Information field, carrying the PHY type of the
                         reported frame and whether it was a beacon, probe response or
                         measurement pilot. */
-    UCHAR rcpi; /**< Received Channel Power Indicator for the reported frame, as the 802.11
+    UCHAR rcpi; /*!< Received Channel Power Indicator for the reported frame, as the 802.11
                         RCPI encoding: an unsigned value in 0.5dBm steps from -110dBm,
                         rather than a signed dBm figure. */
-    UCHAR rsni; /**< Received Signal to Noise Indicator for the reported frame, as the
+    UCHAR rsni; /*!< Received Signal to Noise Indicator for the reported frame, as the
                         802.11 RSNI encoding: an unsigned value in 0.5dB steps from
                         -10dB. */
-    bssid_t bssid; /**< Address of the BSS this report describes, as the six raw octets of `bssid_t`
+    bssid_t bssid; /*!< Address of the BSS this report describes, as the six raw octets of `bssid_t`
                         rather than text. It is the measured BSS rather than the one that requested
                         the measurement. */
-    UCHAR antenna; /**< Antenna ID the measurement was taken on. Zero means the antenna is
+    UCHAR antenna; /*!< Antenna ID the measurement was taken on. Zero means the antenna is
                         unknown or not reported. */
-    UINT tsf; /**< TSF value of the reported BSS at the time of measurement. Held in a
+    UINT tsf; /*!< TSF value of the reported BSS at the time of measurement. Held in a
                         `UINT`, so it carries the lower half of an 8-octet TSF rather than
                         the whole of one, unlike `startTime`. */
-    BOOL wideBandWidthChannelPresent; /**< `TRUE` if `wideBandwidthChannel` carries wide
+    BOOL wideBandWidthChannelPresent; /*!< `TRUE` if `wideBandwidthChannel` carries wide
                         bandwidth channel information for the reported BSS. */
-    wifi_WideBWChannel_t wideBandwidthChannel; /**< Wide bandwidth channel information,
+    wifi_WideBWChannel_t wideBandwidthChannel; /*!< Wide bandwidth channel information,
                         valid only where `wideBandWidthChannelPresent` is `TRUE`. */
-    USHORT numRepetitions; /**< Number of repetitions remaining for the measurement this
+    USHORT numRepetitions; /*!< Number of repetitions remaining for the measurement this
                         report answers, echoing the `numRepetitions` of the
                         `wifi_BeaconRequest_t` that started it. */
 } wifi_BeaconReport_t;
@@ -2350,7 +2350,7 @@ typedef unsigned int wifi_steer_matching_condition_t;
  */
 typedef struct
 {
-    CHAR *module; /**< Name of the module that raised the steering trigger. The member is a bare
+    CHAR *module; /*!< Name of the module that raised the steering trigger. The member is a bare
                        `CHAR *`: this interface states neither the representation, whether the bytes
                        are `NUL`-terminated, how many of them are readable, which side owns the
                        storage nor how long it stays valid. A handler reached through
@@ -2358,21 +2358,21 @@ typedef struct
                        function over the pointer, must not free it, and cannot bound a copy of the
                        name from this interface - it has to take the length from the platform
                        implementer. */
-    mac_address_t sta_mac; /**< Address of the station being steered, as the six raw octets of
+    mac_address_t sta_mac; /*!< Address of the station being steered, as the six raw octets of
                                 `mac_address_t` rather than text. `src_bss` and `dst_bss` below are
                                 the BSSs it is steered from and to. */
-    mac_address_t src_bss; /**< Address of the BSS the station is being steered away from, in the
+    mac_address_t src_bss; /*!< Address of the BSS the station is being steered away from, in the
                                 same six raw octets. This interface does not state what the member
                                 holds for a pre-association steer, where there is no serving BSS. */
-    mac_address_t dst_bss; /**< Address of the BSS the station is being steered towards, in the same
+    mac_address_t dst_bss; /*!< Address of the BSS the station is being steered towards, in the same
                                 six raw octets. This interface does not state what the member holds
                                 where the trigger names no target. */
-    wifi_steer_type_t type; /**< Which steering action was triggered, as one of the
+    wifi_steer_type_t type; /*!< Which steering action was triggered, as one of the
                                  `wifi_steer_type_t` enumerators - probe or association blocking
                                  before association, and 802.11v or kick-MAC steering of an idle or
                                  active station afterwards. That enumeration assigns no values, so a
                                  caller must compare against the enumerators. */
-    wifi_steer_matching_condition_t cond; /**< Condition that matched to raise the steering trigger.
+    wifi_steer_matching_condition_t cond; /*!< Condition that matched to raise the steering trigger.
                                                `wifi_steer_matching_condition_t` is a typedef of
                                                `unsigned int` and this interface enumerates no
                                                values for it, so a caller cannot decide from this

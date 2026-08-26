@@ -37,20 +37,21 @@ extern "C"{
  * call reports the master on/off state only; it reports none of those
  * thresholds and none of the AP pairs the feature operates over.
  *
- * Requires a completed `wifi_init()`; not meeting the runtime requirements
- * likely results in undefined behaviour (`docs/pages/halSpec.md`, Component
- * Runtime Execution Requirements).
- *
- * On success `*enable` holds the current state. On failure `*enable` must be
- * treated as undefined; the single failure code this API defines does not
- * distinguish causes, so a caller should report band steering as unavailable
- * rather than act on the value.
- *
  * @param[out] enable Caller-supplied `BOOL` that receives `TRUE` when band
  *                    steering is enabled and `FALSE` when it is disabled. The
  *                    caller owns the storage (`docs/pages/halSpec.md`, Memory
  *                    Model); the result of passing `NULL` is not specified by
  *                    this interface.
+ *
+ * @pre `wifi_init()` must have completed successfully; see
+ *      `Initialization and Startup` in `docs/pages/halSpec.md`. This interface
+ *      does not specify the outcome of a call made beforehand: neither the
+ *      status code nor the effect of the call is established, so a caller must
+ *      not rely on either.
+ * @post On success `*enable` holds the current state. On failure `*enable`
+ *       must be treated as undefined; the single failure code this API defines
+ *       does not distinguish causes, so a caller should report band steering
+ *       as unavailable rather than act on the value.
  *
  * @returns The status of the operation.
  * @retval WIFI_HAL_SUCCESS If the state was read.
@@ -74,15 +75,16 @@ INT wifi_getBandSteeringEnable(BOOL *enable);
  * `wifi_setBandSteeringApGroup()`. While disabled, a client stays on the radio
  * it associated with and those thresholds have no effect.
  *
- * Requires a completed `wifi_init()`; not meeting the runtime requirements
- * likely results in undefined behaviour (`docs/pages/halSpec.md`, Component
- * Runtime Execution Requirements).
- *
- * On success the new value is in effect. On failure this interface does not
- * state whether the value was applied, so a caller should read it back with
- * `wifi_getBandSteeringEnable()` before relying on it.
- *
  * @param[in] enable `TRUE` to enable band steering, `FALSE` to disable it.
+ *
+ * @pre `wifi_init()` must have completed successfully; see
+ *      `Initialization and Startup` in `docs/pages/halSpec.md`. This interface
+ *      does not specify the outcome of a call made beforehand: neither the
+ *      status code nor the effect of the call is established, so a caller must
+ *      not rely on either.
+ * @post On success the new value is in effect. On failure this interface does
+ *       not state whether the value was applied, so a caller should read it
+ *       back with `wifi_getBandSteeringEnable()` before relying on it.
  *
  * @returns The status of the operation.
  * @retval WIFI_HAL_SUCCESS If the state was applied.
@@ -109,17 +111,6 @@ INT wifi_setBandSteeringEnable(BOOL enable);
  * `wifi_setBandSteeringApGroup()` accepts: one-based AP index pairs,
  * `"$index_2.4G,$index_5G;..."`, for example `"1,2;3,4;7,8"`.
  *
- * Requires a completed `wifi_init()`; not meeting the runtime requirements
- * likely results in undefined behaviour (`docs/pages/halSpec.md`, Component
- * Runtime Execution Requirements).
- *
- * On success `output_ApGroup` holds the value in that form. This interface
- * does not state whether it is NUL-terminated or how its length is conveyed,
- * so a caller must not assume either and must bound every read by the size it
- * allocated. On failure its contents must be treated as undefined; the single
- * failure code this API defines does not separate an unconfigured group from a
- * read failure, so a caller should not parse the buffer.
- *
  * @param[out] output_ApGroup Caller-allocated buffer that receives the group
  *                            string, on the representation terms the
  *                            description above states: this interface does not
@@ -127,6 +118,19 @@ INT wifi_setBandSteeringEnable(BOOL enable);
  *                            must be bounded by the size the caller allocated.
  *                            The caller allocates and owns it
  *                            (`docs/pages/halSpec.md`, Memory Model).
+ *
+ * @pre `wifi_init()` must have completed successfully; see
+ *      `Initialization and Startup` in `docs/pages/halSpec.md`. This interface
+ *      does not specify the outcome of a call made beforehand: neither the
+ *      status code nor the effect of the call is established, so a caller must
+ *      not rely on either.
+ * @post On success `output_ApGroup` holds the value in that form. This
+ *       interface does not state whether it is NUL-terminated or how its
+ *       length is conveyed, so a caller must not assume either and must bound
+ *       every read by the size it allocated. On failure its contents must be
+ *       treated as undefined; the single failure code this API defines does
+ *       not separate an unconfigured group from a read failure, so a caller
+ *       should not parse the buffer.
  *
  * @returns The status of the operation.
  * @retval WIFI_HAL_SUCCESS If the group was read.
@@ -159,14 +163,6 @@ INT wifi_getBandSteeringApGroup(char *output_ApGroup);
  * APs, `3,4` the XH network APs and `7,8` the LnF network APs. At least one
  * pair must be present.
  *
- * Requires a completed `wifi_init()`; not meeting the runtime requirements
- * likely results in undefined behaviour (`docs/pages/halSpec.md`, Component
- * Runtime Execution Requirements).
- *
- * On success the new value is in effect. On failure this interface does not
- * state whether the value was applied, so a caller should read it back with
- * `wifi_getBandSteeringApGroup()` before relying on it.
- *
  * @param[in] ApGroup Caller-allocated group string in the form above, holding
  *                    at least one pair. The caller passes NUL-terminated text,
  *                    because this interface carries no length parameter for
@@ -174,6 +170,15 @@ INT wifi_getBandSteeringApGroup(char *output_ApGroup);
  *                    caller owns the buffer (`docs/pages/halSpec.md`, Memory
  *                    Model) and must keep it valid for the duration of the
  *                    call.
+ *
+ * @pre `wifi_init()` must have completed successfully; see
+ *      `Initialization and Startup` in `docs/pages/halSpec.md`. This interface
+ *      does not specify the outcome of a call made beforehand: neither the
+ *      status code nor the effect of the call is established, so a caller must
+ *      not rely on either.
+ * @post On success the new value is in effect. On failure this interface does
+ *       not state whether the value was applied, so a caller should read it
+ *       back with `wifi_getBandSteeringApGroup()` before relying on it.
  *
  * @returns The status of the operation.
  * @retval RETURN_OK  If the group was applied.
@@ -207,15 +212,6 @@ INT wifi_setBandSteeringApGroup(char *ApGroup);
  * thresholds when deciding whether a client should be moved off the radio
  * named by `radioIndex`.
  *
- * Requires a completed `wifi_init()`; not meeting the runtime requirements
- * likely results in undefined behaviour (`docs/pages/halSpec.md`, Component
- * Runtime Execution Requirements).
- *
- * On success `*pBuThreshold` holds the configured threshold. On failure
- * `*pBuThreshold` must be treated as undefined; the single failure code this
- * API defines does not distinguish causes, so a caller should report the
- * band-utilization threshold as unavailable rather than act on the value.
- *
  * @param[in] radioIndex Index of the Wi-Fi radio. `wifi_hal_generic.h` defines
  *                       `RADIO_INDEX_1` to `RADIO_INDEX_3` and bounds the
  *                       count with `MAX_NUM_RADIOS`; an index outside the
@@ -226,6 +222,17 @@ INT wifi_setBandSteeringApGroup(char *ApGroup);
  *                          nor the range of the value, so a caller must not
  *                          read it as a percentage or as any other particular
  *                          scale.
+ *
+ * @pre `wifi_init()` must have completed successfully; see
+ *      `Initialization and Startup` in `docs/pages/halSpec.md`. This interface
+ *      does not specify the outcome of a call made beforehand: neither the
+ *      status code nor the effect of the call is established, so a caller must
+ *      not rely on either.
+ * @post On success `*pBuThreshold` holds the configured threshold. On failure
+ *       `*pBuThreshold` must be treated as undefined; the single failure code
+ *       this API defines does not distinguish causes, so a caller should
+ *       report the band-utilization threshold as unavailable rather than act
+ *       on the value.
  *
  * @returns The status of the operation.
  * @retval WIFI_HAL_SUCCESS If the threshold was read.
@@ -249,14 +256,6 @@ INT wifi_getBandSteeringBandUtilizationThreshold(INT radioIndex, INT *pBuThresho
  * to a lighter load. The value takes effect only while band steering is
  * enabled.
  *
- * Requires a completed `wifi_init()`; not meeting the runtime requirements
- * likely results in undefined behaviour (`docs/pages/halSpec.md`, Component
- * Runtime Execution Requirements).
- *
- * On success the new value is in effect. On failure this interface does not
- * state whether the value was applied, so a caller should read it back with
- * `wifi_getBandSteeringBandUtilizationThreshold()` before relying on it.
- *
  * @param[in] radioIndex Index of the Wi-Fi radio. `wifi_hal_generic.h` defines
  *                       `RADIO_INDEX_1` to `RADIO_INDEX_3` and bounds the
  *                       count with `MAX_NUM_RADIOS`; an index outside the
@@ -267,6 +266,16 @@ INT wifi_getBandSteeringBandUtilizationThreshold(INT radioIndex, INT *pBuThresho
  *                        cannot tell a rejected value from any other failure
  *                        and must take the accepted range from the platform it
  *                        targets.
+ *
+ * @pre `wifi_init()` must have completed successfully; see
+ *      `Initialization and Startup` in `docs/pages/halSpec.md`. This interface
+ *      does not specify the outcome of a call made beforehand: neither the
+ *      status code nor the effect of the call is established, so a caller must
+ *      not rely on either.
+ * @post On success the new value is in effect. On failure this interface does
+ *       not state whether the value was applied, so a caller should read it
+ *       back with `wifi_getBandSteeringBandUtilizationThreshold()` before
+ *       relying on it.
  *
  * @returns The status of the operation.
  * @retval WIFI_HAL_SUCCESS If the threshold was applied.
@@ -290,15 +299,6 @@ INT wifi_setBandSteeringBandUtilizationThreshold(INT radioIndex, INT buThreshold
  * `wifi_setBandSteeringRSSIThreshold()` applies it in, which differ between
  * the 2.4GHz and 5GHz bands.
  *
- * Requires a completed `wifi_init()`; not meeting the runtime requirements
- * likely results in undefined behaviour (`docs/pages/halSpec.md`, Component
- * Runtime Execution Requirements).
- *
- * On success `*pRssiThreshold` holds the configured threshold. On failure
- * `*pRssiThreshold` must be treated as undefined; the single failure code this
- * API defines does not distinguish causes, so a caller should report the RSSI
- * threshold as unavailable rather than act on the value.
- *
  * @param[in] radioIndex Index of the Wi-Fi radio. `wifi_hal_generic.h` defines
  *                       `RADIO_INDEX_1` to `RADIO_INDEX_3` and bounds the
  *                       count with `MAX_NUM_RADIOS`; an index outside the
@@ -309,6 +309,17 @@ INT wifi_setBandSteeringBandUtilizationThreshold(INT radioIndex, INT buThreshold
  *                            state the unit of the value, so a caller must not
  *                            read it as dBm without confirming that against
  *                            the platform it targets.
+ *
+ * @pre `wifi_init()` must have completed successfully; see
+ *      `Initialization and Startup` in `docs/pages/halSpec.md`. This interface
+ *      does not specify the outcome of a call made beforehand: neither the
+ *      status code nor the effect of the call is established, so a caller must
+ *      not rely on either.
+ * @post On success `*pRssiThreshold` holds the configured threshold. On
+ *       failure `*pRssiThreshold` must be treated as undefined; the single
+ *       failure code this API defines does not distinguish causes, so a caller
+ *       should report the RSSI threshold as unavailable rather than act on the
+ *       value.
  *
  * @returns The status of the operation.
  * @retval WIFI_HAL_SUCCESS If the threshold was read.
@@ -333,14 +344,6 @@ INT wifi_getBandSteeringRSSIThreshold(INT radioIndex, INT *pRssiThreshold);
  * steered to 5GHz. A caller therefore sets the two radios independently rather
  * than sharing one value between them.
  *
- * Requires a completed `wifi_init()`; not meeting the runtime requirements
- * likely results in undefined behaviour (`docs/pages/halSpec.md`, Component
- * Runtime Execution Requirements).
- *
- * On success the new value is in effect. On failure this interface does not
- * state whether the value was applied, so a caller should read it back with
- * `wifi_getBandSteeringRSSIThreshold()` before relying on it.
- *
  * @param[in] radioIndex Index of the Wi-Fi radio. `wifi_hal_generic.h` defines
  *                       `RADIO_INDEX_1` to `RADIO_INDEX_3` and bounds the
  *                       count with `MAX_NUM_RADIOS`; an index outside the
@@ -350,6 +353,15 @@ INT wifi_getBandSteeringRSSIThreshold(INT radioIndex, INT *pRssiThreshold);
  *                          band `radioIndex` names. This interface states
  *                          neither the unit nor the accepted range, so a
  *                          caller must take both from the platform it targets.
+ *
+ * @pre `wifi_init()` must have completed successfully; see
+ *      `Initialization and Startup` in `docs/pages/halSpec.md`. This interface
+ *      does not specify the outcome of a call made beforehand: neither the
+ *      status code nor the effect of the call is established, so a caller must
+ *      not rely on either.
+ * @post On success the new value is in effect. On failure this interface does
+ *       not state whether the value was applied, so a caller should read it
+ *       back with `wifi_getBandSteeringRSSIThreshold()` before relying on it.
  *
  * @returns The status of the operation.
  * @retval WIFI_HAL_SUCCESS If the threshold was applied.
@@ -371,15 +383,6 @@ INT wifi_setBandSteeringRSSIThreshold(INT radioIndex, INT rssiThreshold);
  * rather than on signal strength alone, which matters for a client that
  * reports a strong signal but negotiates a low rate.
  *
- * Requires a completed `wifi_init()`; not meeting the runtime requirements
- * likely results in undefined behaviour (`docs/pages/halSpec.md`, Component
- * Runtime Execution Requirements).
- *
- * On success `*pPrThreshold` holds the configured threshold. On failure
- * `*pPrThreshold` must be treated as undefined; the single failure code this
- * API defines does not distinguish causes, so a caller should report the
- * PHY-rate threshold as unavailable rather than act on the value.
- *
  * @param[in] radioIndex Index of the Wi-Fi radio. `wifi_hal_generic.h` defines
  *                       `RADIO_INDEX_1` to `RADIO_INDEX_3` and bounds the
  *                       count with `MAX_NUM_RADIOS`; an index outside the
@@ -390,6 +393,17 @@ INT wifi_setBandSteeringRSSIThreshold(INT radioIndex, INT rssiThreshold);
  *                          of the value, so a caller must not read it as
  *                          Mbit/s without confirming that against the platform
  *                          it targets.
+ *
+ * @pre `wifi_init()` must have completed successfully; see
+ *      `Initialization and Startup` in `docs/pages/halSpec.md`. This interface
+ *      does not specify the outcome of a call made beforehand: neither the
+ *      status code nor the effect of the call is established, so a caller must
+ *      not rely on either.
+ * @post On success `*pPrThreshold` holds the configured threshold. On failure
+ *       `*pPrThreshold` must be treated as undefined; the single failure code
+ *       this API defines does not distinguish causes, so a caller should
+ *       report the PHY-rate threshold as unavailable rather than act on the
+ *       value.
  *
  * @returns The status of the operation.
  * @retval WIFI_HAL_SUCCESS If the threshold was read.
@@ -411,14 +425,6 @@ INT wifi_getBandSteeringPhyRateThreshold(INT radioIndex, INT *pPrThreshold);
  * left where it is; lowering it makes steering leave slower clients alone. The
  * value takes effect only while band steering is enabled.
  *
- * Requires a completed `wifi_init()`; not meeting the runtime requirements
- * likely results in undefined behaviour (`docs/pages/halSpec.md`, Component
- * Runtime Execution Requirements).
- *
- * On success the new value is in effect. On failure this interface does not
- * state whether the value was applied, so a caller should read it back with
- * `wifi_getBandSteeringPhyRateThreshold()` before relying on it.
- *
  * @param[in] radioIndex Index of the Wi-Fi radio. `wifi_hal_generic.h` defines
  *                       `RADIO_INDEX_1` to `RADIO_INDEX_3` and bounds the
  *                       count with `MAX_NUM_RADIOS`; an index outside the
@@ -427,6 +433,16 @@ INT wifi_getBandSteeringPhyRateThreshold(INT radioIndex, INT *pPrThreshold);
  * @param[in] prThreshold Threshold to apply. This interface states neither the
  *                        unit nor the accepted range of the value, so a caller
  *                        must take both from the platform it targets.
+ *
+ * @pre `wifi_init()` must have completed successfully; see
+ *      `Initialization and Startup` in `docs/pages/halSpec.md`. This interface
+ *      does not specify the outcome of a call made beforehand: neither the
+ *      status code nor the effect of the call is established, so a caller must
+ *      not rely on either.
+ * @post On success the new value is in effect. On failure this interface does
+ *       not state whether the value was applied, so a caller should read it
+ *       back with `wifi_getBandSteeringPhyRateThreshold()` before relying on
+ *       it.
  *
  * @returns The status of the operation.
  * @retval WIFI_HAL_SUCCESS If the threshold was applied.
@@ -449,16 +465,6 @@ INT wifi_setBandSteeringPhyRateThreshold(INT radioIndex, INT prThreshold);
  * when the radio is above the band-utilization threshold, where steering is
  * willing to act sooner.
  *
- * Requires a completed `wifi_init()`; not meeting the runtime requirements
- * likely results in undefined behaviour (`docs/pages/halSpec.md`, Component
- * Runtime Execution Requirements).
- *
- * On success `*overloadInactiveTime` holds the configured time in seconds. On
- * failure `*overloadInactiveTime` must be treated as undefined; the single
- * failure code this API defines does not distinguish causes, so a caller
- * should report the overload inactivity time as unavailable rather than act on
- * the value.
- *
  * @param[in] radioIndex Index of the Wi-Fi radio. `wifi_hal_generic.h` defines
  *                       `RADIO_INDEX_1` to `RADIO_INDEX_3` and bounds the
  *                       count with `MAX_NUM_RADIOS`; an index outside the
@@ -468,6 +474,17 @@ INT wifi_setBandSteeringPhyRateThreshold(INT radioIndex, INT prThreshold);
  *                                  configured inactivity time, in seconds.
  *                                  This interface does not state the accepted
  *                                  range of the value.
+ *
+ * @pre `wifi_init()` must have completed successfully; see
+ *      `Initialization and Startup` in `docs/pages/halSpec.md`. This interface
+ *      does not specify the outcome of a call made beforehand: neither the
+ *      status code nor the effect of the call is established, so a caller must
+ *      not rely on either.
+ * @post On success `*overloadInactiveTime` holds the configured time in
+ *       seconds. On failure `*overloadInactiveTime` must be treated as
+ *       undefined; the single failure code this API defines does not
+ *       distinguish causes, so a caller should report the overload inactivity
+ *       time as unavailable rather than act on the value.
  *
  * @returns The status of the operation.
  * @retval WIFI_HAL_SUCCESS If the time was read.
@@ -491,14 +508,6 @@ INT wifi_getBandSteeringOverloadInactiveTime(INT radioIndex, INT *overloadInacti
  * one holds a client in place until it has been quiet for longer. The value
  * takes effect only while band steering is enabled.
  *
- * Requires a completed `wifi_init()`; not meeting the runtime requirements
- * likely results in undefined behaviour (`docs/pages/halSpec.md`, Component
- * Runtime Execution Requirements).
- *
- * On success the new value is in effect. On failure this interface does not
- * state whether the value was applied, so a caller should read it back with
- * `wifi_getBandSteeringOverloadInactiveTime()` before relying on it.
- *
  * @param[in] radioIndex Index of the Wi-Fi radio. `wifi_hal_generic.h` defines
  *                       `RADIO_INDEX_1` to `RADIO_INDEX_3` and bounds the
  *                       count with `MAX_NUM_RADIOS`; an index outside the
@@ -507,6 +516,16 @@ INT wifi_getBandSteeringOverloadInactiveTime(INT radioIndex, INT *overloadInacti
  * @param[in] overloadInactiveTime Inactivity time to apply, in seconds. This
  *                                 interface does not state the accepted range
  *                                 of the value.
+ *
+ * @pre `wifi_init()` must have completed successfully; see
+ *      `Initialization and Startup` in `docs/pages/halSpec.md`. This interface
+ *      does not specify the outcome of a call made beforehand: neither the
+ *      status code nor the effect of the call is established, so a caller must
+ *      not rely on either.
+ * @post On success the new value is in effect. On failure this interface does
+ *       not state whether the value was applied, so a caller should read it
+ *       back with `wifi_getBandSteeringOverloadInactiveTime()` before relying
+ *       on it.
  *
  * @returns The status of the operation.
  * @retval WIFI_HAL_SUCCESS If the time was applied.
@@ -529,15 +548,6 @@ INT wifi_setBandSteeringOverloadInactiveTime(INT radioIndex, INT overloadInactiv
  * This is the counterpart of the overload inactivity time and applies when the
  * radio is not above the band-utilization threshold.
  *
- * Requires a completed `wifi_init()`; not meeting the runtime requirements
- * likely results in undefined behaviour (`docs/pages/halSpec.md`, Component
- * Runtime Execution Requirements).
- *
- * On success `*idleInactiveTime` holds the configured time in seconds. On
- * failure `*idleInactiveTime` must be treated as undefined; the single failure
- * code this API defines does not distinguish causes, so a caller should report
- * the idle inactivity time as unavailable rather than act on the value.
- *
  * @param[in] radioIndex Index of the Wi-Fi radio. `wifi_hal_generic.h` defines
  *                       `RADIO_INDEX_1` to `RADIO_INDEX_3` and bounds the
  *                       count with `MAX_NUM_RADIOS`; an index outside the
@@ -547,6 +557,17 @@ INT wifi_setBandSteeringOverloadInactiveTime(INT radioIndex, INT overloadInactiv
  *                              configured inactivity time, in seconds. This
  *                              interface does not state the accepted range of
  *                              the value.
+ *
+ * @pre `wifi_init()` must have completed successfully; see
+ *      `Initialization and Startup` in `docs/pages/halSpec.md`. This interface
+ *      does not specify the outcome of a call made beforehand: neither the
+ *      status code nor the effect of the call is established, so a caller must
+ *      not rely on either.
+ * @post On success `*idleInactiveTime` holds the configured time in seconds.
+ *       On failure `*idleInactiveTime` must be treated as undefined; the
+ *       single failure code this API defines does not distinguish causes, so a
+ *       caller should report the idle inactivity time as unavailable rather
+ *       than act on the value.
  *
  * @returns The status of the operation.
  * @retval WIFI_HAL_SUCCESS If the time was read.
@@ -570,14 +591,6 @@ INT wifi_getBandSteeringIdleInactiveTime(INT radioIndex, INT *idleInactiveTime);
  * steering move it sooner. The value takes effect only while band steering is
  * enabled.
  *
- * Requires a completed `wifi_init()`; not meeting the runtime requirements
- * likely results in undefined behaviour (`docs/pages/halSpec.md`, Component
- * Runtime Execution Requirements).
- *
- * On success the new value is in effect. On failure this interface does not
- * state whether the value was applied, so a caller should read it back with
- * `wifi_getBandSteeringIdleInactiveTime()` before relying on it.
- *
  * @param[in] radioIndex Index of the Wi-Fi radio. `wifi_hal_generic.h` defines
  *                       `RADIO_INDEX_1` to `RADIO_INDEX_3` and bounds the
  *                       count with `MAX_NUM_RADIOS`; an index outside the
@@ -586,6 +599,16 @@ INT wifi_getBandSteeringIdleInactiveTime(INT radioIndex, INT *idleInactiveTime);
  * @param[in] idleInactiveTime Inactivity time to apply, in seconds. This
  *                             interface does not state the accepted range of
  *                             the value.
+ *
+ * @pre `wifi_init()` must have completed successfully; see
+ *      `Initialization and Startup` in `docs/pages/halSpec.md`. This interface
+ *      does not specify the outcome of a call made beforehand: neither the
+ *      status code nor the effect of the call is established, so a caller must
+ *      not rely on either.
+ * @post On success the new value is in effect. On failure this interface does
+ *       not state whether the value was applied, so a caller should read it
+ *       back with `wifi_getBandSteeringIdleInactiveTime()` before relying on
+ *       it.
  *
  * @returns The status of the operation.
  * @retval WIFI_HAL_SUCCESS If the time was applied.
@@ -609,16 +632,6 @@ INT wifi_setBandSteeringIdleInactiveTime(INT radioIndex, INT idleInactiveTime);
  * walks the store by calling this function with successive `record_index`
  * values.
  *
- * Requires a completed `wifi_init()`; not meeting the runtime requirements
- * likely results in undefined behaviour (`docs/pages/halSpec.md`, Component
- * Runtime Execution Requirements).
- *
- * On success every output parameter has been written for the record named by
- * `record_index`. On failure all five must be treated as undefined: the single
- * failure code covers a read error, an index past the end of the store and the
- * case where no steering has occurred, so a caller cannot tell them apart and
- * must stop walking rather than skip the index and continue.
- *
  * @param[in] record_index Index of the record to read. This interface states
  *                         neither the number of records the implementation
  *                         keeps nor the base of the index, so a caller
@@ -641,6 +654,18 @@ INT wifi_setBandSteeringIdleInactiveTime(INT radioIndex, INT idleInactiveTime);
  * @param[out] pSteeringReason Caller-supplied `INT` that receives the reason
  *                             the client was steered. This interface does not
  *                             enumerate the reason values.
+ *
+ * @pre `wifi_init()` must have completed successfully; see
+ *      `Initialization and Startup` in `docs/pages/halSpec.md`. This interface
+ *      does not specify the outcome of a call made beforehand: neither the
+ *      status code nor the effect of the call is established, so a caller must
+ *      not rely on either.
+ * @post On success every output parameter has been written for the record
+ *       named by `record_index`. On failure all five must be treated as
+ *       undefined: the single failure code covers a read error, an index past
+ *       the end of the store and the case where no steering has occurred, so a
+ *       caller cannot tell them apart and must stop walking rather than skip
+ *       the index and continue.
  *
  * @returns The status of the operation.
  * @retval WIFI_HAL_SUCCESS If the record was read.
@@ -675,15 +700,6 @@ INT wifi_getBandSteeringLog(INT record_index, ULONG *pSteeringTime, CHAR *pClien
  * `MaxAssociatedDevices` is 0 the default should be 50. A threshold of 0 means
  * no specific limit and disables the watermark calculation.
  *
- * Requires a completed `wifi_init()`; not meeting the runtime requirements
- * likely results in undefined behaviour (`docs/pages/halSpec.md`, Component
- * Runtime Execution Requirements).
- *
- * On success `*output` holds the configured threshold. On failure `*output`
- * must be treated as undefined; the single failure code this API defines does
- * not distinguish causes, so a caller should report the threshold as
- * unavailable rather than act on the value.
- *
  * @param[in] apIndex Index of the Access Point the call applies to.
  *                    `wifi_hal_generic.h` defines `AP_INDEX_1` to
  *                    `AP_INDEX_24`; an index outside the configured range has
@@ -692,6 +708,16 @@ INT wifi_getBandSteeringLog(INT record_index, ULONG *pSteeringTime, CHAR *pClien
  * @param[out] output Caller-supplied `UINT` that receives the configured
  *                    `HighWatermarkThreshold`, where 0 means the watermark
  *                    calculation is disabled.
+ *
+ * @pre `wifi_init()` must have completed successfully; see
+ *      `Initialization and Startup` in `docs/pages/halSpec.md`. This interface
+ *      does not specify the outcome of a call made beforehand: neither the
+ *      status code nor the effect of the call is established, so a caller must
+ *      not rely on either.
+ * @post On success `*output` holds the configured threshold. On failure
+ *       `*output` must be treated as undefined; the single failure code this
+ *       API defines does not distinguish causes, so a caller should report the
+ *       threshold as unavailable rather than act on the value.
  *
  * @returns The status of the operation.
  * @retval RETURN_OK  If the threshold was read.
@@ -724,14 +750,6 @@ INT wifi_getApAssociatedDevicesHighWatermarkThreshold(INT apIndex, UINT *output)
  * `MaxAssociatedDevices` is 0 the default should be 50. Setting 0 means no
  * specific limit and disables the watermark calculation.
  *
- * Requires a completed `wifi_init()`; not meeting the runtime requirements
- * likely results in undefined behaviour (`docs/pages/halSpec.md`, Component
- * Runtime Execution Requirements).
- *
- * On success the new value is in effect. On failure this interface does not
- * state whether the value was applied, so a caller should read it back with
- * `wifi_getApAssociatedDevicesHighWatermarkThreshold()` before relying on it.
- *
  * @param[in] apIndex Index of the Access Point the call applies to.
  *                    `wifi_hal_generic.h` defines `AP_INDEX_1` to
  *                    `AP_INDEX_24`; an index outside the configured range has
@@ -741,6 +759,16 @@ INT wifi_getApAssociatedDevicesHighWatermarkThreshold(INT apIndex, UINT *output)
  *                      watermark calculation. This interface does not state
  *                      whether a value above `MaxAssociatedDevices` is
  *                      rejected or accepted.
+ *
+ * @pre `wifi_init()` must have completed successfully; see
+ *      `Initialization and Startup` in `docs/pages/halSpec.md`. This interface
+ *      does not specify the outcome of a call made beforehand: neither the
+ *      status code nor the effect of the call is established, so a caller must
+ *      not rely on either.
+ * @post On success the new value is in effect. On failure this interface does
+ *       not state whether the value was applied, so a caller should read it
+ *       back with `wifi_getApAssociatedDevicesHighWatermarkThreshold()` before
+ *       relying on it.
  *
  * @returns The status of the operation.
  * @retval RETURN_OK  If the threshold was applied.
@@ -772,15 +800,6 @@ INT wifi_setApAssociatedDevicesHighWatermarkThreshold(INT apIndex, UINT Threshol
  * another implementation-specific means, and is typically updated whenever the
  * Access Point receives a new association request.
  *
- * Requires a completed `wifi_init()`; not meeting the runtime requirements
- * likely results in undefined behaviour (`docs/pages/halSpec.md`, Component
- * Runtime Execution Requirements).
- *
- * On success `*output` holds the count. On failure `*output` must be treated
- * as undefined; the single failure code this API defines does not distinguish
- * causes, so a caller should report the counter as unavailable rather than act
- * on the value.
- *
  * @param[in] apIndex Index of the Access Point the call applies to.
  *                    `wifi_hal_generic.h` defines `AP_INDEX_1` to
  *                    `AP_INDEX_24`; an index outside the configured range has
@@ -789,6 +808,16 @@ INT wifi_setApAssociatedDevicesHighWatermarkThreshold(INT apIndex, UINT Threshol
  * @param[out] output Caller-supplied `UINT` that receives the number of times
  *                    the threshold has been reached. This interface does not
  *                    state what resets the counter or whether it saturates.
+ *
+ * @pre `wifi_init()` must have completed successfully; see
+ *      `Initialization and Startup` in `docs/pages/halSpec.md`. This interface
+ *      does not specify the outcome of a call made beforehand: neither the
+ *      status code nor the effect of the call is established, so a caller must
+ *      not rely on either.
+ * @post On success `*output` holds the count. On failure `*output` must be
+ *       treated as undefined; the single failure code this API defines does
+ *       not distinguish causes, so a caller should report the counter as
+ *       unavailable rather than act on the value.
  *
  * @returns The status of the operation.
  * @retval RETURN_OK  If the count was read.
@@ -818,15 +847,6 @@ INT wifi_getApAssociatedDevicesHighWatermarkThresholdReached(INT apIndex, UINT *
  * `HighWatermarkThreshold`, which is a configured reporting level rather than
  * an observed figure.
  *
- * Requires a completed `wifi_init()`; not meeting the runtime requirements
- * likely results in undefined behaviour (`docs/pages/halSpec.md`, Component
- * Runtime Execution Requirements).
- *
- * On success `*output` holds the peak count. On failure `*output` must be
- * treated as undefined; the single failure code this API defines does not
- * distinguish causes, so a caller should report the high watermark as
- * unavailable rather than act on the value.
- *
  * @param[in] apIndex Index of the Access Point the call applies to.
  *                    `wifi_hal_generic.h` defines `AP_INDEX_1` to
  *                    `AP_INDEX_24`; an index outside the configured range has
@@ -835,6 +855,16 @@ INT wifi_getApAssociatedDevicesHighWatermarkThresholdReached(INT apIndex, UINT *
  * @param[out] output Caller-supplied `UINT` that receives the peak
  *                    concurrently associated device count since the last
  *                    reset.
+ *
+ * @pre `wifi_init()` must have completed successfully; see
+ *      `Initialization and Startup` in `docs/pages/halSpec.md`. This interface
+ *      does not specify the outcome of a call made beforehand: neither the
+ *      status code nor the effect of the call is established, so a caller must
+ *      not rely on either.
+ * @post On success `*output` holds the peak count. On failure `*output` must
+ *       be treated as undefined; the single failure code this API defines does
+ *       not distinguish causes, so a caller should report the high watermark
+ *       as unavailable rather than act on the value.
  *
  * @returns The status of the operation.
  * @retval WIFI_HAL_SUCCESS If the high watermark was read.
@@ -858,16 +888,6 @@ INT wifi_getApAssociatedDevicesHighWatermark(INT apIndex, UINT *output);
  * returns, so the two are read together: the count on its own does not say
  * whether the peak is recent or dates from shortly after the last reset.
  *
- * Requires a completed `wifi_init()`; not meeting the runtime requirements
- * likely results in undefined behaviour (`docs/pages/halSpec.md`, Component
- * Runtime Execution Requirements).
- *
- * On success `*output_in_seconds` holds the timestamp in UTC seconds. On
- * failure `*output_in_seconds` must be treated as undefined; the single
- * failure code this API defines does not distinguish causes, so a caller
- * should report the high-watermark date as unavailable rather than act on the
- * value.
- *
  * @param[in] apIndex Index of the Access Point the call applies to.
  *                    `wifi_hal_generic.h` defines `AP_INDEX_1` to
  *                    `AP_INDEX_24`; an index outside the configured range has
@@ -877,6 +897,17 @@ INT wifi_getApAssociatedDevicesHighWatermark(INT apIndex, UINT *output);
  *                               the peak was reached, in UTC seconds. This
  *                               interface does not state what the value holds
  *                               where the peak has never been reached.
+ *
+ * @pre `wifi_init()` must have completed successfully; see
+ *      `Initialization and Startup` in `docs/pages/halSpec.md`. This interface
+ *      does not specify the outcome of a call made beforehand: neither the
+ *      status code nor the effect of the call is established, so a caller must
+ *      not rely on either.
+ * @post On success `*output_in_seconds` holds the timestamp in UTC seconds. On
+ *       failure `*output_in_seconds` must be treated as undefined; the single
+ *       failure code this API defines does not distinguish causes, so a caller
+ *       should report the high-watermark date as unavailable rather than act
+ *       on the value.
  *
  * @returns The status of the operation.
  * @retval WIFI_HAL_SUCCESS If the date was read.
@@ -905,14 +936,6 @@ INT wifi_getApAssociatedDevicesHighWatermarkDate(INT apIndex, ULONG *output_in_s
  * later in this header, although the parameter is declared `UCHAR` rather than
  * that enumeration.
  *
- * Requires a completed `wifi_init()`; not meeting the runtime requirements
- * likely results in undefined behaviour (`docs/pages/halSpec.md`, Component
- * Runtime Execution Requirements).
- *
- * On success the new value is in effect. On failure this interface does not
- * state whether the value was applied, so a caller should read it back with
- * `wifi_getBSSTransitionActivated()` before relying on it.
- *
  * @param[in] apIndex Index of the Access Point the call applies to.
  *                    `wifi_hal_generic.h` defines `AP_INDEX_1` to
  *                    `AP_INDEX_24`; an index outside the configured range has
@@ -923,6 +946,15 @@ INT wifi_getApAssociatedDevicesHighWatermarkDate(INT apIndex, ULONG *output_in_s
  *                     (`FT_SUPPORT_FULL`), 2 adaptive support
  *                     (`FT_SUPPORT_ADAPTIVE`). The result of passing any other
  *                     value is not specified by this interface.
+ *
+ * @pre `wifi_init()` must have completed successfully; see
+ *      `Initialization and Startup` in `docs/pages/halSpec.md`. This interface
+ *      does not specify the outcome of a call made beforehand: neither the
+ *      status code nor the effect of the call is established, so a caller must
+ *      not rely on either.
+ * @post On success the new value is in effect. On failure this interface does
+ *       not state whether the value was applied, so a caller should read it
+ *       back with `wifi_getBSSTransitionActivated()` before relying on it.
  *
  * @returns The status of the operation.
  * @retval WIFI_HAL_SUCCESS If the support level was applied.
@@ -956,15 +988,6 @@ INT wifi_setFastBSSTransitionActivated(INT apIndex, UCHAR activate);
  * `wifi_setFastBSSTransitionActivated()`, which documents it as 0 disabled, 1
  * full FT support and 2 adaptive support.
  *
- * Requires a completed `wifi_init()`; not meeting the runtime requirements
- * likely results in undefined behaviour (`docs/pages/halSpec.md`, Component
- * Runtime Execution Requirements).
- *
- * On success `*activate` holds the support level. On failure `*activate` must
- * be treated as undefined; the single failure code this API defines does not
- * distinguish causes, so a caller should report Fast BSS Transition support as
- * unavailable rather than act on the value.
- *
  * @param[in] apIndex Index of the Access Point the call applies to.
  *                    `wifi_hal_generic.h` defines `AP_INDEX_1` to
  *                    `AP_INDEX_24`; an index outside the configured range has
@@ -973,6 +996,16 @@ INT wifi_setFastBSSTransitionActivated(INT apIndex, UCHAR activate);
  * @param[out] activate Caller-supplied `BOOL` that receives the support level.
  *                      The caller owns the storage (`docs/pages/halSpec.md`,
  *                      Memory Model).
+ *
+ * @pre `wifi_init()` must have completed successfully; see
+ *      `Initialization and Startup` in `docs/pages/halSpec.md`. This interface
+ *      does not specify the outcome of a call made beforehand: neither the
+ *      status code nor the effect of the call is established, so a caller must
+ *      not rely on either.
+ * @post On success `*activate` holds the support level. On failure `*activate`
+ *       must be treated as undefined; the single failure code this API defines
+ *       does not distinguish causes, so a caller should report Fast BSS
+ *       Transition support as unavailable rather than act on the value.
  *
  * @returns The status of the operation.
  * @retval WIFI_HAL_SUCCESS If the support level was read.
@@ -1016,24 +1049,24 @@ INT wifi_getBSSTransitionActivated(INT apIndex, BOOL *activate);
  */
 typedef struct _wifi_eap_config_t
 {
-    unsigned int uiEAPOLKeyTimeout; /**< Time the authenticator waits for a
+    unsigned int uiEAPOLKeyTimeout; /*!< Time the authenticator waits for a
                                      * reply to an EAPOL key message, M1 or
                                      * M3, before resending it. */
-    unsigned int uiEAPOLKeyRetries; /**< Maximum number of times an
+    unsigned int uiEAPOLKeyRetries; /*!< Maximum number of times an
                                      * unanswered EAPOL key message is
                                      * resent before authentication is
                                      * abandoned. */
-    unsigned int uiEAPIdentityRequestTimeout; /**< Time the authenticator
+    unsigned int uiEAPIdentityRequestTimeout; /*!< Time the authenticator
                                                * waits for a reply to an EAP
                                                * Identity Request before
                                                * resending it. */
-    unsigned int uiEAPIdentityRequestRetries; /**< Maximum number of times
+    unsigned int uiEAPIdentityRequestRetries; /*!< Maximum number of times
                                                * an unanswered EAP Identity
                                                * Request is resent. */
-    unsigned int uiEAPRequestTimeout; /**< Time the authenticator waits for
+    unsigned int uiEAPRequestTimeout; /*!< Time the authenticator waits for
                                        * a reply to an EAP Request before
                                        * resending it. */
-    unsigned int uiEAPRequestRetries; /**< Maximum number of times an
+    unsigned int uiEAPRequestRetries; /*!< Maximum number of times an
                                        * unanswered EAP Request is resent. */
 } wifi_eap_config_t;
 /** @} */  //END OF GROUP WIFI_HAL_TYPES
@@ -1051,14 +1084,6 @@ typedef struct _wifi_eap_config_t
  * EAP Request, each with a timeout and a maximum retry count. Lengthening a
  * timeout or raising a retry count makes association more tolerant of a slow
  * or lossy client at the cost of a longer path to reporting failure.
- *
- * Requires a completed `wifi_init()`; not meeting the runtime requirements
- * likely results in undefined behaviour (`docs/pages/halSpec.md`, Component
- * Runtime Execution Requirements).
- *
- * On success the new value is in effect. On failure this interface does not
- * state whether the value was applied, so a caller should read it back with
- * `wifi_getEAP_Param()` before relying on it.
  *
  * @param[in] apIndex Index of the `VAP` the call applies to, declared `UINT`
  *                    here rather than the `INT` used elsewhere in this header.
@@ -1079,6 +1104,15 @@ typedef struct _wifi_eap_config_t
  *                  valid for the duration of the call. This interface does not
  *                  state whether the comparison is case sensitive, nor the
  *                  result of passing a name outside that set.
+ *
+ * @pre `wifi_init()` must have completed successfully; see
+ *      `Initialization and Startup` in `docs/pages/halSpec.md`. This interface
+ *      does not specify the outcome of a call made beforehand: neither the
+ *      status code nor the effect of the call is established, so a caller must
+ *      not rely on either.
+ * @post On success the new value is in effect. On failure this interface does
+ *       not state whether the value was applied, so a caller should read it
+ *       back with `wifi_getEAP_Param()` before relying on it.
  *
  * @returns The status of the operation.
  * @retval RETURN_OK  If the setting was applied.
@@ -1117,15 +1151,6 @@ INT wifi_setEAP_Param(UINT apIndex, UINT value, char *param);
  * the timeout and the retry count of each of the three groups held in separate
  * members.
  *
- * Requires a completed `wifi_init()`; not meeting the runtime requirements
- * likely results in undefined behaviour (`docs/pages/halSpec.md`, Component
- * Runtime Execution Requirements).
- *
- * On success every member of `*output` has been written. On failure the whole
- * structure must be treated as undefined; the single failure code this API
- * defines does not distinguish causes, so a caller should not read any member
- * of it.
- *
  * @param[in] apIndex Index of the `VAP` the call applies to, declared `UINT`
  *                    here rather than the `INT` used elsewhere in this header.
  *                    `wifi_hal_generic.h` defines `AP_INDEX_1` to
@@ -1136,6 +1161,16 @@ INT wifi_setEAP_Param(UINT apIndex, UINT value, char *param);
  *                    six settings. The caller allocates and owns it
  *                    (`docs/pages/halSpec.md`, Memory Model). This interface
  *                    does not state the unit of the three timeout members.
+ *
+ * @pre `wifi_init()` must have completed successfully; see
+ *      `Initialization and Startup` in `docs/pages/halSpec.md`. This interface
+ *      does not specify the outcome of a call made beforehand: neither the
+ *      status code nor the effect of the call is established, so a caller must
+ *      not rely on either.
+ * @post On success every member of `*output` has been written. On failure the
+ *       whole structure must be treated as undefined; the single failure code
+ *       this API defines does not distinguish causes, so a caller should not
+ *       read any member of it.
  *
  * @returns The status of the operation.
  * @retval RETURN_OK  If the settings were read.
@@ -1163,15 +1198,6 @@ INT wifi_getEAP_Param(UINT apIndex, wifi_eap_config_t *output);
  * is what allows a transition where the client cannot yet reach the target
  * over the air. See IEEE 802.11-2016 section 13.3.
  *
- * Requires a completed `wifi_init()`; not meeting the runtime requirements
- * likely results in undefined behaviour (`docs/pages/halSpec.md`, Component
- * Runtime Execution Requirements).
- *
- * On success `*activate` holds the current state. On failure `*activate` must
- * be treated as undefined; the single failure code this API defines does not
- * distinguish causes, so a caller should report FT over DS as unavailable
- * rather than act on the value.
- *
  * @param[in] apIndex Index of the Access Point the call applies to.
  *                    `wifi_hal_generic.h` defines `AP_INDEX_1` to
  *                    `AP_INDEX_24`; an index outside the configured range has
@@ -1180,6 +1206,16 @@ INT wifi_getEAP_Param(UINT apIndex, wifi_eap_config_t *output);
  * @param[out] activate Caller-supplied `BOOL` that receives `TRUE` when FT
  *                      over DS is activated. The caller owns the storage
  *                      (`docs/pages/halSpec.md`, Memory Model).
+ *
+ * @pre `wifi_init()` must have completed successfully; see
+ *      `Initialization and Startup` in `docs/pages/halSpec.md`. This interface
+ *      does not specify the outcome of a call made beforehand: neither the
+ *      status code nor the effect of the call is established, so a caller must
+ *      not rely on either.
+ * @post On success `*activate` holds the current state. On failure `*activate`
+ *       must be treated as undefined; the single failure code this API defines
+ *       does not distinguish causes, so a caller should report FT over DS as
+ *       unavailable rather than act on the value.
  *
  * @returns The status of the operation.
  * @retval WIFI_HAL_SUCCESS If the state was read.
@@ -1207,14 +1243,6 @@ INT wifi_getFTOverDSActivated(INT apIndex, BOOL *activate);
  * requires the client to reach the target over the air. See IEEE 802.11-2016
  * section 13.3.
  *
- * Requires a completed `wifi_init()`; not meeting the runtime requirements
- * likely results in undefined behaviour (`docs/pages/halSpec.md`, Component
- * Runtime Execution Requirements).
- *
- * On success the new value is in effect. On failure this interface does not
- * state whether the value was applied, so a caller should read it back with
- * `wifi_getFTOverDSActivated()` before relying on it.
- *
  * @param[in] apIndex Index of the Access Point the call applies to.
  *                    `wifi_hal_generic.h` defines `AP_INDEX_1` to
  *                    `AP_INDEX_24`; an index outside the configured range has
@@ -1225,6 +1253,15 @@ INT wifi_getFTOverDSActivated(INT apIndex, BOOL *activate);
  *                     to deactivate it. The caller owns the storage
  *                     (`docs/pages/halSpec.md`, Memory Model) and must keep it
  *                     valid for the duration of the call.
+ *
+ * @pre `wifi_init()` must have completed successfully; see
+ *      `Initialization and Startup` in `docs/pages/halSpec.md`. This interface
+ *      does not specify the outcome of a call made beforehand: neither the
+ *      status code nor the effect of the call is established, so a caller must
+ *      not rely on either.
+ * @post On success the new value is in effect. On failure this interface does
+ *       not state whether the value was applied, so a caller should read it
+ *       back with `wifi_getFTOverDSActivated()` before relying on it.
  *
  * @returns The status of the operation.
  * @retval WIFI_HAL_SUCCESS If the state was applied.
@@ -1255,14 +1292,6 @@ INT wifi_setFTOverDSActivated(INT apIndex, BOOL *activate);
  * of Access Points it can roam across without a full reassociation. See IEEE
  * 802.11-2016 section 13.3.
  *
- * Requires a completed `wifi_init()`; not meeting the runtime requirements
- * likely results in undefined behaviour (`docs/pages/halSpec.md`, Component
- * Runtime Execution Requirements).
- *
- * On success both elements of `mobilityDomain` have been written. On failure
- * both must be treated as undefined; the single failure code this API defines
- * does not distinguish causes, so a caller should not act on the array.
- *
  * @param[in] apIndex Index of the Access Point the call applies to.
  *                    `wifi_hal_generic.h` defines `AP_INDEX_1` to
  *                    `AP_INDEX_24`; an index outside the configured range has
@@ -1273,6 +1302,16 @@ INT wifi_setFTOverDSActivated(INT apIndex, BOOL *activate);
  *                            Mobility Domain Identifier. The caller allocates
  *                            and owns it (`docs/pages/halSpec.md`, Memory
  *                            Model).
+ *
+ * @pre `wifi_init()` must have completed successfully; see
+ *      `Initialization and Startup` in `docs/pages/halSpec.md`. This interface
+ *      does not specify the outcome of a call made beforehand: neither the
+ *      status code nor the effect of the call is established, so a caller must
+ *      not rely on either.
+ * @post On success both elements of `mobilityDomain` have been written. On
+ *       failure both must be treated as undefined; the single failure code
+ *       this API defines does not distinguish causes, so a caller should not
+ *       act on the array.
  *
  * @returns The status of the operation.
  * @retval WIFI_HAL_SUCCESS If the identifier was read.
@@ -1303,14 +1342,6 @@ INT wifi_getFTMobilityDomainID(INT apIndex, UCHAR mobilityDomain[2]);
  * support the identifier is still set but is not sent in beacon frames. See
  * IEEE 802.11-2016 section 13.3.
  *
- * Requires a completed `wifi_init()`; not meeting the runtime requirements
- * likely results in undefined behaviour (`docs/pages/halSpec.md`, Component
- * Runtime Execution Requirements).
- *
- * On success the new value is in effect. On failure this interface does not
- * state whether the value was applied, so a caller should read it back with
- * `wifi_getFTMobilityDomainID()` before relying on it.
- *
  * @param[in] apIndex Index of the Access Point the call applies to.
  *                    `wifi_hal_generic.h` defines `AP_INDEX_1` to
  *                    `AP_INDEX_24`; an index outside the configured range has
@@ -1321,6 +1352,15 @@ INT wifi_getFTMobilityDomainID(INT apIndex, UCHAR mobilityDomain[2]);
  *                           Domain Identifier to apply. The caller owns it
  *                           (`docs/pages/halSpec.md`, Memory Model) and must
  *                           keep it valid for the duration of the call.
+ *
+ * @pre `wifi_init()` must have completed successfully; see
+ *      `Initialization and Startup` in `docs/pages/halSpec.md`. This interface
+ *      does not specify the outcome of a call made beforehand: neither the
+ *      status code nor the effect of the call is established, so a caller must
+ *      not rely on either.
+ * @post On success the new value is in effect. On failure this interface does
+ *       not state whether the value was applied, so a caller should read it
+ *       back with `wifi_getFTMobilityDomainID()` before relying on it.
  *
  * @returns The status of the operation.
  * @retval WIFI_HAL_SUCCESS If the identifier was applied.
@@ -1350,15 +1390,6 @@ INT wifi_setFTMobilityDomainID(INT apIndex, UCHAR mobilityDomain[2]);
  * can carry it while it is still associated with the current one. See IEEE
  * 802.11-2016 section 13.3.
  *
- * Requires a completed `wifi_init()`; not meeting the runtime requirements
- * likely results in undefined behaviour (`docs/pages/halSpec.md`, Component
- * Runtime Execution Requirements).
- *
- * On success `*supported` holds the current state. On failure `*supported`
- * must be treated as undefined; the single failure code this API defines does
- * not distinguish causes, so a caller should report resource request support
- * as unavailable rather than act on the value.
- *
  * @param[in] apIndex Index of the Access Point the call applies to.
  *                    `wifi_hal_generic.h` defines `AP_INDEX_1` to
  *                    `AP_INDEX_24`; an index outside the configured range has
@@ -1368,6 +1399,17 @@ INT wifi_setFTMobilityDomainID(INT apIndex, UCHAR mobilityDomain[2]);
  *                       resource request protocol is supported. The caller
  *                       owns the storage (`docs/pages/halSpec.md`, Memory
  *                       Model).
+ *
+ * @pre `wifi_init()` must have completed successfully; see
+ *      `Initialization and Startup` in `docs/pages/halSpec.md`. This interface
+ *      does not specify the outcome of a call made beforehand: neither the
+ *      status code nor the effect of the call is established, so a caller must
+ *      not rely on either.
+ * @post On success `*supported` holds the current state. On failure
+ *       `*supported` must be treated as undefined; the single failure code
+ *       this API defines does not distinguish causes, so a caller should
+ *       report resource request support as unavailable rather than act on the
+ *       value.
  *
  * @returns The status of the operation.
  * @retval WIFI_HAL_SUCCESS If the state was read.
@@ -1394,14 +1436,6 @@ INT wifi_getFTResourceRequestSupported(INT apIndex, BOOL *supported);
  * before transitioning to it; withdrawing it requires the client to transition
  * without that assurance. See IEEE 802.11-2016 section 13.3.
  *
- * Requires a completed `wifi_init()`; not meeting the runtime requirements
- * likely results in undefined behaviour (`docs/pages/halSpec.md`, Component
- * Runtime Execution Requirements).
- *
- * On success the new value is in effect. On failure this interface does not
- * state whether the value was applied, so a caller should read it back with
- * `wifi_getFTResourceRequestSupported()` before relying on it.
- *
  * @param[in] apIndex Index of the Access Point the call applies to.
  *                    `wifi_hal_generic.h` defines `AP_INDEX_1` to
  *                    `AP_INDEX_24`; an index outside the configured range has
@@ -1412,6 +1446,15 @@ INT wifi_getFTResourceRequestSupported(INT apIndex, BOOL *supported);
  *                      withdraw it. The caller owns the storage
  *                      (`docs/pages/halSpec.md`, Memory Model) and must keep
  *                      it valid for the duration of the call.
+ *
+ * @pre `wifi_init()` must have completed successfully; see
+ *      `Initialization and Startup` in `docs/pages/halSpec.md`. This interface
+ *      does not specify the outcome of a call made beforehand: neither the
+ *      status code nor the effect of the call is established, so a caller must
+ *      not rely on either.
+ * @post On success the new value is in effect. On failure this interface does
+ *       not state whether the value was applied, so a caller should read it
+ *       back with `wifi_getFTResourceRequestSupported()` before relying on it.
  *
  * @returns The status of the operation.
  * @retval WIFI_HAL_SUCCESS If the state was applied.
@@ -1443,15 +1486,6 @@ INT wifi_setFTResourceRequestSupported(INT apIndex, BOOL *supported);
  * transition, so the value bounds how long roaming stays cheap for a given
  * client. See IEEE 802.11-2016 section 13.4.2.
  *
- * Requires a completed `wifi_init()`; not meeting the runtime requirements
- * likely results in undefined behaviour (`docs/pages/halSpec.md`, Component
- * Runtime Execution Requirements).
- *
- * On success `*lifetime` holds the configured lifetime. On failure `*lifetime`
- * must be treated as undefined; the single failure code this API defines does
- * not distinguish causes, so a caller should report the R0 key lifetime as
- * unavailable rather than act on the value.
- *
  * @param[in] apIndex Index of the Access Point the call applies to.
  *                    `wifi_hal_generic.h` defines `AP_INDEX_1` to
  *                    `AP_INDEX_24`; an index outside the configured range has
@@ -1461,6 +1495,16 @@ INT wifi_setFTResourceRequestSupported(INT apIndex, BOOL *supported);
  *                      lifetime. The caller owns the storage
  *                      (`docs/pages/halSpec.md`, Memory Model). This interface
  *                      does not state the unit of the value.
+ *
+ * @pre `wifi_init()` must have completed successfully; see
+ *      `Initialization and Startup` in `docs/pages/halSpec.md`. This interface
+ *      does not specify the outcome of a call made beforehand: neither the
+ *      status code nor the effect of the call is established, so a caller must
+ *      not rely on either.
+ * @post On success `*lifetime` holds the configured lifetime. On failure
+ *       `*lifetime` must be treated as undefined; the single failure code this
+ *       API defines does not distinguish causes, so a caller should report the
+ *       R0 key lifetime as unavailable rather than act on the value.
  *
  * @returns The status of the operation.
  * @retval WIFI_HAL_SUCCESS If the lifetime was read.
@@ -1488,14 +1532,6 @@ INT wifi_getFTR0KeyLifetime(INT apIndex, UINT *lifetime);
  * shorter one forces a full authentication sooner. See IEEE 802.11-2016
  * section 13.4.2.
  *
- * Requires a completed `wifi_init()`; not meeting the runtime requirements
- * likely results in undefined behaviour (`docs/pages/halSpec.md`, Component
- * Runtime Execution Requirements).
- *
- * On success the new value is in effect. On failure this interface does not
- * state whether the value was applied, so a caller should read it back with
- * `wifi_getFTR0KeyLifetime()` before relying on it.
- *
  * @param[in] apIndex Index of the Access Point the call applies to.
  *                    `wifi_hal_generic.h` defines `AP_INDEX_1` to
  *                    `AP_INDEX_24`; an index outside the configured range has
@@ -1507,6 +1543,15 @@ INT wifi_getFTR0KeyLifetime(INT apIndex, UINT *lifetime);
  *                     valid for the duration of the call. This interface
  *                     states neither the unit nor the accepted range of the
  *                     value.
+ *
+ * @pre `wifi_init()` must have completed successfully; see
+ *      `Initialization and Startup` in `docs/pages/halSpec.md`. This interface
+ *      does not specify the outcome of a call made beforehand: neither the
+ *      status code nor the effect of the call is established, so a caller must
+ *      not rely on either.
+ * @post On success the new value is in effect. On failure this interface does
+ *       not state whether the value was applied, so a caller should read it
+ *       back with `wifi_getFTR0KeyLifetime()` before relying on it.
  *
  * @returns The status of the operation.
  * @retval WIFI_HAL_SUCCESS If the lifetime was applied.
@@ -1540,14 +1585,6 @@ INT wifi_setFTR0KeyLifetime(INT apIndex, UINT *lifetime);
  * hierarchy a target Access Point belongs to, and so whether a key it already
  * holds can be reused there. See IEEE 802.11-2016 section 13.3.
  *
- * Requires a completed `wifi_init()`; not meeting the runtime requirements
- * likely results in undefined behaviour (`docs/pages/halSpec.md`, Component
- * Runtime Execution Requirements).
- *
- * On success `keyHolderID` holds the identifier. On failure its contents must
- * be treated as undefined; the single failure code this API defines does not
- * distinguish causes, so a caller should not parse the buffer.
- *
  * @param[in] apIndex Index of the Access Point the call applies to.
  *                    `wifi_hal_generic.h` defines `AP_INDEX_1` to
  *                    `AP_INDEX_24`; an index outside the configured range has
@@ -1556,6 +1593,15 @@ INT wifi_setFTR0KeyLifetime(INT apIndex, UINT *lifetime);
  * @param[out] keyHolderID Caller-allocated buffer that receives the R0 Key
  *                         Holder identifier. The caller allocates and owns it
  *                         (`docs/pages/halSpec.md`, Memory Model).
+ *
+ * @pre `wifi_init()` must have completed successfully; see
+ *      `Initialization and Startup` in `docs/pages/halSpec.md`. This interface
+ *      does not specify the outcome of a call made beforehand: neither the
+ *      status code nor the effect of the call is established, so a caller must
+ *      not rely on either.
+ * @post On success `keyHolderID` holds the identifier. On failure its contents
+ *       must be treated as undefined; the single failure code this API defines
+ *       does not distinguish causes, so a caller should not parse the buffer.
  *
  * @returns The status of the operation.
  * @retval WIFI_HAL_SUCCESS If the identifier was read.
@@ -1586,14 +1632,6 @@ INT wifi_getFTR0KeyHolderID(INT apIndex, UCHAR *keyHolderID);
  * given the same R0 Key Holder identifier, so the value is applied
  * consistently across that set. See IEEE 802.11-2016 section 13.3.
  *
- * Requires a completed `wifi_init()`; not meeting the runtime requirements
- * likely results in undefined behaviour (`docs/pages/halSpec.md`, Component
- * Runtime Execution Requirements).
- *
- * On success the new value is in effect. On failure this interface does not
- * state whether the value was applied, so a caller should read it back with
- * `wifi_getFTR0KeyHolderID()` before relying on it.
- *
  * @param[in] apIndex Index of the Access Point the call applies to.
  *                    `wifi_hal_generic.h` defines `AP_INDEX_1` to
  *                    `AP_INDEX_24`; an index outside the configured range has
@@ -1603,6 +1641,15 @@ INT wifi_getFTR0KeyHolderID(INT apIndex, UCHAR *keyHolderID);
  *                        identifier to apply. The caller owns it
  *                        (`docs/pages/halSpec.md`, Memory Model) and must keep
  *                        it valid for the duration of the call.
+ *
+ * @pre `wifi_init()` must have completed successfully; see
+ *      `Initialization and Startup` in `docs/pages/halSpec.md`. This interface
+ *      does not specify the outcome of a call made beforehand: neither the
+ *      status code nor the effect of the call is established, so a caller must
+ *      not rely on either.
+ * @post On success the new value is in effect. On failure this interface does
+ *       not state whether the value was applied, so a caller should read it
+ *       back with `wifi_getFTR0KeyHolderID()` before relying on it.
  *
  * @returns The status of the operation.
  * @retval WIFI_HAL_SUCCESS If the identifier was applied.
@@ -1639,14 +1686,6 @@ INT wifi_setFTR0KeyHolderID(INT apIndex, UCHAR *keyHolderID);
  * within the hierarchy the R0 Key Holder identifier names. See IEEE
  * 802.11-2016 section 13.3.
  *
- * Requires a completed `wifi_init()`; not meeting the runtime requirements
- * likely results in undefined behaviour (`docs/pages/halSpec.md`, Component
- * Runtime Execution Requirements).
- *
- * On success `keyHolderID` holds the identifier. On failure its contents must
- * be treated as undefined; the single failure code this API defines does not
- * distinguish causes, so a caller should not parse the buffer.
- *
  * @param[in] apIndex Index of the Access Point the call applies to.
  *                    `wifi_hal_generic.h` defines `AP_INDEX_1` to
  *                    `AP_INDEX_24`; an index outside the configured range has
@@ -1655,6 +1694,15 @@ INT wifi_setFTR0KeyHolderID(INT apIndex, UCHAR *keyHolderID);
  * @param[out] keyHolderID Caller-allocated buffer that receives the R1 Key
  *                         Holder identifier. The caller allocates and owns it
  *                         (`docs/pages/halSpec.md`, Memory Model).
+ *
+ * @pre `wifi_init()` must have completed successfully; see
+ *      `Initialization and Startup` in `docs/pages/halSpec.md`. This interface
+ *      does not specify the outcome of a call made beforehand: neither the
+ *      status code nor the effect of the call is established, so a caller must
+ *      not rely on either.
+ * @post On success `keyHolderID` holds the identifier. On failure its contents
+ *       must be treated as undefined; the single failure code this API defines
+ *       does not distinguish causes, so a caller should not parse the buffer.
  *
  * @returns The status of the operation.
  * @retval WIFI_HAL_SUCCESS If the identifier was read.
@@ -1685,14 +1733,6 @@ INT wifi_getFTR1KeyHolderID(INT apIndex, UCHAR *keyHolderID);
  * fast transition key hierarchy, so each Access Point in a mobility domain is
  * given its own value. See IEEE 802.11-2016 section 13.3.
  *
- * Requires a completed `wifi_init()`; not meeting the runtime requirements
- * likely results in undefined behaviour (`docs/pages/halSpec.md`, Component
- * Runtime Execution Requirements).
- *
- * On success the new value is in effect. On failure this interface does not
- * state whether the value was applied, so a caller should read it back with
- * `wifi_getFTR1KeyHolderID()` before relying on it.
- *
  * @param[in] apIndex Index of the Access Point the call applies to.
  *                    `wifi_hal_generic.h` defines `AP_INDEX_1` to
  *                    `AP_INDEX_24`; an index outside the configured range has
@@ -1702,6 +1742,15 @@ INT wifi_getFTR1KeyHolderID(INT apIndex, UCHAR *keyHolderID);
  *                        identifier to apply. The caller owns it
  *                        (`docs/pages/halSpec.md`, Memory Model) and must keep
  *                        it valid for the duration of the call.
+ *
+ * @pre `wifi_init()` must have completed successfully; see
+ *      `Initialization and Startup` in `docs/pages/halSpec.md`. This interface
+ *      does not specify the outcome of a call made beforehand: neither the
+ *      status code nor the effect of the call is established, so a caller must
+ *      not rely on either.
+ * @post On success the new value is in effect. On failure this interface does
+ *       not state whether the value was applied, so a caller should read it
+ *       back with `wifi_getFTR1KeyHolderID()` before relying on it.
  *
  * @returns The status of the operation.
  * @retval WIFI_HAL_SUCCESS If the identifier was applied.
@@ -1751,11 +1800,11 @@ INT wifi_setFTR1KeyHolderID(INT apIndex, UCHAR *keyHolderID);
  */
 typedef enum
 {
-    FT_SUPPORT_DISABLED, /**< No fast transition; a client authenticates in
+    FT_SUPPORT_DISABLED, /*!< No fast transition; a client authenticates in
                           * full at every Access Point. */
-    FT_SUPPORT_FULL, /**< Fast transition offered, with the Mobility Domain
+    FT_SUPPORT_FULL, /*!< Fast transition offered, with the Mobility Domain
                       * element carried in beacon frames. */
-    FT_SUPPORT_ADAPTIVE /**< Fast transition offered as for
+    FT_SUPPORT_ADAPTIVE /*!< Fast transition offered as for
                          * `FT_SUPPORT_FULL`, except that the Mobility
                          * Domain element is not sent in beacon frames, so a
                          * client learns of the capability during
@@ -1784,12 +1833,12 @@ typedef enum
  */
 typedef struct
 {
-    mac_address_t mac; /**< MAC address at which this R0 key holder is
+    mac_address_t mac; /*!< MAC address at which this R0 key holder is
                         * reached. */
-    nas_id_t nasId; /**< NAS identifier of this R0 key holder, the value
+    nas_id_t nasId; /*!< NAS identifier of this R0 key holder, the value
                      * `wifi_setFTR0KeyHolderID()` applies. Declared
                      * `nas_id_t`, `char[49]` in `wifi_hal_generic.h`. */
-    r0r1_key_t key; /**< Shared key protecting key transfers with this
+    r0r1_key_t key; /*!< Shared key protecting key transfers with this
                      * holder. Declared `r0r1_key_t`, 16 octets. */
 } wifi_r0KH_t;
 
@@ -1805,12 +1854,12 @@ typedef struct
  */
 typedef struct
 {
-    mac_address_t mac; /**< MAC address at which this R1 key holder is
+    mac_address_t mac; /*!< MAC address at which this R1 key holder is
                         * reached. */
-    mac_address_t r1khId; /**< Identifier of this R1 key holder, the value
+    mac_address_t r1khId; /*!< Identifier of this R1 key holder, the value
                            * `wifi_setFTR1KeyHolderID()` applies. Declared
                            * `mac_address_t`, six octets. */
-    r0r1_key_t key; /**< Shared key protecting key transfers with this
+    r0r1_key_t key; /*!< Shared key protecting key transfers with this
                      * holder. Declared `r0r1_key_t`, 16 octets. */
 } wifi_r1KH_t;
 
@@ -1832,38 +1881,38 @@ typedef struct
  */
 typedef struct
 {
-    wifi_fastTrasitionSupport_t support; /**< Level of fast transition
+    wifi_fastTrasitionSupport_t support; /*!< Level of fast transition
                                           * support to offer. */
-    USHORT mobilityDomain; /**< Mobility Domain Identifier, held here as a
+    USHORT mobilityDomain; /*!< Mobility Domain Identifier, held here as a
                             * 16-bit value; `wifi_setFTMobilityDomainID()`
                             * carries the same setting as two octets. */
-    BOOL overDS; /**< `TRUE` to accept fast transition over the distribution
+    BOOL overDS; /*!< `TRUE` to accept fast transition over the distribution
                   * system. */
-    nas_id_t r0KeyHolder; /**< R0 key holder identifier for this Access
+    nas_id_t r0KeyHolder; /*!< R0 key holder identifier for this Access
                            * Point. Declared `nas_id_t`, `char[49]`. */
-    USHORT r0KeyLifeTime; /**< Lifetime of the R0 key. Narrower than the
+    USHORT r0KeyLifeTime; /*!< Lifetime of the R0 key. Narrower than the
                            * `UINT` `wifi_setFTR0KeyLifetime()` takes, so a
                            * larger value cannot be carried here. Unit not
                            * specified by this interface. */
-    mac_address_t r1KeyHolder; /**< R1 key holder identifier for this Access
+    mac_address_t r1KeyHolder; /*!< R1 key holder identifier for this Access
                                 * Point. Declared `mac_address_t`, six
                                 * octets. */
-    USHORT reassocDeadLine; /**< Deadline for a client to complete
+    USHORT reassocDeadLine; /*!< Deadline for a client to complete
                              * reassociation after a fast transition. Unit
                              * not specified by this interface. */
-    BOOL pmkR1Push; /**< `TRUE` to distribute derived R1 keys to the holders
+    BOOL pmkR1Push; /*!< `TRUE` to distribute derived R1 keys to the holders
                      * listed in `r1KH` rather than have a holder request
                      * one when it is needed. */
-    UCHAR numR0KHs; /**< How many leading entries of `r0KH` hold a valid R0
+    UCHAR numR0KHs; /*!< How many leading entries of `r0KH` hold a valid R0
                      * key holder. */
-    wifi_r0KH_t r0KH[MAX_KEY_HOLDERS]; /**< R0 key holders this Access Point
+    wifi_r0KH_t r0KH[MAX_KEY_HOLDERS]; /*!< R0 key holders this Access Point
                                         * may exchange keys with. `numR0KHs`
                                         * gives how many leading entries are
                                         * valid and must not exceed
                                         * `MAX_KEY_HOLDERS`. */
-    UCHAR numR1KHs; /**< How many leading entries of `r1KH` hold a valid R1
+    UCHAR numR1KHs; /*!< How many leading entries of `r1KH` hold a valid R1
                      * key holder. */
-    wifi_r1KH_t r1KH[MAX_KEY_HOLDERS]; /**< R1 key holders this Access Point
+    wifi_r1KH_t r1KH[MAX_KEY_HOLDERS]; /*!< R1 key holders this Access Point
                                         * may exchange keys with. `numR1KHs`
                                         * gives how many leading entries are
                                         * valid and must not exceed
@@ -1886,15 +1935,6 @@ typedef struct
  * individual `wifi_setFT*` calls. The key holder tables are the part that has
  * no per-setting equivalent, so this is the only way to install them.
  *
- * Requires a completed `wifi_init()`; not meeting the runtime requirements
- * likely results in undefined behaviour (`docs/pages/halSpec.md`, Component
- * Runtime Execution Requirements).
- *
- * On success the configuration is in effect. On failure this interface does
- * not state whether any part of it was applied, so a caller should read the
- * individual settings back through the `wifi_getFT*` calls before relying on
- * them.
- *
  * @param[in] apIndex Index of the Access Point the call applies to.
  *                    `wifi_hal_generic.h` defines `AP_INDEX_1` to
  *                    `AP_INDEX_24`; an index outside the configured range has
@@ -1909,6 +1949,16 @@ typedef struct
  *                   keep it valid for the duration of the call; this interface
  *                   does not state whether the implementation retains the
  *                   pointer beyond it.
+ *
+ * @pre `wifi_init()` must have completed successfully; see
+ *      `Initialization and Startup` in `docs/pages/halSpec.md`. This interface
+ *      does not specify the outcome of a call made beforehand: neither the
+ *      status code nor the effect of the call is established, so a caller must
+ *      not rely on either.
+ * @post On success the configuration is in effect. On failure this interface
+ *       does not state whether any part of it was applied, so a caller should
+ *       read the individual settings back through the `wifi_getFT*` calls
+ *       before relying on them.
  *
  * @returns The status of the operation.
  * @retval WIFI_HAL_SUCCESS If the configuration was applied.
@@ -1947,14 +1997,6 @@ INT wifi_pushApFastTransitionConfig(INT apIndex, wifi_FastTransitionConfig_t *ft
  * therefore both stops being asked to move and stops being told the capability
  * exists.
  *
- * Requires a completed `wifi_init()`; not meeting the runtime requirements
- * likely results in undefined behaviour (`docs/pages/halSpec.md`, Component
- * Runtime Execution Requirements).
- *
- * On success the new value is in effect. On failure this interface does not
- * state whether the value was applied, so a caller should read it back with
- * `wifi_getBSSTransitionActivation()` before relying on it.
- *
  * @param[in] apIndex Index of the Access Point the call applies to, declared
  *                    `UINT` here rather than the `INT` used elsewhere in this
  *                    header. `wifi_hal_generic.h` defines `AP_INDEX_1` to
@@ -1963,6 +2005,15 @@ INT wifi_pushApFastTransitionConfig(INT apIndex, wifi_FastTransitionConfig_t *ft
  *
  * @param[in] activate `TRUE` to activate BSS Transition Management, `FALSE` to
  *                     deactivate it.
+ *
+ * @pre `wifi_init()` must have completed successfully; see
+ *      `Initialization and Startup` in `docs/pages/halSpec.md`. This interface
+ *      does not specify the outcome of a call made beforehand: neither the
+ *      status code nor the effect of the call is established, so a caller must
+ *      not rely on either.
+ * @post On success the new value is in effect. On failure this interface does
+ *       not state whether the value was applied, so a caller should read it
+ *       back with `wifi_getBSSTransitionActivation()` before relying on it.
  *
  * @returns The status of the operation.
  * @retval RETURN_OK  If the state was applied.
@@ -1995,15 +2046,6 @@ INT wifi_setBSSTransitionActivation(UINT apIndex, BOOL activate);
  * which governs both whether the gateway acts on BTM report requests and
  * whether the Access Point advertises the capability.
  *
- * Requires a completed `wifi_init()`; not meeting the runtime requirements
- * likely results in undefined behaviour (`docs/pages/halSpec.md`, Component
- * Runtime Execution Requirements).
- *
- * On success `*activate` holds the current state. On failure `*activate` must
- * be treated as undefined; the single failure code this API defines does not
- * distinguish causes, so a caller should report BSS Transition Management as
- * unavailable rather than act on the value.
- *
  * @param[in] apIndex Index of the Access Point the call applies to, declared
  *                    `UINT` here rather than the `INT` used elsewhere in this
  *                    header. `wifi_hal_generic.h` defines `AP_INDEX_1` to
@@ -2013,6 +2055,16 @@ INT wifi_setBSSTransitionActivation(UINT apIndex, BOOL activate);
  * @param[out] activate Caller-supplied `BOOL` that receives `TRUE` when BSS
  *                      Transition Management is activated. The caller owns the
  *                      storage (`docs/pages/halSpec.md`, Memory Model).
+ *
+ * @pre `wifi_init()` must have completed successfully; see
+ *      `Initialization and Startup` in `docs/pages/halSpec.md`. This interface
+ *      does not specify the outcome of a call made beforehand: neither the
+ *      status code nor the effect of the call is established, so a caller must
+ *      not rely on either.
+ * @post On success `*activate` holds the current state. On failure `*activate`
+ *       must be treated as undefined; the single failure code this API defines
+ *       does not distinguish causes, so a caller should report BSS Transition
+ *       Management as unavailable rather than act on the value.
  *
  * @returns The status of the operation.
  * @retval WIFI_HAL_SUCCESS If the state was read.
@@ -2042,14 +2094,6 @@ INT wifi_getBSSTransitionActivation(UINT apIndex, BOOL *activate);
  * While deactivated the gateway ignores neighbor report requests, as defined
  * in IEEE 802.11-2016 section 11.11.10.3.
  *
- * Requires a completed `wifi_init()`; not meeting the runtime requirements
- * likely results in undefined behaviour (`docs/pages/halSpec.md`, Component
- * Runtime Execution Requirements).
- *
- * On success the new value is in effect. On failure this interface does not
- * state whether the value was applied, so a caller should read it back with
- * `wifi_getNeighborReportActivation()` before relying on it.
- *
  * @param[in] apIndex Index of the Access Point the call applies to, declared
  *                    `UINT` here rather than the `INT` used elsewhere in this
  *                    header. `wifi_hal_generic.h` defines `AP_INDEX_1` to
@@ -2058,6 +2102,15 @@ INT wifi_getBSSTransitionActivation(UINT apIndex, BOOL *activate);
  *
  * @param[in] activate `TRUE` to activate neighbor reporting, `FALSE` to
  *                     deactivate it.
+ *
+ * @pre `wifi_init()` must have completed successfully; see
+ *      `Initialization and Startup` in `docs/pages/halSpec.md`. This interface
+ *      does not specify the outcome of a call made beforehand: neither the
+ *      status code nor the effect of the call is established, so a caller must
+ *      not rely on either.
+ * @post On success the new value is in effect. On failure this interface does
+ *       not state whether the value was applied, so a caller should read it
+ *       back with `wifi_getNeighborReportActivation()` before relying on it.
  *
  * @returns The status of the operation.
  * @retval RETURN_OK  If the state was applied.
@@ -2090,15 +2143,6 @@ INT wifi_setNeighborReportActivation(UINT apIndex, BOOL activate);
  * The value is the state last applied by `wifi_setNeighborReportActivation()`,
  * which governs whether the gateway answers neighbor report requests.
  *
- * Requires a completed `wifi_init()`; not meeting the runtime requirements
- * likely results in undefined behaviour (`docs/pages/halSpec.md`, Component
- * Runtime Execution Requirements).
- *
- * On success `*activate` holds the current state. On failure `*activate` must
- * be treated as undefined; the single failure code this API defines does not
- * distinguish causes, so a caller should report neighbor reporting as
- * unavailable rather than act on the value.
- *
  * @param[in] apIndex Index of the Access Point the call applies to, declared
  *                    `UINT` here rather than the `INT` used elsewhere in this
  *                    header. `wifi_hal_generic.h` defines `AP_INDEX_1` to
@@ -2108,6 +2152,16 @@ INT wifi_setNeighborReportActivation(UINT apIndex, BOOL activate);
  * @param[out] activate Caller-supplied `BOOL` that receives `TRUE` when
  *                      neighbor reporting is activated. The caller owns the
  *                      storage (`docs/pages/halSpec.md`, Memory Model).
+ *
+ * @pre `wifi_init()` must have completed successfully; see
+ *      `Initialization and Startup` in `docs/pages/halSpec.md`. This interface
+ *      does not specify the outcome of a call made beforehand: neither the
+ *      status code nor the effect of the call is established, so a caller must
+ *      not rely on either.
+ * @post On success `*activate` holds the current state. On failure `*activate`
+ *       must be treated as undefined; the single failure code this API defines
+ *       does not distinguish causes, so a caller should report neighbor
+ *       reporting as unavailable rather than act on the value.
  *
  * @returns The status of the operation.
  * @retval WIFI_HAL_SUCCESS If the state was read.

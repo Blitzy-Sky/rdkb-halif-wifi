@@ -41,42 +41,42 @@ extern "C"{
  */
 typedef struct _wifi_trafficStats
 {
-    ULONG wifi_ErrorsSent;            /**< Frames the interface counted as errors on the transmit
+    ULONG wifi_ErrorsSent;            /*!< Frames the interface counted as errors on the transmit
                                            path. This interface does not state what it counts as an
                                            error, nor whether such a frame is also counted in
                                            `wifi_DiscardedPacketsSent`. */
-    ULONG wifi_ErrorsReceived;         /**< Frames the interface counted as errors on the receive
+    ULONG wifi_ErrorsReceived;         /*!< Frames the interface counted as errors on the receive
                                             path. What constitutes an error, and whether the same
                                             frame is also counted in
                                             `wifi_DiscardedPacketsReceived`, is not stated here. */
-    ULONG wifi_UnicastPacketsSent;    /**< Unicast packets the interface transmitted. Multicast and
+    ULONG wifi_UnicastPacketsSent;    /*!< Unicast packets the interface transmitted. Multicast and
                                            broadcast traffic is counted in separate members below,
                                            so this is not a transmit total. */
-    ULONG wifi_UnicastPacketsReceived; /**< Unicast packets the interface received. Multicast and
+    ULONG wifi_UnicastPacketsReceived; /*!< Unicast packets the interface received. Multicast and
                                             broadcast traffic is counted in separate members below,
                                             so this is not a receive total. */
-    ULONG wifi_DiscardedPacketsSent;   /**< Packets dropped on the transmit path instead of being
+    ULONG wifi_DiscardedPacketsSent;   /*!< Packets dropped on the transmit path instead of being
                                             sent. This interface does not state which conditions
                                             count as a discard. */
-    ULONG wifi_DiscardedPacketsReceived; /**< Packets dropped on the receive path instead of being
+    ULONG wifi_DiscardedPacketsReceived; /*!< Packets dropped on the receive path instead of being
                                               delivered. This interface does not state which
                                               conditions count as a discard. */
-    ULONG wifi_MulticastPacketsSent;   /**< Multicast packets the interface transmitted. Broadcast
+    ULONG wifi_MulticastPacketsSent;   /*!< Multicast packets the interface transmitted. Broadcast
                                             traffic is counted separately in
                                             `wifi_BroadcastPacketsSent`. */
-    ULONG wifi_MulticastPacketsReceived; /**< Multicast packets the interface received. Broadcast
+    ULONG wifi_MulticastPacketsReceived; /*!< Multicast packets the interface received. Broadcast
                                               traffic is counted separately in
                                               `wifi_BroadcastPacketsRecevied`. */
-    ULONG wifi_BroadcastPacketsSent;   /**< Broadcast packets the interface transmitted. Multicast
+    ULONG wifi_BroadcastPacketsSent;   /*!< Broadcast packets the interface transmitted. Multicast
                                             traffic is counted separately in
                                             `wifi_MulticastPacketsSent`, so this is not a
                                             group-addressed transmit total. */
-    ULONG wifi_BroadcastPacketsRecevied; /**< Broadcast packets the interface received. The member
+    ULONG wifi_BroadcastPacketsRecevied; /*!< Broadcast packets the interface received. The member
                                               name misspells `Received` as `Recevied`; the
                                               identifier a caller has to write is
                                               `wifi_BroadcastPacketsRecevied`, and no correctly
                                               spelt member exists in this structure. */
-    ULONG wifi_UnknownPacketsReceived; /**< Packets received that the interface could not place in
+    ULONG wifi_UnknownPacketsReceived; /*!< Packets received that the interface could not place in
                                             any of the categories above. This interface does not
                                             state what makes a packet unknown. */
 } wifi_trafficStats_t;
@@ -111,7 +111,7 @@ typedef enum
  */
 typedef struct
 {
-    UCHAR field_format; /**< IP Address Type Availability field, in the single octet 802.11u encodes
+    UCHAR field_format; /*!< IP Address Type Availability field, in the single octet 802.11u encodes
                              it in, carrying the IPv4 and IPv6 availability sub-fields together.
                              This interface states no bit positions for it;
                              `wifi_ipv4_field_values_t` and `wifi_ipv6_field_values_t` above
@@ -136,13 +136,13 @@ typedef enum
  */
 typedef struct
 {
-    UCHAR id; /**< Authentication Information identifier, whose accepted values are the
+    UCHAR id; /*!< Authentication Information identifier, whose accepted values are the
                    `wifi_auth_id_t` enumerators above; it is what fixes how the octets of `val` are
                    to be read. */
-    UCHAR length; /**< Number of leading octets of `val` that carry the parameter. `val` is
+    UCHAR length; /*!< Number of leading octets of `val` that carry the parameter. `val` is
                        dimensioned 16, so a caller must clamp its read at 16 as well as at this
                        length. */
-    UCHAR val[16]; /**< Authentication parameter, of which the leading `length` octets are
+    UCHAR val[16]; /*!< Authentication parameter, of which the leading `length` octets are
                         populated. This interface states no encoding for the octets; that follows
                         from `id`. */
 } __attribute__((packed)) wifi_authMethod_t;
@@ -152,16 +152,16 @@ typedef struct
  */
 typedef struct
 {
-    UCHAR length; /**< Length field of the EAP method entry as 802.11u encodes it. This interface
+    UCHAR length; /*!< Length field of the EAP method entry as 802.11u encodes it. This interface
                        does not state which of the members below it spans, so a caller should bound
                        `auth_method` by `auth_param_count` rather than by this field. */
-    UCHAR method; /**< EAP method type. This interface enumerates no values for it, so a caller
+    UCHAR method; /*!< EAP method type. This interface enumerates no values for it, so a caller
                        decodes it against the EAP method registry rather than against anything
                        declared here. */
-    UCHAR auth_param_count; /**< Number of leading entries of `auth_method` that carry a parameter.
+    UCHAR auth_param_count; /*!< Number of leading entries of `auth_method` that carry a parameter.
                                  The array is dimensioned 16, so a caller must clamp its read at 16
                                  as well. */
-    wifi_authMethod_t auth_method[16]; /**< Authentication parameters for this EAP method, of which
+    wifi_authMethod_t auth_method[16]; /*!< Authentication parameters for this EAP method, of which
                                             the leading `auth_param_count` entries are populated.
                                             The array holds at most 16 whatever `length` expresses. */
 } __attribute__((packed)) wifi_eapMethod_t;
@@ -171,22 +171,22 @@ typedef struct
  */
 typedef struct
 {
-    USHORT data_field_length; /**< Length field of the NAI realm data as 802.11u encodes it. This
+    USHORT data_field_length; /*!< Length field of the NAI realm data as 802.11u encodes it. This
                                    interface does not state which members it spans, so a caller
                                    should bound `realm` by `realm_length` and `eap_method` by
                                    `eap_method_count` rather than by this field. */
-    UCHAR encoding; /**< Encoding of `realm`, as the 802.11u NAI Realm Encoding field. This
+    UCHAR encoding; /*!< Encoding of `realm`, as the 802.11u NAI Realm Encoding field. This
                          interface enumerates no values for it. */
-    UCHAR realm_length; /**< Number of leading octets of `realm` that carry the name. The field is a
+    UCHAR realm_length; /*!< Number of leading octets of `realm` that carry the name. The field is a
                              `UCHAR`, so it cannot express more than 255, and `realm` is dimensioned
                              256, so a caller must clamp its read at 256 as well. */
-    UCHAR realm[256]; /**< NAI realm name, of which the leading `realm_length` octets are populated
+    UCHAR realm[256]; /*!< NAI realm name, of which the leading `realm_length` octets are populated
                            in the encoding `encoding` names. It is not stated to be NUL-terminated,
                            so a caller must not run an unbounded string function over it. */
-    UCHAR eap_method_count; /**< Number of leading entries of `eap_method` that carry a method. The
+    UCHAR eap_method_count; /*!< Number of leading entries of `eap_method` that carry a method. The
                                  array is dimensioned 16, so a caller must clamp its read at 16 as
                                  well. */
-    wifi_eapMethod_t eap_method[16]; /**< EAP methods this realm accepts, of which the leading
+    wifi_eapMethod_t eap_method[16]; /*!< EAP methods this realm accepts, of which the leading
                                           `eap_method_count` entries are populated. The array holds
                                           at most 16. */
 } __attribute__((packed)) wifi_naiRealm_t;
@@ -196,11 +196,11 @@ typedef struct
  */
 typedef struct
 {
-    USHORT nai_realm_count; /**< Number of leading entries of `nai_realm_tuples` that carry a realm.
+    USHORT nai_realm_count; /*!< Number of leading entries of `nai_realm_tuples` that carry a realm.
                                  The field is a `USHORT`, so it can express a count far larger than
                                  the array holds: a value above 20 exceeds this structure's
                                  capacity. */
-    wifi_naiRealm_t nai_realm_tuples[20]; /**< NAI realm tuples, of which the leading
+    wifi_naiRealm_t nai_realm_tuples[20]; /*!< NAI realm tuples, of which the leading
                                                `nai_realm_count` entries are populated. The array
                                                holds at most 20 whatever the count field expresses. */
 } __attribute__((packed)) wifi_naiRealmElement_t;
@@ -210,15 +210,15 @@ typedef struct
  */
 typedef struct
 {
-    UCHAR length; /**< Length field of the venue name duple as 802.11u encodes it. This interface
+    UCHAR length; /*!< Length field of the venue name duple as 802.11u encodes it. This interface
                        does not state whether it counts the three `language` octets as well as the
                        name, so a caller cannot derive the name length from it without agreeing that
                        convention with the platform implementer; `name` is bounded at its declared
                        256 octets either way. */
-    UCHAR language[3]; /**< Language of `name`, as the three-octet language code 802.11u carries.
+    UCHAR language[3]; /*!< Language of `name`, as the three-octet language code 802.11u carries.
                             Three octets leave no room for a terminator, so a caller must read
                             exactly three. */
-    UCHAR name[256]; /**< Venue name, in the encoding `language` names. It is not stated to be
+    UCHAR name[256]; /*!< Venue name, in the encoding `language` names. It is not stated to be
                           NUL-terminated and this structure carries no separate name length, so a
                           caller must bound any read at the declared 256 octets. */
 } __attribute__((packed)) wifi_venueName_t;
@@ -228,13 +228,13 @@ typedef struct
  */
 typedef struct
 {
-    UCHAR venueGroup; /**< Venue Group code of the 802.11u Venue Info field. This interface
+    UCHAR venueGroup; /*!< Venue Group code of the 802.11u Venue Info field. This interface
                            enumerates no values for it, and `venueType` beside it is only meaningful
                            within this group. */
-    UCHAR venueType; /**< Venue Type code within `venueGroup`: the same numeric type denotes
+    UCHAR venueType; /*!< Venue Type code within `venueGroup`: the same numeric type denotes
                           different venues in different groups, so the two members are only
                           meaningful together. */
-    wifi_venueName_t venueNameTuples[16]; /**< Venue name duples, at most 16. This interface
+    wifi_venueName_t venueNameTuples[16]; /*!< Venue name duples, at most 16. This interface
                                                declares no count member for the array, so how many
                                                entries are populated is not established here and a
                                                caller has to take that from the platform implementer
@@ -246,7 +246,7 @@ typedef struct
  */
 typedef struct
 {
-    UCHAR PLMN[3]; /**< Public Land Mobile Network identifier, in the three octets the 3GPP encoding
+    UCHAR PLMN[3]; /*!< Public Land Mobile Network identifier, in the three octets the 3GPP encoding
                         packs a mobile country code and mobile network code into. This interface
                         states no field layout within the three octets, so a caller must decode them
                         rather than reading digits out directly. */
@@ -257,17 +257,17 @@ typedef struct
  */
 typedef struct
 {
-    UCHAR iei; /**< Element identifier of the PLMN list as the 3GPP encoding defines it. This
+    UCHAR iei; /*!< Element identifier of the PLMN list as the 3GPP encoding defines it. This
                     interface enumerates no values for it and directs that zero be copied here for
                     now, so a caller should write zero rather than deriving a value. */
-    UCHAR plmn_length; /**< Length field of the PLMN list as the 3GPP information element encodes
+    UCHAR plmn_length; /*!< Length field of the PLMN list as the 3GPP information element encodes
                             it. This interface does not state whether it counts octets or entries,
                             so a caller should bound `plmn` by `number_of_plmns` beside it rather
                             than by this field. */
-    UCHAR number_of_plmns; /**< Number of leading entries of `plmn` that carry an identifier. The
+    UCHAR number_of_plmns; /*!< Number of leading entries of `plmn` that carry an identifier. The
                                 array is dimensioned 16, so a caller must clamp its read at 16 as
                                 well. */
-    wifi_plmn_t plmn[16]; /**< PLMN identifiers, of which the leading `number_of_plmns` entries are
+    wifi_plmn_t plmn[16]; /*!< PLMN identifiers, of which the leading `number_of_plmns` entries are
                                populated. The array holds at most 16. */
 } __attribute__((packed)) wifi_3gpp_plmn_list_information_element_t;
 
@@ -276,14 +276,14 @@ typedef struct
  */
 typedef struct
 {
-    UCHAR gud; /**< GUD field of the 3GPP Cellular Network element, which names the version of the
+    UCHAR gud; /*!< GUD field of the 3GPP Cellular Network element, which names the version of the
                     3GPP information the element carries. This interface enumerates no values for
                     it, so a caller decodes it against the 3GPP encoding rather than against
                     anything declared here. */
-    UCHAR uhdLength; /**< Length field the 3GPP encoding places after `gud`. This interface does not
+    UCHAR uhdLength; /*!< Length field the 3GPP encoding places after `gud`. This interface does not
                           state which of the members below it counts, so a caller should bound the
                           PLMN list by `plmn_information.number_of_plmns` rather than by this field. */
-    wifi_3gpp_plmn_list_information_element_t plmn_information; /**< PLMN list the 3GPP Cellular
+    wifi_3gpp_plmn_list_information_element_t plmn_information; /*!< PLMN list the 3GPP Cellular
                         Network element advertises: `wifi_3gpp_plmn_list_information_element_t`
                         carries the identifiers themselves, of which `number_of_plmns` are
                         populated. `uhdLength` above is the element's own length field and this
@@ -296,10 +296,10 @@ typedef struct
  */
 typedef struct
 {
-    UCHAR length; /**< Number of leading octets of `domainName` that carry the name. That array is
+    UCHAR length; /*!< Number of leading octets of `domainName` that carry the name. That array is
                        dimensioned 255, which its own comment gives as the specification maximum, so
                        a caller must clamp its read at 255 as well. */
-    UCHAR domainName[255]; /**< The name itself, of which the leading `length` octets above are
+    UCHAR domainName[255]; /*!< The name itself, of which the leading `length` octets above are
                                 meaningful. The array is dimensioned 255, which is the specification
                                 maximum, and this interface states neither the encoding nor whether
                                 the value is `NUL`-terminated, so a caller must take its extent from
@@ -312,7 +312,7 @@ typedef struct
  */
 typedef struct
 {
-    wifi_domainNameTuple_t domainNameTuple[4]; /**< Domain name tuples, at most 4. This interface
+    wifi_domainNameTuple_t domainNameTuple[4]; /*!< Domain name tuples, at most 4. This interface
                                                     declares no count member for the array, so how
                                                     many entries are populated is not established
                                                     here and a caller has to take that from the
@@ -325,11 +325,11 @@ typedef struct
  */
 typedef struct
 {
-    UCHAR length; /**< Number of leading octets of `oui` that carry the identifier.
+    UCHAR length; /*!< Number of leading octets of `oui` that carry the identifier.
                        `wifi_roamingConsortiumElement_t` below states that an OI is between 3 and 15
                        octets long, and `oui` is dimensioned 15, so a caller must clamp its read at
                        15. */
-    UCHAR oui[15]; /**< Organization Identifier, of which the leading `length` octets are populated.
+    UCHAR oui[15]; /*!< Organization Identifier, of which the leading `length` octets are populated.
                         These are raw identifier octets rather than text and carry no terminator. */
 } __attribute__((packed)) wifi_ouiDuple_t;
 
@@ -338,7 +338,7 @@ typedef struct
  */
 typedef struct
 {
-    wifi_ouiDuple_t ouiDuple[32]; /**< Roaming consortium OI duples, at most 32. This interface
+    wifi_ouiDuple_t ouiDuple[32]; /*!< Roaming consortium OI duples, at most 32. This interface
                                        declares no count member for the array;
                                        `wifi_roamingConsortiumElement_t` below carries the three OIs
                                        that fit in a beacon or probe response together with their
@@ -350,7 +350,7 @@ typedef struct
  */
 typedef struct
 {
-    USHORT capabilityList[64]; /**< ANQP capability identifiers the `AP` advertises, at most 64.
+    USHORT capabilityList[64]; /*!< ANQP capability identifiers the `AP` advertises, at most 64.
                                     This interface declares no count member for the array and
                                     enumerates none of the identifiers, so how many entries are
                                     populated is not established here. */
@@ -361,13 +361,13 @@ typedef struct
  */
 typedef struct
 {
-    UCHAR wifiRoamingConsortiumCount; /**< Number of leading entries of `wifiRoamingConsortiumOui`
+    UCHAR wifiRoamingConsortiumCount; /*!< Number of leading entries of `wifiRoamingConsortiumOui`
                                            and `wifiRoamingConsortiumLen` below that carry an OI.
                                            Both arrays hold three entries, which is the limit the
                                            next member's comment states for a beacon or probe
                                            response, so a caller must clamp its read at 3 as well. */
     UCHAR wifiRoamingConsortiumOui[3][15 + 1]; /**< Only 3 OIs are allowed in beacon and probe responses. OI length is variable between 3 and 15. */
-    UCHAR wifiRoamingConsortiumLen[3]; /**< Number of leading octets of each corresponding
+    UCHAR wifiRoamingConsortiumLen[3]; /*!< Number of leading octets of each corresponding
                                             `wifiRoamingConsortiumOui` entry that carry the
                                             identifier - the entries are indexed alike. An OI is
                                             between 3 and 15 octets, and each row is dimensioned 16,
@@ -380,7 +380,7 @@ typedef struct
 
 
 // =========================================Start-HS2-Operator Friendly Name=========================================================================
-// HS2.0 Operator Name Duple #1     HS2.0 Operator Name Duple #2        ......    HS2.0 Operator Name Duple #n
+// HS2.0 Operator Name Duple #1     HS2.0 Operator Name Duple #2     through      HS2.0 Operator Name Duple #n
 //           variable                            variable                                      variable
 // HS2.0 Operator name Duple
 // Length                                  Language Code                                     Operator Name
@@ -392,7 +392,7 @@ typedef struct
 typedef struct _wifi_HS2_OperatorNameDuple_t
 {
     UCHAR length; /**< Length is 3 (language code) + number of octets in operator name field. For example, if operatorName = "aaaa", length is 4 + 3 = 7. */
-    UCHAR languageCode[3]; /**< Language of `operatorName`, as the three-octet language code the
+    UCHAR languageCode[3]; /*!< Language of `operatorName`, as the three-octet language code the
                                 specification carries and which `length` above is documented as
                                 including. Three octets leave no room for a terminator, so a caller
                                 must read exactly three. */
@@ -418,7 +418,7 @@ typedef struct
  */
 typedef struct
 {
-    UCHAR wanInfo; /**< WAN Info octet, whose bit assignments are listed in the comment on
+    UCHAR wanInfo; /*!< WAN Info octet, whose bit assignments are listed in the comment on
                         `wifi_HS2_Wan_Info_Link_Status_t` below - link status in bits 0 to 1,
                         symmetric link in bit 2, at capacity in bit 3 - and whose link-status values
                         are that enumeration's members. */
@@ -449,7 +449,7 @@ typedef enum
 // =========================================End-HS2-WAN Metrics Element=========================================================================
 
 // =========================================Start-HS2-Connection Capability Element=========================================================================
-// Proto Port Tuple #1        Proto Port Tuple #2  ............. Proto Port Tuple #n
+// Proto Port Tuple #1        Proto Port Tuple #2    through     Proto Port Tuple #n
 //          4                        4(optional)                   4(optional)
 // Proto Port Tuple Format
 // IP Protocol                             Port Number                  Status
@@ -460,10 +460,10 @@ typedef enum
  */
 typedef struct
 {
-    UCHAR ipProtocol; /**< IP protocol number the tuple describes. This interface enumerates no
+    UCHAR ipProtocol; /*!< IP protocol number the tuple describes. This interface enumerates no
                            values for it, so a caller decodes it against the IANA protocol registry. */
-    USHORT portNumber; /**< Transport port the tuple describes, interpreted within `ipProtocol`. */
-    UCHAR status; /**< Whether the protocol and port are reachable through the `AP`, as one of the
+    USHORT portNumber; /*!< Transport port the tuple describes, interpreted within `ipProtocol`. */
+    UCHAR status; /*!< Whether the protocol and port are reachable through the `AP`, as one of the
                        `wifi_HS2_ConnectionCapability_Status_t` enumerators below. */
 } __attribute__((packed)) wifi_HS2_Proto_Port_Tuple_t;
 
@@ -490,7 +490,7 @@ typedef enum
 
 // =========================================Start-HS2-NAI Realm Query Element=========================================================================
 
-// NAI Realm Count                          NAI Home Realm                    NAI Home Realm   ....  NAI Home Realm
+// NAI Realm Count                          NAI Home Realm                    NAI Home Realm through NAI Home Realm
 //                                         Name Data #1                        Name Data #2            Name Data #n
 //       1                                   variable                         (variable optional)       (variable optional)
 
@@ -502,9 +502,9 @@ typedef enum
  */
 typedef struct
 {
-    UCHAR encoding; /**< Encoding of `name`, as the 802.11u NAI Realm Encoding field. This interface
+    UCHAR encoding; /*!< Encoding of `name`, as the 802.11u NAI Realm Encoding field. This interface
                          enumerates no values for it. */
-    UCHAR length; /**< Number of leading octets of `name` that carry the realm. That array is
+    UCHAR length; /*!< Number of leading octets of `name` that carry the realm. That array is
                        dimensioned 255, which its own comment gives as the specification maximum, so
                        a caller must clamp its read at 255 as well. */
     UCHAR name[255]; /**< Name (maximum length is 255 according to the specification). */
@@ -515,11 +515,11 @@ typedef struct
  */
 typedef struct
 {
-    UCHAR realmCount; /**< Number of leading entries of `homeRealmData` that carry a realm.
+    UCHAR realmCount; /*!< Number of leading entries of `homeRealmData` that carry a realm.
                            The field is a `UCHAR`, so it can express a count larger than
                            `homeRealmData` can hold; a value above 20 exceeds this
                            structure's capacity. */
-    wifi_HS2_NAI_Home_Realm_Data_t homeRealmData[20]; /**< Home realm data. This array holds
+    wifi_HS2_NAI_Home_Realm_Data_t homeRealmData[20]; /*!< Home realm data. This array holds
                            at most 20 realms; the 255 the specification allows a realm-count
                            field to express is the protocol limit, not the capacity of this
                            structure. Each entry's `name` holds at most 255 bytes. */
@@ -528,7 +528,7 @@ typedef struct
 // =========================================End-HS2-NAI Realm Query Element=========================================================================
 
 // =========================================Start-HS2-Capability List=========================================================================
-// HS2.0 Capability #1     HS2.0 Capability #2        ......    HS2.0 Capability #n
+// HS2.0 Capability #1     HS2.0 Capability #2     through      HS2.0 Capability #n
 //             1             0 or 1 (optional)                      0 or 1 (optional)
 // =========================================End-HS2-Capability List=========================================================================
 
@@ -537,7 +537,7 @@ typedef struct
  */
 typedef struct
 {
-    UCHAR capabilityList[64]; /**< Hotspot 2.0 capability identifiers the `AP` advertises, one per
+    UCHAR capabilityList[64]; /*!< Hotspot 2.0 capability identifiers the `AP` advertises, one per
                                    octet and at most 64. This interface declares no count member for
                                    the array and enumerates none of the identifiers. */
 } __attribute__((packed)) wifi_HS2_CapabilityList_t;
@@ -547,41 +547,41 @@ typedef struct
  */
 typedef struct
 {
-    unsigned char descriptor; /**< EAPOL-Key descriptor type, which is what fixes how the rest of
+    unsigned char descriptor; /*!< EAPOL-Key descriptor type, which is what fixes how the rest of
                                    the frame is read. This interface enumerates no values for it. */
-    unsigned char key_info[2]; /**< Key Information field, in two octets. The `KEY_MSG_1_OF_4` to
+    unsigned char key_info[2]; /*!< Key Information field, in two octets. The `KEY_MSG_1_OF_4` to
                                     `KEY_MSG_4_OF_4` macros in `wifi_hal_generic.h` decode it,
                                     testing `key_info[1]` for the key type and version bits under
                                     `KI1_VER_MASK` and `key_info[0]` for the MIC, secure and
                                     encryption bits. */
-    unsigned short key_len; /**< Length of the key the frame conveys. This interface states no unit
+    unsigned short key_len; /*!< Length of the key the frame conveys. This interface states no unit
                                  for it, and it does not describe `data`: `len` below gives that
                                  length. */
-    unsigned char replay[8]; /**< Key Replay Counter field, in eight raw octets. This interface
+    unsigned char replay[8]; /*!< Key Replay Counter field, in eight raw octets. This interface
                                   states neither the octet order nor a starting value, so a caller
                                   must not compare two counters arithmetically without knowing that
                                   order; the field is not text and carries no terminator. */
-    unsigned char nonce[32]; /**< Nonce of the exchange, in 32 raw octets. It is not text and
+    unsigned char nonce[32]; /*!< Nonce of the exchange, in 32 raw octets. It is not text and
                                   carries no terminator. */
-    unsigned char init_vector[16]; /**< Key IV field, in 16 raw octets. This interface does not
+    unsigned char init_vector[16]; /*!< Key IV field, in 16 raw octets. This interface does not
                                         state for which descriptor types the field is meaningful. */
-    unsigned char rsc[8]; /**< Key RSC field, in eight raw octets, carrying the starting sequence
+    unsigned char rsc[8]; /*!< Key RSC field, in eight raw octets, carrying the starting sequence
                                number for the key being installed. This interface states no octet
                                order for it and does not say for which descriptor types or message
                                numbers it is meaningful. */
-    unsigned char key_id[8]; /**< Key Identifier field, in 8 raw octets. This interface states no
+    unsigned char key_id[8]; /*!< Key Identifier field, in 8 raw octets. This interface states no
                                   interpretation for them. */
-    unsigned char mic[16]; /**< Key MIC field, in sixteen raw octets. Whether it is present at all
+    unsigned char mic[16]; /*!< Key MIC field, in sixteen raw octets. Whether it is present at all
                                 follows from the MIC bit of `key_info` above, which the `KEY_MSG_*`
                                 macros in `wifi_hal_generic.h` test; this interface states neither
                                 the algorithm that produced it nor what the field holds when that
                                 bit is clear. */
-    unsigned short len; /**< Number of octets of `data` below that follow the fixed header. It
+    unsigned short len; /*!< Number of octets of `data` below that follow the fixed header. It
                              bounds that member and nothing else - `key_len` above is the length of
                              the key the frame conveys - and being a `unsigned short` it carries no
                              sentinel, so a caller must check it against the buffer it actually
                              holds. */
-    unsigned char data[0]; /**< Start of the key data that follows the fixed header, whose length is
+    unsigned char data[0]; /*!< Start of the key data that follows the fixed header, whose length is
                                 `len` above. The member is a zero-length array and so occupies
                                 nothing in `sizeof(wifi_eapol_key_frame_t)`: a caller must have that
                                 many bytes plus `len` behind the pointer, and must read no further
@@ -609,10 +609,10 @@ typedef enum
  */
 typedef struct
 {
-    unsigned char code; /**< EAP code, whose accepted values are the `wifi_eap_code_t` enumerators
+    unsigned char code; /*!< EAP code, whose accepted values are the `wifi_eap_code_t` enumerators
                              above - request, response, success or failure. */
-    unsigned char id; /**< Identifier that pairs an EAP response with the request it answers. */
-    unsigned short len; /**< Length field of the EAP packet. RFC 3748 section 4 defines the
+    unsigned char id; /*!< Identifier that pairs an EAP response with the request it answers. */
+    unsigned short len; /*!< Length field of the EAP packet. RFC 3748 section 4 defines the
                              on-the-wire Length as covering the whole packet including the
                              four-octet header, so on that reading `data` below holds `len` minus
                              four octets; this interface does not state whether the member carries
@@ -621,7 +621,7 @@ typedef struct
                              implementation it runs against, must not assume either reading, and
                              must in every case check the value against the buffer it actually
                              holds before reading. */
-    unsigned char data[0]; /**< Start of the EAP payload that follows the fixed header. Its length
+    unsigned char data[0]; /*!< Start of the EAP payload that follows the fixed header. Its length
                                 follows from `len` above under whichever of the two readings
                                 recorded there the implementation uses, so this interface does not
                                 state it exactly. The member is a zero-length array and so
@@ -648,11 +648,11 @@ typedef enum
  * caller how far a client progressed before a handshake stalled.
  */
 typedef enum {
-    EAPOL_MSG_NONE = 0, /**< No handshake message; the exchange has not started. */
-    EAPOL_MSG_M1,       /**< M1: ANonce sent by the authenticator. */
-    EAPOL_MSG_M2,       /**< M2: SNonce and MIC returned by the supplicant. */
-    EAPOL_MSG_M3,       /**< M3: GTK and MIC sent by the authenticator. */
-    EAPOL_MSG_M4        /**< M4: final acknowledgement from the supplicant. */
+    EAPOL_MSG_NONE = 0, /*!< No handshake message; the exchange has not started. */
+    EAPOL_MSG_M1,       /*!< M1: ANonce sent by the authenticator. */
+    EAPOL_MSG_M2,       /*!< M2: SNonce and MIC returned by the supplicant. */
+    EAPOL_MSG_M3,       /*!< M3: GTK and MIC sent by the authenticator. */
+    EAPOL_MSG_M4        /*!< M4: final acknowledgement from the supplicant. */
 } eapol_msg_type_t;
 
 /**
@@ -662,9 +662,9 @@ typedef enum {
  * the two are counted separately.
  */
 typedef enum {
-    EAPOL_FRAME_UNKNOWN = 0, /**< The originating exchange could not be determined. */
-    EAPOL_FRAME_ASSOC,       /**< The handshake followed an association request. */
-    EAPOL_FRAME_REASSOC      /**< The handshake followed a reassociation request. */
+    EAPOL_FRAME_UNKNOWN = 0, /*!< The originating exchange could not be determined. */
+    EAPOL_FRAME_ASSOC,       /*!< The handshake followed an association request. */
+    EAPOL_FRAME_REASSOC      /*!< The handshake followed a reassociation request. */
 } eapol_frame_type_t;
 
 /**
@@ -678,13 +678,13 @@ typedef enum {
  * index.
  */
 typedef enum {
-    M1_ASSOC = 0,          /**< M1 seen during an association exchange. */
-    M1_REASSOC,            /**< M1 seen during a reassociation exchange. */
-    M2_ASSOC,              /**< M2 seen during an association exchange. */
-    M2_REASSOC,            /**< M2 seen during a reassociation exchange. */
-    M3_ASSOC,              /**< M3 seen during an association exchange. */
-    M3_REASSOC,            /**< M3 seen during a reassociation exchange. */
-    EAPOL_STATUS_TYPE_MAX  /**< Number of index values; not a valid index itself. */
+    M1_ASSOC = 0,          /*!< M1 seen during an association exchange. */
+    M1_REASSOC,            /*!< M1 seen during a reassociation exchange. */
+    M2_ASSOC,              /*!< M2 seen during an association exchange. */
+    M2_REASSOC,            /*!< M2 seen during a reassociation exchange. */
+    M3_ASSOC,              /*!< M3 seen during an association exchange. */
+    M3_REASSOC,            /*!< M3 seen during a reassociation exchange. */
+    EAPOL_STATUS_TYPE_MAX  /*!< Number of index values; not a valid index itself. */
 } eapol_status_type_idx_t;
 
 /**
@@ -698,10 +698,10 @@ typedef enum {
  */
 typedef struct
 {
-    unsigned char version; /**< IEEE 802.1X protocol version from the frame header. */
-    unsigned char type; /**< EAPOL packet type; see `wifi_eapol_type_t`. */
-    unsigned short len; /**< Length in bytes of the payload that follows this header. */
-    unsigned char data[0]; /**< Start of the payload; `len` bytes, not counted in this structure's size. */
+    unsigned char version; /*!< IEEE 802.1X protocol version from the frame header. */
+    unsigned char type; /*!< EAPOL packet type; see `wifi_eapol_type_t`. */
+    unsigned short len; /*!< Length in bytes of the payload that follows this header. */
+    unsigned char data[0]; /*!< Start of the payload; `len` bytes, not counted in this structure's size. */
 } __attribute__((__packed__)) wifi_8021x_frame_t;
 
 /**
@@ -721,14 +721,14 @@ typedef enum
  */
 typedef struct _wifi_radius_setting_t
 {
-    INT RadiusServerRetries;           /**< How many times a RADIUS request is retransmitted before
+    INT RadiusServerRetries;           /*!< How many times a RADIUS request is retransmitted before
                                             the exchange is abandoned; `RadiusServerRequestTimeout`
                                             below gives the wait between attempts in seconds. This
                                             interface states no accepted range and no value that
                                             means unlimited. */
     INT RadiusServerRequestTimeout;    /**< RADIUS request timeout in seconds after which the request must be retransmitted for the number of retries available. */
     INT PMKLifetime;                   /**< Default time in seconds after which a Wi-Fi client is forced to re-authenticate (default: 8 hours). */
-    BOOL PMKCaching;                  /**< `TRUE` where the pairwise master key may be cached so a
+    BOOL PMKCaching;                  /*!< `TRUE` where the pairwise master key may be cached so a
                                            returning client can skip a full authentication.
                                            `PMKLifetime` above bounds how long a key stays usable
                                            and `PMKCacheInterval` below how often the cache is
@@ -930,13 +930,13 @@ INT wifi_getApAssociatedDevice(INT ap_index, mac_address_t *output_deviceMacAddr
  * code. This interface does not state why the numbering is sparse.
  */
 typedef enum {
-    WIFI_ACCESS_ACCEPT_STATUS = 0, /**< The RADIUS server authorised the client, which RFC 2865
+    WIFI_ACCESS_ACCEPT_STATUS = 0, /*!< The RADIUS server authorised the client, which RFC 2865
                                         section 3 conveys as Access-Accept. The value 0 is this
                                         interface's own identifier for that outcome, not the RADIUS
                                         code. */
-    WIFI_EAP_SUCCESS_STATUS = 3,   /**< The EAP exchange completed successfully, which RFC 3748
+    WIFI_EAP_SUCCESS_STATUS = 3,   /*!< The EAP exchange completed successfully, which RFC 3748
                                         section 4 conveys as an EAP Success packet. */
-    WIFI_EAP_FAILURE_STATUS = 23   /**< The EAP exchange was rejected, which RFC 3748 section 4
+    WIFI_EAP_FAILURE_STATUS = 23   /*!< The EAP exchange was rejected, which RFC 3748 section 4
                                         conveys as an EAP Failure packet. The value 23 is this
                                         interface's own identifier for that outcome, not the EAP
                                         code. */
@@ -953,26 +953,26 @@ typedef enum {
  * caller must not read one into a value below.
  */
 typedef enum {
-    WIFI_REASON_UNSPECIFIED = 1,                 /**< No specific reason was given. */
-    WIFI_REASON_PREV_AUTH_NOT_VALID = 2,         /**< Previous authentication no longer valid, the
+    WIFI_REASON_UNSPECIFIED = 1,                 /*!< No specific reason was given. */
+    WIFI_REASON_PREV_AUTH_NOT_VALID = 2,         /*!< Previous authentication no longer valid, the
                                                       meaning IEEE Std 802.11-2020 Table 9-49 gives
                                                       reason code 2. That table names no cause for
                                                       it, and this interface narrows it to none. */
-    WIFI_REASON_DEAUTH_LEAVING = 3,              /**< The station is leaving or has left the BSS. */
-    WIFI_REASON_STA_REQ_ASSOC_WITHOUT_AUTH = 9,  /**< The station associated without first authenticating. */
-    WIFI_REASON_INVALID_IE = 13,                 /**< An information element was malformed. */
-    WIFI_REASON_MICHAEL_MIC_FAILURE = 14,        /**< A TKIP Michael MIC check failed. */
-    WIFI_REASON_4WAY_HANDSHAKE_TIMEOUT = 15,     /**< The four-way handshake did not complete in time. */
-    WIFI_REASON_GROUP_KEY_UPDATE_TIMEOUT = 16,   /**< The group key handshake did not complete in time. */
-    WIFI_REASON_IE_IN_4WAY_DIFFERS = 17,         /**< An information element in the four-way handshake differed from the one advertised. */
-    WIFI_REASON_GROUP_CIPHER_NOT_VALID = 18,     /**< The requested group cipher is not supported. */
-    WIFI_REASON_PAIRWISE_CIPHER_NOT_VALID = 19,  /**< The requested pairwise cipher is not supported. */
-    WIFI_REASON_AKMP_NOT_VALID = 20,             /**< The requested authentication and key management suite is not supported. */
-    WIFI_REASON_UNSUPPORTED_RSN_IE_VERSION = 21, /**< The RSN information element version is not supported. */
-    WIFI_REASON_INVALID_RSN_IE_CAPAB = 22,       /**< The RSN information element capabilities field is invalid. */
-    WIFI_REASON_IEEE_802_1X_AUTH_FAILED = 23,    /**< IEEE 802.1X authentication failed. */
-    WIFI_REASON_CIPHER_SUITE_REJECTED = 24,      /**< The cipher suite was rejected by local policy. */
-    WIFI_REASON_INVALID_PMKID = 49               /**< The supplied PMKID does not match a cached PMKSA. */
+    WIFI_REASON_DEAUTH_LEAVING = 3,              /*!< The station is leaving or has left the BSS. */
+    WIFI_REASON_STA_REQ_ASSOC_WITHOUT_AUTH = 9,  /*!< The station associated without first authenticating. */
+    WIFI_REASON_INVALID_IE = 13,                 /*!< An information element was malformed. */
+    WIFI_REASON_MICHAEL_MIC_FAILURE = 14,        /*!< A TKIP Michael MIC check failed. */
+    WIFI_REASON_4WAY_HANDSHAKE_TIMEOUT = 15,     /*!< The four-way handshake did not complete in time. */
+    WIFI_REASON_GROUP_KEY_UPDATE_TIMEOUT = 16,   /*!< The group key handshake did not complete in time. */
+    WIFI_REASON_IE_IN_4WAY_DIFFERS = 17,         /*!< An information element in the four-way handshake differed from the one advertised. */
+    WIFI_REASON_GROUP_CIPHER_NOT_VALID = 18,     /*!< The requested group cipher is not supported. */
+    WIFI_REASON_PAIRWISE_CIPHER_NOT_VALID = 19,  /*!< The requested pairwise cipher is not supported. */
+    WIFI_REASON_AKMP_NOT_VALID = 20,             /*!< The requested authentication and key management suite is not supported. */
+    WIFI_REASON_UNSUPPORTED_RSN_IE_VERSION = 21, /*!< The RSN information element version is not supported. */
+    WIFI_REASON_INVALID_RSN_IE_CAPAB = 22,       /*!< The RSN information element capabilities field is invalid. */
+    WIFI_REASON_IEEE_802_1X_AUTH_FAILED = 23,    /*!< IEEE 802.1X authentication failed. */
+    WIFI_REASON_CIPHER_SUITE_REJECTED = 24,      /*!< The cipher suite was rejected by local policy. */
+    WIFI_REASON_INVALID_PMKID = 49               /*!< The supplied PMKID does not match a cached PMKSA. */
 } wifi_reason_code_t;
 
 /**
@@ -984,12 +984,12 @@ typedef enum {
  * wire, so the set is deliberately sparse.
  */
 typedef enum {
-    WIFI_STATUS_UNSPECIFIED_FAILURE = 1,                 /**< The request failed for an unstated reason. */
-    WIFI_STATUS_AUTH_TIMEOUT = 16,                       /**< Authentication did not complete within the allowed time. */
-    WIFI_STATUS_ASSOC_REJECTED_TEMPORARILY = 30,         /**< Association was refused for now; the client may retry after the indicated interval. */
-    WIFI_STATUS_ROBUST_MGMT_FRAME_POLICY_VIOLATION = 31, /**< The request violated the robust management frame protection policy. */
-    WIFI_STATUS_AKMP_NOT_VALID = 43,                     /**< The requested authentication and key management suite is not supported. */
-    WIFI_STATUS_INVALID_PMKID = 53                       /**< The supplied PMKID does not match a cached PMKSA. */
+    WIFI_STATUS_UNSPECIFIED_FAILURE = 1,                 /*!< The request failed for an unstated reason. */
+    WIFI_STATUS_AUTH_TIMEOUT = 16,                       /*!< Authentication did not complete within the allowed time. */
+    WIFI_STATUS_ASSOC_REJECTED_TEMPORARILY = 30,         /*!< Association was refused for now; the client may retry after the indicated interval. */
+    WIFI_STATUS_ROBUST_MGMT_FRAME_POLICY_VIOLATION = 31, /*!< The request violated the robust management frame protection policy. */
+    WIFI_STATUS_AKMP_NOT_VALID = 43,                     /*!< The requested authentication and key management suite is not supported. */
+    WIFI_STATUS_INVALID_PMKID = 53                       /*!< The supplied PMKID does not match a cached PMKSA. */
 } wifi_status_code_t;
 
 /** @} */  //END OF GROUP WIFI_HAL_TYPES
@@ -3107,10 +3107,10 @@ INT wifi_enableGreylistAccessControl(BOOL enable);
  *                          logged and the value treated as unavailable.
  *
  * @note This reports the RADIUS behaviour parameters -- retries, timeouts, PMK lifetime and
- *       caching, blacklisting -- and not the server address or secret, which
- *       `wifi_getApSecurityRadiusServer()` reports.
- * @note The structure's commented-out `RadiusSecret` member is deliberately absent: the
- *       secret is never returned through this call.
+ *       caching, blacklisting -- and neither the server address nor the shared secret:
+ *       `wifi_radius_setting_t` declares no member for either, so neither can reach the
+ *       caller through this call. `wifi_getApSecurityRadiusServer()` reports the address
+ *       in `IP_output`, the port in `Port_output` and the secret in `RadiusSecret_output`.
  * @note The `HAL` is expected to be thread safe, per `Threading Model` in
  *       `docs/pages/halSpec.md`.
  * @see wifi_setApSecurityRadiusSettings
@@ -3453,17 +3453,17 @@ typedef INT(* wifi_newApAssociatedDevice_callback)(INT apIndex, wifi_associated_
  * before reading any other.
  */
 typedef struct {
-    BOOL cli_Valid;             /**< True when the rest of this entry is populated; false means the link slot is unused. */
-    BOOL cli_IsAssocLink;       /**< True on the single link that carried the association exchange. */
-    UCHAR cli_LinkID;           /**< IEEE 802.11be link identifier advertised for this link. */
-    UINT cli_VapIndex;          /**< Virtual Access Point this link of the multi-link device is
+    BOOL cli_Valid;             /*!< True when the rest of this entry is populated; false means the link slot is unused. */
+    BOOL cli_IsAssocLink;       /*!< True on the single link that carried the association exchange. */
+    UCHAR cli_LinkID;           /*!< IEEE 802.11be link identifier advertised for this link. */
+    UINT cli_VapIndex;          /*!< Virtual Access Point this link of the multi-link device is
                                      established on. This interface does not state whether the value
                                      is the `apIndex` its own calls take or the
                                      `wifi_vap_info_t::vap_index` of the same `VAP`, so a caller
                                      must not pass it into an `apIndex` argument without checking
                                      the platform convention. */
-    INT cli_RSSI;               /**< Received signal strength for this link, in dBm. */
-    UCHAR cli_LinkAddress[6];   /**< MAC address the client uses on this link, which differs from its MLD address. */
+    INT cli_RSSI;               /*!< Received signal strength for this link, in dBm. */
+    UCHAR cli_LinkAddress[6];   /*!< MAC address the client uses on this link, which differs from its MLD address. */
 } wifi_mld_sta_link_info_t;
 
 /**
@@ -3473,15 +3473,15 @@ typedef struct {
  * is a conventional single-link station and the remaining members carry no meaning.
  */
 typedef struct {
-    BOOL cli_MLDSta;                        /**< True when the client is a Wi-Fi 7 multi-link device; false for a single-link station. */
-    wifi_multi_link_modes_t cli_MLModeCapa; /**< Modes the client advertised, as a bitmask of
+    BOOL cli_MLDSta;                        /*!< True when the client is a Wi-Fi 7 multi-link device; false for a single-link station. */
+    wifi_multi_link_modes_t cli_MLModeCapa; /*!< Modes the client advertised, as a bitmask of
                                                  `wifi_multi_link_modes_t` values, so several may be
                                                  set at once. It is meaningful only where
                                                  `cli_MLDSta` above is `TRUE`, and it records what
                                                  the client claimed rather than what the link is
                                                  using. */
-    BOOL cli_TIDLinkMapNegotiation;         /**< True when the client negotiated a traffic-identifier-to-link mapping rather than using the default. */
-    wifi_mld_sta_link_info_t cli_LinkInfo[MAX_NUM_RADIOS]; /**< Per-link state, one entry per radio; read only the entries whose `cli_Valid` is true. */
+    BOOL cli_TIDLinkMapNegotiation;         /*!< True when the client negotiated a traffic-identifier-to-link mapping rather than using the default. */
+    wifi_mld_sta_link_info_t cli_LinkInfo[MAX_NUM_RADIOS]; /*!< Per-link state, one entry per radio; read only the entries whose `cli_Valid` is true. */
 } wifi_mld_sta_info_t;
 
 /**
@@ -3489,19 +3489,19 @@ typedef struct {
  */
 typedef struct _wifi_associated_dev
 {
-    UCHAR cli_MACAddress[6];             /**< Address of the associated device, in six raw octets.
+    UCHAR cli_MACAddress[6];             /*!< Address of the associated device, in six raw octets.
                                               It is not text and carries no terminator; where the
                                               device is a multi-link station this is its MLD address
                                               rather than a per-link one, and
                                               `wifi_mld_sta_link_info_t::cli_LinkAddress` carries
                                               the per-link address. */
-    CHAR cli_IPAddress[64];              /**< Address the device holds, as text in 64 bytes. This
+    CHAR cli_IPAddress[64];              /*!< Address the device holds, as text in 64 bytes. This
                                               interface states neither the family nor the textual
                                               form, nor whether the value is NUL-terminated, and
                                               does not say what the field holds where no address is
                                               known, so a caller must bound any read at 64 bytes and
                                               must not parse the content for structure. */
-    BOOL cli_AuthenticationState;        /**< `TRUE` where the device has completed authentication
+    BOOL cli_AuthenticationState;        /*!< `TRUE` where the device has completed authentication
                                               with the `AP`. This interface does not state which
                                               exchange that covers, so a caller must not read the
                                               member as meaning a particular key is installed. */
@@ -3510,7 +3510,7 @@ typedef struct _wifi_associated_dev
     INT cli_SignalStrength;              /**< An indicator of radio signal strength of the uplink from the associated device to the access point, measured in dBm, as an average of the last 100 packets received from the device. */
     UINT cli_Retransmissions;            /**< The number of packets that had to be re-transmitted, from the last 100 packets sent to the associated device. Multiple re-transmissions of the same packet count as one. */
     BOOL cli_Active;                    /**< Whether or not this node is currently present in the WiFi AccessPoint network. */
-    CHAR cli_OperatingStandard[64];     /**< 802.11 standard the client is operating under, as text
+    CHAR cli_OperatingStandard[64];     /*!< 802.11 standard the client is operating under, as text
                                              in 64 bytes. This interface enumerates no accepted
                                              strings and does not state whether the value is
                                              `NUL`-terminated, so a caller must bound any read at 64
@@ -3527,7 +3527,7 @@ typedef struct _wifi_associated_dev
     INT cli_MaxRSSI;                     /**< The maximum Received Signal Strength Indicator (RSSI) parameter is the maximum energy observed at the antenna receiver for past transmissions (100 packets). */
     UINT cli_Disassociations;           /**< The total number of client disassociations. Reset the parameter every 24 hours or on reboot. */
     UINT cli_AuthenticationFailures;     /**< The total number of authentication failures. Reset the parameter every 24 hours or on reboot. */
-    UINT cli_CapableNumSpatialStreams;  /**< Spatial streams the client is capable of. It is the
+    UINT cli_CapableNumSpatialStreams;  /*!< Spatial streams the client is capable of. It is the
                                              client's capability rather than what is in use, which
                                              `cli_activeNumSpatialStreams` of
                                              `wifi_associated_dev3_t` reports, and this interface
@@ -3683,11 +3683,11 @@ typedef INT ( * wifi_apDisassociatedDevice_callback)(INT apIndex, char *MAC, INT
  * @param[in] event_type  Cause of the disassociation: explicit, or the result of
  *                        client inactivity.
  *
- * @return The status the implementer of the handler returns to the `HAL`. The direction
- *         is inverted relative to the rest of this header: this value travels from the
- *         handler into the `HAL`, not from the `HAL` to a caller.
- * @retval RETURN_OK  The handler accepted the notification.
- * @retval RETURN_ERR The handler could not process the notification.
+ * @returns The status the implementer of the handler returns to the `HAL`. The direction
+ *          is inverted relative to the rest of this header: this value travels from the
+ *          handler into the `HAL`, not from the `HAL` to a caller.
+ * @retval WIFI_HAL_SUCCESS The handler accepted the notification.
+ * @retval WIFI_HAL_ERROR   The handler could not process the notification.
  *
  * @note This interface does not state whether or how the `HAL` acts on a failure the
  *       handler returns, so a handler must not use the return value to steer the
@@ -3726,11 +3726,11 @@ typedef INT ( * wifi_device_disassociated_callback)(INT apIndex, char *src_mac,c
  * @param[in] radio            radio to which associated device connected
  * @param[in] mode             security mode of gateway with respect to akm
  *
- * @return The status the implementer of the handler returns to the `HAL`. The direction
- *         is inverted relative to the rest of this header: this value travels from the
- *         handler into the `HAL`, not from the `HAL` to a caller.
- * @retval RETURN_OK  The handler accepted the notification.
- * @retval RETURN_ERR The handler could not process the notification.
+ * @returns The status the implementer of the handler returns to the `HAL`. The direction
+ *          is inverted relative to the rest of this header: this value travels from the
+ *          handler into the `HAL`, not from the `HAL` to a caller.
+ * @retval WIFI_HAL_SUCCESS The handler accepted the notification.
+ * @retval WIFI_HAL_ERROR   The handler could not process the notification.
  *
  * @note The `HAL` may enter this handler on a `HAL`-owned thread, so the handler must
  *       serialize its own access to caller state; see `Threading Model` and
@@ -3864,11 +3864,11 @@ typedef INT ( * wifi_eapol_timeouts_callback)(int apIndex, char *mac, int type);
  *                     response. Reason 17 is the association-denied-because-the-AP-is-
  *                     at-capacity case this callback exists to report.
  *
- * @return The status the implementer of the handler returns to the `HAL`. The direction
- *         is inverted relative to the rest of this header: this value travels from the
- *         handler into the `HAL`, not from the `HAL` to a caller.
- * @retval RETURN_OK  The handler accepted the notification.
- * @retval RETURN_ERR The handler could not process the notification.
+ * @returns The status the implementer of the handler returns to the `HAL`. The direction
+ *          is inverted relative to the rest of this header: this value travels from the
+ *          handler into the `HAL`, not from the `HAL` to a caller.
+ * @retval WIFI_HAL_SUCCESS The handler accepted the notification.
+ * @retval WIFI_HAL_ERROR   The handler could not process the notification.
  *
  * @note This interface does not state whether or how the `HAL` acts on a failure the
  *       handler returns, so a handler must not use the return value to steer the
@@ -4370,12 +4370,7 @@ void wifi_apDisassociatedDevice_callback_register(wifi_apDisassociatedDevice_cal
  *       `HAL`.
  */
 typedef INT ( * wifi_apDeAuthEvent_callback)(int ap_index, char *mac, int reason);
-/** @} */  //END OF GROUP WIFI_HAL_TYPES
 
-/**
- * @addtogroup WIFI_HAL_TYPES
- * @{
- */
 /**
  * @brief Callback function invoked when a client deauthenticates.
  *
@@ -4396,11 +4391,11 @@ typedef INT ( * wifi_apDeAuthEvent_callback)(int ap_index, char *mac, int reason
  * @param[in] reason      IEEE 802.11 reason code. The values this interface names
  *                        are in `wifi_reason_code_t`.
  *
- * @return The status the implementer of the handler returns to the `HAL`. The direction
- *         is inverted relative to the rest of this header: this value travels from the
- *         handler into the `HAL`, not from the `HAL` to a caller.
- * @retval RETURN_OK  The handler accepted the notification.
- * @retval RETURN_ERR The handler could not process the notification.
+ * @returns The status the implementer of the handler returns to the `HAL`. The direction
+ *          is inverted relative to the rest of this header: this value travels from the
+ *          handler into the `HAL`, not from the `HAL` to a caller.
+ * @retval WIFI_HAL_SUCCESS The handler accepted the notification.
+ * @retval WIFI_HAL_ERROR   The handler could not process the notification.
  *
  * @note This interface does not state whether or how the `HAL` acts on a failure the
  *       handler returns, so a handler must not use the return value to steer the
@@ -4609,22 +4604,22 @@ INT wifi_getInterworkingAccessNetworkType(INT apIndex, UINT *output_uint);
  */
 typedef struct
 {
-    BOOL interworkingEnabled;     /**< `TRUE` where the `AP` advertises the Interworking element,
+    BOOL interworkingEnabled;     /*!< `TRUE` where the `AP` advertises the Interworking element,
                                        which is what makes the rest of this structure meaningful;
                                        where it is `FALSE` this interface does not state what the
                                        other members hold. `wifi_getApInterworkingServiceEnable()`
                                        and `wifi_setApInterworkingServiceEnable()` read and write
                                        the interworking service separately, and this interface does
                                        not state whether they act on this same member. */
-    UINT accessNetworkType;      /**< Access Network Type field of the Interworking element, whose
+    UINT accessNetworkType;      /*!< Access Network Type field of the Interworking element, whose
                                       values 802.11-2016 section 9.4.2.92 defines; this interface
                                       enumerates none of them. */
-    BOOL internetAvailable;      /**< `TRUE` where the Interworking element advertises that the
+    BOOL internetAvailable;      /*!< `TRUE` where the Interworking element advertises that the
                                       network offers internet access. It is only meaningful where
                                       `interworkingEnabled` above is `TRUE`, and this interface does
                                       not state that the `AP` verifies the claim before advertising
                                       it. */
-    BOOL asra;                   /**< `TRUE` where the Interworking element advertises `ASRA`,
+    BOOL asra;                   /*!< `TRUE` where the Interworking element advertises `ASRA`,
                                       Additional Step Required for Access: 802.11-2016 section
                                       9.4.2.92 defines that bit of the Access Network Options field
                                       as indicating that the network requires a further step - an
@@ -4635,33 +4630,33 @@ typedef struct
                                       `interworkingEnabled` above is `TRUE`, and this interface
                                       neither states which step is required nor exposes it, so a
                                       caller can learn only that one exists. */
-    BOOL esr;                   /**< `TRUE` where the Interworking element advertises that emergency
+    BOOL esr;                   /*!< `TRUE` where the Interworking element advertises that emergency
                                      services are reachable through this network. It is only
                                      meaningful where `interworkingEnabled` above is `TRUE`, and it
                                      is independent of `uesa` below. */
-    BOOL uesa;                  /**< `TRUE` where the Interworking element advertises that emergency
+    BOOL uesa;                  /*!< `TRUE` where the Interworking element advertises that emergency
                                      services may be reached without authenticating. It is only
                                      meaningful where `interworkingEnabled` above is `TRUE`, and it
                                      is a separate advertisement from `esr` above. */
-    BOOL venueOptionPresent;     /**< `TRUE` where the element carries a Venue Info field, and so
+    BOOL venueOptionPresent;     /*!< `TRUE` where the element carries a Venue Info field, and so
                                       the flag that makes `venueGroup` and `venueType` below
                                       meaningful. Where it is `FALSE` a caller must not read either
                                       of them. */
-    UCHAR venueGroup;            /**< Venue Group code of the element's Venue Info field, meaningful
+    UCHAR venueGroup;            /*!< Venue Group code of the element's Venue Info field, meaningful
                                       only where `venueOptionPresent` above is `TRUE`. This
                                       interface enumerates no values for it. */
-    UCHAR venueType;             /**< Venue Type code within `venueGroup`, meaningful only where
+    UCHAR venueType;             /*!< Venue Type code within `venueGroup`, meaningful only where
                                       `venueOptionPresent` above is `TRUE`. The same numeric type
                                       denotes different venues in different groups, so the two
                                       members are only meaningful together. */
-    BOOL hessOptionPresent;      /**< `TRUE` where the element carries its optional HESSID field,
+    BOOL hessOptionPresent;      /*!< `TRUE` where the element carries its optional HESSID field,
                                       and so the flag that makes `hessid` below meaningful. `HESSID`
                                       is the Homogeneous ESS Identifier that 802.11-2016 section
                                       9.4.2.92 defines - a MAC-address-formatted value identifying
                                       the homogeneous ESS an `AP` belongs to - and not a Hotspot 2.0
                                       security feature. Where this member is `FALSE` a caller must
                                       not read `hessid`. */
-    mac_addr_str_t hessid;       /**< Homogeneous ESS Identifier of the element's optional HESSID
+    mac_addr_str_t hessid;       /*!< Homogeneous ESS Identifier of the element's optional HESSID
                                       field, as a `mac_addr_str_t` string rather than six octets.
                                       Meaningful only where `hessOptionPresent` above is `TRUE`; an
                                       empty string indicates that no value was provided. This
@@ -4890,38 +4885,38 @@ typedef enum
  */
 typedef struct
 {
-    INT ap_index;               /**< Access Point the frame was seen on, in the same `apIndex`
+    INT ap_index;               /*!< Access Point the frame was seen on, in the same `apIndex`
                                      numbering this interface's calls take - `AP_INDEX_1` to
                                      `AP_INDEX_24`. `INT`, and this interface states no sentinel for
                                      `not known`. */
-    mac_address_t sta_mac;      /**< Address of the station the frame came from or was sent to, as
+    mac_address_t sta_mac;      /*!< Address of the station the frame came from or was sent to, as
                                      the six raw octets of `mac_address_t` rather than text. `dir`
                                      below is what says which of the two it is. */
-    wifi_mgmtFrameType_t type;  /**< Management frame subtype, as one of the `wifi_mgmtFrameType_t`
+    wifi_mgmtFrameType_t type;  /*!< Management frame subtype, as one of the `wifi_mgmtFrameType_t`
                                      enumerators - probe, association, authentication, action and
                                      beacon frames among them. It is not a `wifi_frameType_t`: that
                                      separate enumeration names the management, control and data
                                      classes, and the two must not be mixed. */
-    wifi_direction_t dir;       /**< Whether the frame travelled uplink or downlink, as one of the
+    wifi_direction_t dir;       /*!< Whether the frame travelled uplink or downlink, as one of the
                                      `wifi_direction_t` enumerators, with `wifi_direction_unknown`
                                      where the `HAL` cannot tell. It is what fixes the role of
                                      `sta_mac` above. */
     INT sig_dbm;                /**< Signal strength in dBm. */
-    INT phy_rate;               /**< PHY rate the frame was carried at. This interface states no
+    INT phy_rate;               /*!< PHY rate the frame was carried at. This interface states no
                                      unit for the value, so a caller must not assume Mbps or kbps,
                                      and no sentinel for a rate the `HAL` could not determine. */
-    UCHAR token;                /**< Token carried with the frame. This interface states neither how
+    UCHAR token;                /*!< Token carried with the frame. This interface states neither how
                                      the value is derived nor which frame types populate it, so a
                                      caller should treat it as an opaque correlator supplied
                                      alongside the frame. */
-    UINT recv_freq;             /**< Frequency the frame arrived on. This interface states no unit
+    UINT recv_freq;             /*!< Frequency the frame arrived on. This interface states no unit
                                      for the value, so a caller must not assume MHz; the frame
                                      carries no band member, so the channel cannot be derived from
                                      it here. */
-    UINT len;                   /**< Number of octets behind `data` below. It is the caller's only
+    UINT len;                   /*!< Number of octets behind `data` below. It is the caller's only
                                      bound on that pointer, since the pointer itself carries no
                                      extent, so a handler must read no further than this value. */
-    UCHAR *data;                /**< Start of the frame body. The member is a bare `UCHAR *`: this
+    UCHAR *data;                /*!< Start of the frame body. The member is a bare `UCHAR *`: this
                                      interface states neither which side owns the storage, how long
                                      it stays valid, nor whether a handler may free it, so a handler
                                      must bound every read by `len` above, must release nothing, and
@@ -5769,11 +5764,11 @@ INT wifi_sendActionFrameExt(INT apIndex,
  */
 typedef struct _wifi_GASConfiguration_t
 {
-    UINT AdvertisementID;          /**< Identifier of the advertisement protocol this GAS
+    UINT AdvertisementID;          /*!< Identifier of the advertisement protocol this GAS
                                         configuration applies to, in the sense of the
                                         `dot11GASAdvertisementEntry` field this structure's comment
                                         cites. This interface enumerates no values for it. */
-    BOOL PauseForServerResponse;   /**< `TRUE` requests that the `AP` wait for the advertisement
+    BOOL PauseForServerResponse;   /*!< `TRUE` requests that the `AP` wait for the advertisement
                                         server before answering a GAS query, in which case
                                         `ResponseTimeout` and `ComeBackDelay` below bound the wait.
                                         This interface does not state what the `AP` answers where it
@@ -6813,7 +6808,7 @@ INT wifi_getMultiPskClientKey(INT apIndex, mac_address_t mac, wifi_key_multi_psk
  */
 typedef struct
 {
-    wifi_GASConfiguration_t gas_config; /**< Generic Advertisement Service parameters for the `VAP`
+    wifi_GASConfiguration_t gas_config; /*!< Generic Advertisement Service parameters for the `VAP`
                                              - advertisement identifier, whether to pause for the
                                              server, the response timeout and the query limits. See
                                              `wifi_GASConfiguration_t` for the units of each field. */
@@ -6855,16 +6850,16 @@ typedef enum
  */
 typedef struct
 {
-    BOOL enable;                    /**< `TRUE` where WPS onboarding is offered on the `VAP`.
+    BOOL enable;                    /*!< `TRUE` where WPS onboarding is offered on the `VAP`.
                                          `methods` below names which methods are offered and `pin`
                                          the device PIN, and this interface does not state what
                                          those two hold while WPS is disabled. */
-    wifi_onboarding_methods_t methods; /**< Methods offered for WPS onboarding, as a bitmask of
+    wifi_onboarding_methods_t methods; /*!< Methods offered for WPS onboarding, as a bitmask of
                                             `wifi_onboarding_methods_t` values - those enumerators
                                             are distinct single bits, so several are set at once.
                                             `wifi_ap_capabilities_t::methodsSupported` reports the
                                             methods the `AP` can offer at all. */
-    CHAR pin[WIFI_AP_MAX_WPSPIN_LEN]; /**< Device PIN used for PIN-based onboarding, in the
+    CHAR pin[WIFI_AP_MAX_WPSPIN_LEN]; /*!< Device PIN used for PIN-based onboarding, in the
                                            `WIFI_AP_MAX_WPSPIN_LEN` bytes that macro declares as 9 -
                                            eight digits plus room for a terminator. This interface
                                            states neither the digit count nor that a terminator is
@@ -6898,7 +6893,7 @@ typedef enum
 typedef struct
 {
 #ifdef WIFI_HAL_VERSION_3_PHASE2
-    ip_addr_t ip;              /**< Address of the primary RADIUS server, as the `ip_addr_t` of
+    ip_addr_t ip;              /*!< Address of the primary RADIUS server, as the `ip_addr_t` of
                                     `wifi_hal_generic.h` in this preprocessor arm: a family selector
                                     with a union of an IPv4 and an IPv6 address, so a caller must
                                     set `family` before writing it. Where
@@ -6906,39 +6901,39 @@ typedef struct
                                     45-byte text field instead, so a caller must build against the
                                     arm the platform uses. */
 #else
-    unsigned char ip[45];      /**< Address of the primary RADIUS server, as text in 45 bytes in
+    unsigned char ip[45];      /*!< Address of the primary RADIUS server, as text in 45 bytes in
                                     this preprocessor arm - wide enough for a full IPv6 form. This
                                     interface states neither the textual form nor whether the value
                                     is NUL-terminated, so a caller must bound any read at 45 bytes;
                                     where `WIFI_HAL_VERSION_3_PHASE2` is defined the same setting is
                                     the typed `ip_addr_t` above. */
 #endif
-    unsigned short port;        /**< UDP port of the primary RADIUS server. `unsigned short`, so the
+    unsigned short port;        /*!< UDP port of the primary RADIUS server. `unsigned short`, so the
                                      whole port range is representable; this interface states no
                                      default and no value meaning `unset`. */
-    char key[64];             /**< Shared secret used with the primary RADIUS server, in 64 bytes.
+    char key[64];             /*!< Shared secret used with the primary RADIUS server, in 64 bytes.
                                    This interface states neither the encoding nor whether the value
                                    is NUL-terminated, so a caller must bound any read at 64 bytes
                                    and must not run an unbounded string function over it. */
-    char identity[64];        /**< NAS identity presented to the primary RADIUS server, in 64 bytes,
+    char identity[64];        /*!< NAS identity presented to the primary RADIUS server, in 64 bytes,
                                    on the same terms as `key` above: no encoding and no termination
                                    are stated, so a caller must bound any read at 64 bytes. */
 #ifdef WIFI_HAL_VERSION_3_PHASE2
-    ip_addr_t s_ip;              /**< Address of the fallback RADIUS server, in the same typed
+    ip_addr_t s_ip;              /*!< Address of the fallback RADIUS server, in the same typed
                                       `ip_addr_t` form as `ip` above. `connectedendpoint` below
                                       reports which of the two servers is in use, so a caller must
                                       not infer that from this member. */
-    ip_addr_t connectedendpoint; /**< Address of whichever of `ip` and `s_ip` the `AP` is currently
+    ip_addr_t connectedendpoint; /*!< Address of whichever of `ip` and `s_ip` the `AP` is currently
                                       authenticating against, in the same typed `ip_addr_t` form. It
                                       is the only member of this structure that reports a state
                                       rather than carrying a setting, so a caller must not write it
                                       to choose a server. */
 #else
-    unsigned char s_ip[45];     /**< Address of the fallback RADIUS server, as text in 45 bytes on
+    unsigned char s_ip[45];     /*!< Address of the fallback RADIUS server, as text in 45 bytes on
                                      the same terms as `ip` above: no textual form and no
                                      termination are stated, so a caller must bound any read at 45
                                      bytes. */
-    unsigned char connectedendpoint[45]; /**< Address of whichever of `ip` and `s_ip` the `AP` is
+    unsigned char connectedendpoint[45]; /*!< Address of whichever of `ip` and `s_ip` the `AP` is
                                               currently authenticating against, as text in 45 bytes
                                               in this preprocessor arm. No textual form and no
                                               termination are stated, so a caller must bound any
@@ -6946,24 +6941,24 @@ typedef struct
                                               than carrying a setting, so writing it does not choose
                                               a server. */
 #endif
-    unsigned short s_port;      /**< UDP port of the fallback RADIUS server, on the same terms as
+    unsigned short s_port;      /*!< UDP port of the fallback RADIUS server, on the same terms as
                                      `port` above; this interface does not state that it must differ
                                      from it. */
-    char s_key[64];           /**< Shared secret used with the fallback RADIUS server, in 64 bytes,
+    char s_key[64];           /*!< Shared secret used with the fallback RADIUS server, in 64 bytes,
                                    with no encoding and no termination stated. This interface does
                                    not state that it must differ from `key` above. */
-    ip_addr_t dasip;           /**< Address of the Dynamic Authorization Server that may send
+    ip_addr_t dasip;           /*!< Address of the Dynamic Authorization Server that may send
                                     disconnect or change-of-authorization requests, as an
                                     `ip_addr_t` whose `family` member selects the valid arm of its
                                     union. Unlike the primary and secondary addresses, this member
                                     is typed in both preprocessor arms. */
-    USHORT dasport;            /**< UDP port the Dynamic Authorization Server is contacted on. This
+    USHORT dasport;            /*!< UDP port the Dynamic Authorization Server is contacted on. This
                                     interface states no default, and its width covers the whole port
                                     range. */
-    char daskey[64];          /**< Shared secret used with the Dynamic Authorization Server, in 64
+    char daskey[64];          /*!< Shared secret used with the Dynamic Authorization Server, in 64
                                    bytes, with no encoding and no termination stated, so a caller
                                    must bound any read at 64 bytes. */
-    UINT max_auth_attempts;    /**< How many times a client may authenticate unsuccessfully before
+    UINT max_auth_attempts;    /*!< How many times a client may authenticate unsuccessfully before
                                     it is blacklisted; `blacklist_table_timeout` below gives how
                                     long that lasts, in seconds.
                                     `wifi_radius_setting_t::MaxAuthenticationAttempts` documents
@@ -6971,16 +6966,16 @@ typedef struct
                                     state whether the same holds for this member. */
     UINT blacklist_table_timeout; /**< Blacklist table timeout in seconds. */
     UINT identity_req_retry_interval; /**< Identity request retry interval in seconds. */
-    UINT server_retries;        /**< How many times a RADIUS request is retransmitted before the
+    UINT server_retries;        /*!< How many times a RADIUS request is retransmitted before the
                                      exchange is abandoned. This interface states no accepted range,
                                      no value meaning unlimited and no wait between attempts for
                                      this structure - `wifi_radius_setting_t` carries the timeout
                                      that pairs with its own retry count. */
-    wifi_eap_t eap_type;       /**< EAP method the `RADIUS` exchange uses, as one of the
+    wifi_eap_t eap_type;       /*!< EAP method the `RADIUS` exchange uses, as one of the
                                     `wifi_eap_t` enumerators. `phase2` below carries the inner
                                     method; this interface does not state which `wifi_eap_t` values
                                     require one. */
-    phase2_type phase2;        /**< Inner EAP method used inside the tunnel the outer method
+    phase2_type phase2;        /*!< Inner EAP method used inside the tunnel the outer method
                                     establishes, as one of the `phase2_type` enumerators - EAP,
                                     MSCHAPv2, MSCHAP, PAP, CHAP or GTC. That enumeration assigns no
                                     values, so a caller must compare against the enumerators; this
@@ -7007,12 +7002,12 @@ typedef enum
  */
 typedef struct
 {
-    wifi_security_key_type_t type; /**< Which key `key` below carries, as one of the
+    wifi_security_key_type_t type; /*!< Which key `key` below carries, as one of the
                                         `wifi_security_key_type_t` enumerators - pre-shared key,
                                         passphrase, SAE and the combinations of them. It is what
                                         fixes how the 256 bytes of `key` are to be read, so it must
                                         be set before that member is written. */
-    char key[256];              /**< The key itself, in 256 bytes, read according to `type` above -
+    char key[256];              /*!< The key itself, in 256 bytes, read according to `type` above -
                                      a passphrase and a pre-shared key are not the same encoding.
                                      This interface states neither which of them is NUL-terminated
                                      nor a length member for the buffer, so a caller must bound any
@@ -7024,12 +7019,12 @@ typedef struct
  */
 typedef struct
 {
-    wifi_security_modes_t mode;     /**< Security mode the `VAP` operates under, drawn from
+    wifi_security_modes_t mode;     /*!< Security mode the `VAP` operates under, drawn from
                                          `wifi_security_modes_t`. The member is declared as a single
                                          enumerator, so a caller must not build a bitmask of several
                                          here; `wifi_ap_capabilities_t::securityModesSupported`
                                          reports which modes the `AP` supports, in bitmask form. */
-    wifi_security_modes_t repurposed_mode;     /**< Alternative security mode, in the same
+    wifi_security_modes_t repurposed_mode;     /*!< Alternative security mode, in the same
                                                     `wifi_security_modes_t` domain as `mode` above,
                                                     kept alongside the repurposed name and SSID
                                                     members elsewhere in this interface. This
@@ -7037,11 +7032,11 @@ typedef struct
                                                     place of `mode` nor what it holds where there is
                                                     no alternative, so a caller must not treat it as
                                                     the mode in force. */
-    wifi_encryption_method_t encr;   /**< Cipher the `VAP` uses, as a `wifi_encryption_method_t`
+    wifi_encryption_method_t encr;   /*!< Cipher the `VAP` uses, as a `wifi_encryption_method_t`
                                           enumerator. It is only meaningful together with `mode`
                                           above, since a cipher is defined within a security mode. */
 #if defined(WIFI_HAL_VERSION_3)
-    wifi_mfp_cfg_t mfp;            /**< Management frame protection setting, as one of the
+    wifi_mfp_cfg_t mfp;            /*!< Management frame protection setting, as one of the
                                         `wifi_mfp_cfg_t` enumerators - disabled, optional or
                                         required - in this preprocessor arm. Where
                                         `WIFI_HAL_VERSION_3` is not defined the same setting is the
@@ -7050,7 +7045,7 @@ typedef struct
                                         `wifi_getApSecurityMFPConfig()` reports it as a string in
                                         either case. */
 #else
-    char mfpConfig[32];           /**< Management frame protection setting, carried as text in 32
+    char mfpConfig[32];           /*!< Management frame protection setting, carried as text in 32
                                        bytes in this preprocessor arm. Where `WIFI_HAL_VERSION_3` is
                                        defined the same setting is instead the typed `wifi_mfp_cfg_t
                                        mfp` member above, so a caller must build against the arm the
@@ -7060,44 +7055,44 @@ typedef struct
 #endif
     BOOL wpa3_transition_disable; /**< Whether WPA3 transition is disabled. */
     UINT rekey_interval;         /**< Rekey interval in seconds. */
-    BOOL strict_rekey;           /**< `TRUE` where the group key is rekeyed strictly on the schedule
+    BOOL strict_rekey;           /*!< `TRUE` where the group key is rekeyed strictly on the schedule
                                       `rekey_interval` above sets, rather than only when a station
                                       leaves. This interface states no further effect for the member
                                       and declares no call that reports it on its own. */
     UINT eapol_key_timeout;      /**< EAPOL key timeout in seconds. */
-    UINT eapol_key_retries;      /**< Number of times an EAPOL-Key message is retransmitted before
+    UINT eapol_key_retries;      /*!< Number of times an EAPOL-Key message is retransmitted before
                                       the exchange is abandoned; `eapol_key_timeout` above gives the
                                       wait between attempts in seconds. This interface states no
                                       accepted range and no value that means unlimited. */
     UINT eap_identity_req_timeout; /**< EAP identity request timeout in seconds. */
-    UINT eap_identity_req_retries; /**< How many times an EAP identity request is retransmitted
+    UINT eap_identity_req_retries; /*!< How many times an EAP identity request is retransmitted
                                         before the exchange is abandoned; `eap_identity_req_timeout`
                                         above gives the wait between attempts in seconds. This
                                         interface states no accepted range and no value meaning
                                         unlimited. */
     UINT eap_req_timeout;        /**< EAP request timeout in seconds. */
-    UINT eap_req_retries;        /**< How many times a subsequent EAP request is retransmitted
+    UINT eap_req_retries;        /*!< How many times a subsequent EAP request is retransmitted
                                       before the exchange is abandoned; `eap_req_timeout` above
                                       gives the wait between attempts in seconds. It is separate
                                       from the identity-request retry count above, so the two may
                                       differ. */
-    BOOL disable_pmksa_caching;   /**< `TRUE` disables caching of the pairwise master key security
+    BOOL disable_pmksa_caching;   /*!< `TRUE` disables caching of the pairwise master key security
                                        association, so every association runs a full authentication.
                                        The sense is inverted relative to
                                        `wifi_radius_setting_t::PMKCaching`, which enables it, so a
                                        caller must not copy a value from one to the other. */
-    char key_id[32];            /**< Tag carried alongside a pre-shared key so traffic authenticated
+    char key_id[32];            /*!< Tag carried alongside a pre-shared key so traffic authenticated
                                      with that key can be identified downstream, in 32 bytes. This
                                      interface states neither the encoding nor whether the value is
                                      NUL-terminated, so a caller must bound any read at 32 bytes. */
     wifi_radius_settings_t repurposed_radius;   /**< To Store RADIUS configs when in Non IEEE802_1x mode */
     union
     {
-        wifi_radius_settings_t radius; /**< RADIUS settings, for a mode that authenticates
+        wifi_radius_settings_t radius; /*!< RADIUS settings, for a mode that authenticates
                         against a server. */
-        wifi_security_key_t key;      /**< Security key, for a mode that authenticates with a
+        wifi_security_key_t key;      /*!< Security key, for a mode that authenticates with a
                         pre-shared credential. */
-    } u; /**< The credential the security mode needs, selected by `mode`. `key` carries the
+    } u; /*!< The credential the security mode needs, selected by `mode`. `key` carries the
                         pre-shared key or passphrase - `wifi_pushMultiPskKeys()` records
                         that `wifi_setApSecurity()` sets the primary key through this arm -
                         and `radius` carries the authentication-server settings an 802.1X
@@ -7114,84 +7109,84 @@ typedef struct
  */
 typedef struct
 {
-    int capabilityInfoLength;       /**< Number of octets of `capabilityInfo` below that carry
+    int capabilityInfoLength;       /*!< Number of octets of `capabilityInfo` below that carry
                                          advertised capabilities. The member is signed and this
                                          interface states no range and no meaning for a negative
                                          value, so a caller should treat anything outside 0 to
                                          `sizeof(capabilityInfo)` as unusable. */
-    wifi_capabilityListANQP_t capabilityInfo; /**< ANQP capability identifiers the `AP` advertises,
+    wifi_capabilityListANQP_t capabilityInfo; /*!< ANQP capability identifiers the `AP` advertises,
                                                    bounded by `capabilityInfoLength` above;
                                                    `wifi_capabilityListANQP_t` holds at most 64 and
                                                    declares no count of its own, so that length is
                                                    the only extent this structure gives. */
-    int venueInfoLength;           /**< Number of octets of `venueInfo` below that are meaningful.
+    int venueInfoLength;           /*!< Number of octets of `venueInfo` below that are meaningful.
                                         Signed, with no range and no meaning for a negative value
                                         stated here. */
-    wifi_venueNameElement_t venueInfo; /**< Venue group, type and name duples the `AP` advertises,
+    wifi_venueNameElement_t venueInfo; /*!< Venue group, type and name duples the `AP` advertises,
                                             bounded by `venueInfoLength` above.
                                             `wifi_venueNameElement_t` declares no count for its 16
                                             duples, so that length is the only extent this structure
                                             gives. */
-    int roamInfoLength;            /**< Number of octets of `roamInfo` below that are meaningful.
+    int roamInfoLength;            /*!< Number of octets of `roamInfo` below that are meaningful.
                                         The member is signed and this interface states no range and
                                         no meaning for a negative value, so a caller should treat
                                         anything outside 0 to `sizeof(roamInfo)` as unusable. */
-    wifi_roamingConsortium_t roamInfo; /**< Roaming consortium organization identifiers the `AP`
+    wifi_roamingConsortium_t roamInfo; /*!< Roaming consortium organization identifiers the `AP`
                                             advertises through ANQP, bounded by `roamInfoLength`
                                             above. `wifi_roamingConsortium_t` holds at most 32 OI
                                             duples and declares no count of its own, so that length
                                             is the only extent this structure gives. */
-    wifi_ipAddressAvailabality_t ipAddressInfo; /**< IPv4 and IPv6 availability the `AP` advertises
+    wifi_ipAddressAvailabality_t ipAddressInfo; /*!< IPv4 and IPv6 availability the `AP` advertises
                                                      through ANQP, carried in the single octet
                                                      `wifi_ipAddressAvailabality_t` describes. This
                                                      structure declares no length member for it, and
                                                      that type states no bit positions, so a caller
                                                      decodes the octet against 802.11u. */
-    int realmInfoLength;           /**< Number of octets of `realmInfo` below that are meaningful.
+    int realmInfoLength;           /*!< Number of octets of `realmInfo` below that are meaningful.
                                         Signed, with no range and no meaning for a negative value
                                         stated here; within that member it is `nai_realm_count` that
                                         bounds the tuples. */
-    wifi_naiRealmElement_t realmInfo; /**< NAI realms the `AP` advertises through ANQP, bounded by
+    wifi_naiRealmElement_t realmInfo; /*!< NAI realms the `AP` advertises through ANQP, bounded by
                                            `realmInfoLength` above. Within `wifi_naiRealmElement_t`
                                            it is that structure's own `nai_realm_count` that bounds
                                            its tuples, and the array holds at most 20 whatever the
                                            count field expresses. */
     int gppInfoLength;             /**< Length of the 3GPP cellular network information. */
-    wifi_3gppCellularNetwork_t gppInfo; /**< 3GPP Cellular Network element the `AP` advertises
+    wifi_3gppCellularNetwork_t gppInfo; /*!< 3GPP Cellular Network element the `AP` advertises
                                              through ANQP, bounded by `gppInfoLength` above. Within
                                              `wifi_3gppCellularNetwork_t` the PLMN identifiers are
                                              bounded by `plmn_information.number_of_plmns`, at most
                                              16. */
-    int domainInfoLength;          /**< Number of octets of `domainNameInfo` below that are
+    int domainInfoLength;          /*!< Number of octets of `domainNameInfo` below that are
                                         meaningful. Signed, with no range and no meaning for a
                                         negative value stated here. */
-    wifi_domainName_t domainNameInfo; /**< Domain names the `AP` advertises, bounded by
+    wifi_domainName_t domainNameInfo; /*!< Domain names the `AP` advertises, bounded by
                                            `domainInfoLength` above. `wifi_domainName_t` declares no
                                            count for its four tuples, so that length is the only
                                            extent this structure gives. */
-    UCHAR passpointStats[1024];    /**< Raw statistics buffer, 1024 octets. This interface states
+    UCHAR passpointStats[1024];    /*!< Raw statistics buffer, 1024 octets. This interface states
                                         neither an encoding for it nor a length member, so how much
                                         is populated is not established here; the counters a caller
                                         can actually read are the `domainRespCount` to
                                         `gppFailedCount` members below. */
-    UINT domainRespCount;         /**< Domain-name ANQP queries the `AP` answered successfully. This
+    UINT domainRespCount;         /*!< Domain-name ANQP queries the `AP` answered successfully. This
                                        interface states neither the interval the counter covers nor
                                        when it resets, so a caller should difference successive
                                        reads; `domainFailedCount` below counts the failures
                                        separately, so the two must be added to get the total asked. */
-    UINT realmRespCount;          /**< NAI realm ANQP queries the `AP` answered successfully, on the
+    UINT realmRespCount;          /*!< NAI realm ANQP queries the `AP` answered successfully, on the
                                        same terms as `domainRespCount` above: no interval and no
                                        reset point are stated, and `realmFailedCount` counts the
                                        failures separately. */
     UINT gppRespCount;            /**< Number of successful 3GPP cellular network responses. */
-    UINT domainFailedCount;        /**< Domain-name ANQP queries the `AP` failed to answer. This
+    UINT domainFailedCount;        /*!< Domain-name ANQP queries the `AP` failed to answer. This
                                         interface does not state what counts as a failure, nor the
                                         interval covered, nor when the counter resets. */
-    UINT realmFailedCount;         /**< NAI realm ANQP queries the `AP` failed to answer, on the
+    UINT realmFailedCount;         /*!< NAI realm ANQP queries the `AP` failed to answer, on the
                                         same terms as `domainFailedCount` above: what counts as a
                                         failure is not stated here. */
     UINT gppFailedCount;           /**< Number of failed 3GPP cellular network responses. */
-    UCHAR anqpParameters[4096];     /**< Raw ANQP parameter buffer, 4096 octets. This interface
+    UCHAR anqpParameters[4096];     /*!< Raw ANQP parameter buffer, 4096 octets. This interface
                                          states neither an encoding for the buffer nor a length
                                          member for it, so how much is populated is not established
                                          here and a caller must treat the content as opaque. */
@@ -7202,44 +7197,44 @@ typedef struct
  */
 typedef struct
 {
-    BOOL enable;                 /**< `TRUE` where Hotspot 2.0 is offered on the `VAP`. It is the
+    BOOL enable;                 /*!< `TRUE` where Hotspot 2.0 is offered on the `VAP`. It is the
                                       one member of this structure outside the block marked as not
                                       to be implemented in the `HAL`, together with the flags
                                       immediately below it, so a caller must not rely on the
                                       length-and-element members further down being populated. */
-    BOOL gafDisable;              /**< `TRUE` where downstream group-addressed forwarding is
+    BOOL gafDisable;              /*!< `TRUE` where downstream group-addressed forwarding is
                                        disabled, so the `AP` does not forward group-addressed frames
                                        to associated stations. `proxyArp` below is what keeps
                                        address resolution working when it is disabled. */
     BOOL p2pDisable;              /**< Whether P2P cross connect is disabled. */
     BOOL l2tif;                  /**< Whether Layer 2 Traffic Inspection and Filtering is enabled. */
-    BOOL bssLoad;                 /**< `TRUE` where the `BSS` advertises the BSS Load element, which
+    BOOL bssLoad;                 /*!< `TRUE` where the `BSS` advertises the BSS Load element, which
                                        is what makes a scanning station's
                                        `wifi_bss_info_t::bss_load` and its channel utilization and
                                        station count meaningful. */
-    BOOL countryIE;               /**< `TRUE` where the `BSS` advertises the Country element. This
+    BOOL countryIE;               /*!< `TRUE` where the `BSS` advertises the Country element. This
                                        interface does not state which country it carries; the
                                        radio's own `countryCode` and `regDomain` are what set that. */
-    BOOL proxyArp;                /**< `TRUE` where the `AP` answers ARP and neighbour-discovery
+    BOOL proxyArp;                /*!< `TRUE` where the `AP` answers ARP and neighbour-discovery
                                        requests on behalf of associated stations rather than
                                        forwarding them. It is what Hotspot 2.0 pairs with
                                        `gafDisable` above, and this interface states no dependency
                                        between the two. */
 /* vvvv **The following fields should not to be implemented in the HAL** vvvv */
-    int capabilityInfoLength;    /**< Number of octets of `capabilityInfo` below that are
+    int capabilityInfoLength;    /*!< Number of octets of `capabilityInfo` below that are
                                       meaningful. It sits inside the block this structure marks as
                                       not to be implemented in the `HAL`, so a caller must not rely
                                       on it being populated. */
-    wifi_HS2_CapabilityList_t capabilityInfo; /**< Hotspot 2.0 capability identifiers, bounded by
+    wifi_HS2_CapabilityList_t capabilityInfo; /*!< Hotspot 2.0 capability identifiers, bounded by
                                                    `capabilityInfoLength` above. Inside the block
                                                    this structure marks as not to be implemented in
                                                    the `HAL`. */
-    int opFriendlyNameInfoLength; /**< Number of octets of `opFriendlyNameInfo` below that are
+    int opFriendlyNameInfoLength; /*!< Number of octets of `opFriendlyNameInfo` below that are
                                        meaningful. The member is signed and this interface states no
                                        range and no meaning for a negative value; it sits inside the
                                        block this structure marks as not to be implemented in the
                                        `HAL`, so a caller must not rely on it being populated. */
-    wifi_HS2_OperatorFriendlyName_t opFriendlyNameInfo; /**< Operator friendly names the `AP`
+    wifi_HS2_OperatorFriendlyName_t opFriendlyNameInfo; /*!< Operator friendly names the `AP`
                                                              advertises, bounded by
                                                              `opFriendlyNameInfoLength` above; each
                                                              duple pairs a three-octet language code
@@ -7249,10 +7244,10 @@ typedef struct
                                                              this structure marks as not to be
                                                              implemented in the `HAL`, so a caller
                                                              must not rely on it being populated. */
-    int connCapabilityLength;    /**< Number of octets of `connCapabilityInfo` below that are
+    int connCapabilityLength;    /*!< Number of octets of `connCapabilityInfo` below that are
                                       meaningful. Inside the block this structure marks as not to be
                                       implemented in the `HAL`. */
-    wifi_HS2_ConnectionCapability_t connCapabilityInfo; /**< Protocol and port tuples advertised as
+    wifi_HS2_ConnectionCapability_t connCapabilityInfo; /*!< Protocol and port tuples advertised as
                                                              reachable through the `AP`, bounded by
                                                              `connCapabilityLength` above;
                                                              `wifi_HS2_ConnectionCapability_t` holds
@@ -7260,21 +7255,21 @@ typedef struct
                                                              own. Inside the block this structure
                                                              marks as not to be implemented in the
                                                              `HAL`. */
-    int realmInfoLength;          /**< Number of octets of `realmInfo` below that are meaningful.
+    int realmInfoLength;          /*!< Number of octets of `realmInfo` below that are meaningful.
                                        Signed, with no range and no meaning for a negative value
                                        stated, and inside the block this structure marks as not to
                                        be implemented in the `HAL`. */
-    wifi_HS2_NAI_Home_Realm_Query_t realmInfo; /**< NAI home realm query the `AP` answers, bounded
+    wifi_HS2_NAI_Home_Realm_Query_t realmInfo; /*!< NAI home realm query the `AP` answers, bounded
                                                     by `realmInfoLength` above;
                                                     `wifi_HS2_NAI_Home_Realm_Query_t` carries the
                                                     realm names with their own encoding and length
                                                     fields. Inside the block this structure marks as
                                                     not to be implemented in the `HAL`. */
-    wifi_HS2_WANMetrics_t wanMetricsInfo; /**< WAN link speeds, loads and measurement duration the
+    wifi_HS2_WANMetrics_t wanMetricsInfo; /*!< WAN link speeds, loads and measurement duration the
                                                `AP` advertises; `wifi_HS2_WANMetrics_t` gives the
                                                unit of each field. Inside the block this structure
                                                marks as not to be implemented in the `HAL`. */
-    UCHAR hs2Parameters[4096];     /**< Raw Hotspot 2.0 parameter buffer, 4096 octets, with neither
+    UCHAR hs2Parameters[4096];     /*!< Raw Hotspot 2.0 parameter buffer, 4096 octets, with neither
                                         an encoding nor a length member stated here. Inside the
                                         block this structure marks as not to be implemented in the
                                         `HAL`. */
@@ -7286,12 +7281,12 @@ typedef struct
  */
 typedef struct
 {
-    wifi_InterworkingElement_t interworking; /**< Interworking element the `VAP` advertises. Its own
+    wifi_InterworkingElement_t interworking; /*!< Interworking element the `VAP` advertises. Its own
                                                   `interworkingEnabled` is what says whether the
                                                   element is advertised at all, and its
                                                   `venueOptionPresent` guards its venue fields - see
                                                   `wifi_InterworkingElement_t`. */
-    wifi_roamingConsortiumElement_t roamingConsortium; /**< Roaming consortium element the `VAP`
+    wifi_roamingConsortiumElement_t roamingConsortium; /*!< Roaming consortium element the `VAP`
                                                             advertises in its beacons and probe
                                                             responses:
                                                             `wifi_roamingConsortiumElement_t`
@@ -7299,12 +7294,12 @@ typedef struct
                                                             together with their lengths, which is a
                                                             smaller set than the ANQP list
                                                             `anqp.roamInfo` can hold. */
-    wifi_anqp_settings_t anqp;        /**< Access Network Query Protocol responses of the `VAP`, as
+    wifi_anqp_settings_t anqp;        /*!< Access Network Query Protocol responses of the `VAP`, as
                                            `wifi_anqp_settings_t` describes - each element paired
                                            with the length that bounds it. The whole member is
                                            marked as not to be implemented in the `HAL`, so a caller
                                            must not rely on it being populated. */
-    wifi_passpoint_settings_t passpoint; /**< Hotspot 2.0 settings of the `VAP`. Every field of
+    wifi_passpoint_settings_t passpoint; /*!< Hotspot 2.0 settings of the `VAP`. Every field of
                                               `wifi_passpoint_settings_t` except its `enable` sits
                                               inside the block that structure marks as not to be
                                               implemented in the `HAL`, so a caller must not rely on
@@ -7316,53 +7311,53 @@ typedef struct
  */
 typedef struct
 {
-    char rssi_up_threshold[32];           /**< RSSI threshold used in the pre-association decision.
+    char rssi_up_threshold[32];           /*!< RSSI threshold used in the pre-association decision.
                                                The name says the threshold is an upper one; this
                                                interface does not state which side of it admits a
                                                client. */
-    char snr_threshold[32];              /**< SNR threshold used in the pre-association decision.
+    char snr_threshold[32];              /*!< SNR threshold used in the pre-association decision.
                                               This interface states neither the comparison direction
                                               nor the unit. */
-    char cu_threshold[32];               /**< Channel-utilization threshold used in the
+    char cu_threshold[32];               /*!< Channel-utilization threshold used in the
                                               pre-association decision. This interface states
                                               neither the comparison direction nor the unit. */
-    char basic_data_transmit_rates[32];  /**< Basic rate set advertised before association.
+    char basic_data_transmit_rates[32];  /*!< Basic rate set advertised before association.
                                               `wifi_bitrate_t` in `wifi_hal_generic.h` names the
                                               rates this interface recognises elsewhere; this
                                               member's text form is not stated to match those names. */
-    char operational_data_transmit_rates[32]; /**< Operational rate set advertised before
+    char operational_data_transmit_rates[32]; /*!< Operational rate set advertised before
                                                    association, in the same text form as
                                                    `basic_data_transmit_rates` above. */
-    char supported_data_transmit_rates[32]; /**< Supported rate set advertised before association,
+    char supported_data_transmit_rates[32]; /*!< Supported rate set advertised before association,
                                                  in the same text form; `basic_data_transmit_rates`
                                                  above carries the required subset. */
-    char minimum_advertised_mcs[32];     /**< Lowest MCS index advertised before association. This
+    char minimum_advertised_mcs[32];     /*!< Lowest MCS index advertised before association. This
                                               interface states no range for the value and no
                                               relation to `wifi_radio_operationParam_t::mcs`. */
     char sixGOpInfoMinRate[32];          /**< 6G operating information minimum rate. */
-    char client_deny_assoc_info[45];     /**< Record of clients denied association, in 45 bytes.
+    char client_deny_assoc_info[45];     /*!< Record of clients denied association, in 45 bytes.
                                               This interface states neither the layout of that text
                                               nor how many clients it can carry. */
     int  time_ms;                        /**< Time to wait for meeting minimum mgmt frames for TCM threshold calcultion */
     int  min_num_mgmt_frames;            /**< Minimum number of mgmt frames required to compute the TCM threshold. */
-    char tcm_exp_weightage[32];          /**< Weight applied to the newest sample in the moving
+    char tcm_exp_weightage[32];          /*!< Weight applied to the newest sample in the moving
                                               average, as text in 32 bytes. This interface states
                                               neither the numeric form of that text, nor an accepted
                                               range, nor whether the value is `NUL`-terminated, so a
                                               caller must bound any read at 32 bytes. */
-    char tcm_gradient_threshold[32];     /**< Threshold the moving average is compared against, as
+    char tcm_gradient_threshold[32];     /*!< Threshold the moving average is compared against, as
                                               text in 32 bytes. This interface states neither the
                                               numeric form nor the unit of the value, nor which way
                                               the comparison runs, nor whether the text is
                                               `NUL`-terminated, so a caller must bound any read at
                                               32 bytes. */
-    char tcm_client_deny_assoc_info[64]; /**< Transient Client Management deny and association
+    char tcm_client_deny_assoc_info[64]; /*!< Transient Client Management deny and association
                                               information, in the 64 bytes this declaration
                                               dimensions. This interface states neither the layout
                                               of that text nor whether it is `NUL`-terminated, so a
                                               caller must bound any read at 64 bytes and should
                                               treat the content as opaque. */
-    wifi_vap_name_t vap_name;            /**< Name of the `VAP` these pre-association settings apply
+    wifi_vap_name_t vap_name;            /*!< Name of the `VAP` these pre-association settings apply
                                               to, in the 64-byte `wifi_vap_name_t`. Termination is
                                               not stated, so a caller should bound any read at the
                                               declared length. */
@@ -7373,26 +7368,26 @@ typedef struct
  */
 typedef struct
 {
-    char sampling_interval[32];          /**< Interval between the samples taken for the
+    char sampling_interval[32];          /*!< Interval between the samples taken for the
                                               post-association decision. This interface states no
                                               unit for the value. */
-    char sampling_count[32];             /**< Number of samples taken before the post-association
+    char sampling_count[32];             /*!< Number of samples taken before the post-association
                                               decision is made. This interface states no range for
                                               the value. */
-    char rssi_up_threshold[32];           /**< RSSI threshold used in the post-association decision.
+    char rssi_up_threshold[32];           /*!< RSSI threshold used in the post-association decision.
                                                The name says the threshold is an upper one; this
                                                interface does not state which side of it keeps a
                                                client associated. */
-    char snr_threshold[32];              /**< SNR threshold used in the post-association decision.
+    char snr_threshold[32];              /*!< SNR threshold used in the post-association decision.
                                               This interface states neither the comparison direction
                                               nor the unit. */
-    char cu_threshold[32];               /**< Channel-utilization threshold used in the
+    char cu_threshold[32];               /*!< Channel-utilization threshold used in the
                                               post-association decision. This interface states
                                               neither the comparison direction nor the unit. */
-    char client_force_disassoc_info[45]; /**< Record of clients forcibly disassociated, in 45 bytes.
+    char client_force_disassoc_info[45]; /*!< Record of clients forcibly disassociated, in 45 bytes.
                                               This interface states neither the layout of that text
                                               nor how many clients it can carry. */
-    wifi_vap_name_t vap_name;            /**< Name of the `VAP` these post-association settings
+    wifi_vap_name_t vap_name;            /*!< Name of the `VAP` these post-association settings
                                               apply to, in the 64-byte `wifi_vap_name_t`.
                                               Termination is not stated, so a caller should bound
                                               any read at the declared length. */
@@ -7405,7 +7400,7 @@ typedef struct
  * level the network offers.
  */
 typedef struct { 
-    int speed_tier;                      /**< Service level of the network, conveyed to the RADIUS
+    int speed_tier;                      /*!< Service level of the network, conveyed to the RADIUS
                                               server as a vendor attribute. `int`, and this
                                               interface enumerates no tiers, states no range and
                                               gives no value meaning `not set`, so a caller should
@@ -7420,7 +7415,7 @@ typedef struct {
  * `wifi_front_haul_bss_t`.
  */
 typedef struct {
-    network_param_config_t npc;          /**< The one per-network parameter block this container
+    network_param_config_t npc;          /*!< The one per-network parameter block this container
                                               carries, whose `speed_tier` is conveyed to the RADIUS
                                               server as a vendor attribute. The container exists so
                                               the amenities configuration can grow without changing
@@ -7451,18 +7446,18 @@ typedef struct
  */
 typedef struct
 {
-    BOOL mld_enable;      /**< `TRUE` where the multi-link device is active, and so the flag that
+    BOOL mld_enable;      /*!< `TRUE` where the multi-link device is active, and so the flag that
                                makes the rest of this structure - and the addresses in
                                `wifi_mld_info_sta_t` - meaningful. Where it is `FALSE` this
                                interface does not state what the other members hold. */
-    UINT mld_id;          /**< Identifier of the multi-link device this link belongs to. This
+    UINT mld_id;          /*!< Identifier of the multi-link device this link belongs to. This
                                interface states no accepted range and no scope the value is unique
                                within, and `mld_link_id` below identifies the link within it. */
-    UINT mld_link_id;     /**< Identifier of the link within the multi-link device that `mld_id`
+    UINT mld_link_id;     /*!< Identifier of the link within the multi-link device that `mld_id`
                                above names. This interface states no range for it and no value
                                meaning `no link`, and it is meaningful only where `mld_enable` is
                                `TRUE`. */
-    mac_address_t mld_addr; /**< Address of the multi-link device as a whole, as the six raw octets
+    mac_address_t mld_addr; /*!< Address of the multi-link device as a whole, as the six raw octets
                                  of `mac_address_t` rather than text. It is the MLD address rather
                                  than any per-link address, which `wifi_mld_info_sta_t::local_addr`
                                  and `peer_addr` carry. */
@@ -7473,13 +7468,13 @@ typedef struct
  */
 typedef struct
 {
-    mac_address_t local_addr; /**< Address of this device's link within the multi-link device, as
+    mac_address_t local_addr; /*!< Address of this device's link within the multi-link device, as
                                    the six raw octets of `mac_address_t` rather than text. It is
                                    meaningful only where `common_info.mld_enable` below is `TRUE`. */
-    mac_address_t peer_addr;  /**< Address of the peer's link within the multi-link device, in the
+    mac_address_t peer_addr;  /*!< Address of the peer's link within the multi-link device, in the
                                    same six raw octets. It is meaningful only where
                                    `common_info.mld_enable` below is `TRUE`. */
-    wifi_mld_common_info_t common_info; /**< Multi-link parameters shared with the `AP` side of this
+    wifi_mld_common_info_t common_info; /*!< Multi-link parameters shared with the `AP` side of this
                                              interface: whether multi-link is enabled at all, the
                                              group identifier, the link identifier and the group
                                              address. `common_info.mld_enable` is what says whether
@@ -7493,7 +7488,7 @@ typedef struct
  */
 typedef struct
 {
-    wifi_mld_common_info_t common_info; /**< Multi-link parameters of the `AP` - enable flag, group
+    wifi_mld_common_info_t common_info; /*!< Multi-link parameters of the `AP` - enable flag, group
                                              identifier, link identifier and group address, as
                                              `wifi_mld_common_info_t` describes. This structure
                                              carries nothing else, so `common_info.mld_enable` is
@@ -7506,40 +7501,40 @@ typedef struct
  */
 typedef struct
 {
-    ssid_t ssid;             /**< SSID the backhaul station connects to, in the 32-octet `ssid_t`;
+    ssid_t ssid;             /*!< SSID the backhaul station connects to, in the 32-octet `ssid_t`;
                                   `repurposed_ssid` below carries the alternative. That type states
                                   that termination is not established, so a caller must bound its
                                   copy at 32 octets. */
-    ssid_t repurposed_ssid;   /**< Alternative SSID, in the 32-octet `ssid_t`, used where
+    ssid_t repurposed_ssid;   /*!< Alternative SSID, in the 32-octet `ssid_t`, used where
                                    `ignite_enabled` below is set. That type states that termination
                                    is not established and that all 32 octets may be significant, so
                                    a caller must bound its copy at 32; this interface does not state
                                    what the member holds where there is no alternative. */
     bssid_t bssid;            /**< BSSID (if all 0, scan the SSID with probes, otherwise connect to the specified BSSID). */
-    BOOL enabled;            /**< `TRUE` where the backhaul station is to connect. `conn_status`
+    BOOL enabled;            /*!< `TRUE` where the backhaul station is to connect. `conn_status`
                                   below reports what came of it, so a caller must not read this
                                   member as a statement that a link is up. */
-    wifi_connection_status_t conn_status; /**< State of the backhaul station's connection, as one of
+    wifi_connection_status_t conn_status; /*!< State of the backhaul station's connection, as one of
                                                the `wifi_connection_status_t` enumerators. */
-    wifi_scan_params_t scan_params; /**< How the backhaul station scans for its `AP`:
+    wifi_scan_params_t scan_params; /*!< How the backhaul station scans for its `AP`:
                                          `wifi_scan_params_t` carries a scan period in seconds and a
                                          channel, where a channel of 0 means every channel in the
                                          band. */
-    wifi_vap_security_t security; /**< Credentials and security mode the backhaul station connects
+    wifi_vap_security_t security; /*!< Credentials and security mode the backhaul station connects
                                        with. Within `wifi_vap_security_t` it is `mode` that selects
                                        which arm of that structure's union - RADIUS settings or a
                                        pre-shared key - is valid, so a caller must set it first. */
-    mac_address_t mac;        /**< Address of the backhaul station itself, as the six raw octets of
+    mac_address_t mac;        /*!< Address of the backhaul station itself, as the six raw octets of
                                    `mac_address_t` rather than text. `bssid` above is the address of
                                    the `AP` it connects to, so the two must not be confused. */
-    wifi_mld_info_sta_t mld_info; /**< Multi-link parameters of the backhaul station, including its
+    wifi_mld_info_sta_t mld_info; /*!< Multi-link parameters of the backhaul station, including its
                                        local and peer addresses. See `wifi_mld_info_sta_t`, whose
                                        `common_info.mld_enable` is what says whether the rest
                                        describes an active multi-link device. */
-    BOOL ignite_enabled; /**< `TRUE` where the station uses the Ignite configuration, which is what
+    BOOL ignite_enabled; /*!< `TRUE` where the station uses the Ignite configuration, which is what
                               makes `repurposed_ssid` above meaningful. This interface states no
                               other effect for the member and declares no call that reports it. */
-    BOOL valid_bh_credentials; /**< `TRUE` where the `ssid` and the key inside `security` above are
+    BOOL valid_bh_credentials; /*!< `TRUE` where the `ssid` and the key inside `security` above are
                                     usable for a connection attempt. This interface does not state
                                     which side sets the member or what it holds before any
                                     credentials have been provisioned, so a caller must not read
@@ -7567,17 +7562,17 @@ typedef struct
  * This structure contains information about a fronthaul BSS.
  */
 typedef struct {
-  CHAR ssid[WIFI_AP_MAX_SSID_LEN]; /**< SSID the `BSS` advertises, in `WIFI_AP_MAX_SSID_LEN` bytes -
+  CHAR ssid[WIFI_AP_MAX_SSID_LEN]; /*!< SSID the `BSS` advertises, in `WIFI_AP_MAX_SSID_LEN` bytes -
                                         33, one more than the 32 octets `ssid_t` uses elsewhere in
                                         this interface, which leaves room for a terminator. This
                                         interface does not state that the `HAL` writes one, so a
                                         caller must bound any read at 33 bytes rather than relying
                                         on termination. */
-  BOOL enabled;                  /**< `TRUE` where the `BSS` is to be brought up. This interface
+  BOOL enabled;                  /*!< `TRUE` where the `BSS` is to be brought up. This interface
                                       does not state what the other members of this structure mean
                                       while it is `FALSE`, and it declares no call that reports this
                                       member on its own. */
-  BOOL showSsid;                 /**< `TRUE` where the `BSS` advertises its SSID in beacons and
+  BOOL showSsid;                 /*!< `TRUE` where the `BSS` advertises its SSID in beacons and
                                       `FALSE` where the SSID is hidden.
                                       `wifi_getApSsidAdvertisementEnable()` and
                                       `wifi_setApSsidAdvertisementEnable()` read and write that
@@ -7585,68 +7580,68 @@ typedef struct {
                                       state whether they act on this same member; hiding the SSID is
                                       not stated to prevent a station from associating with a known
                                       SSID. */
-  BOOL isolation;                /**< `TRUE` where stations associated with this `BSS` cannot reach
+  BOOL isolation;                /*!< `TRUE` where stations associated with this `BSS` cannot reach
                                       one another through the `AP`. `wifi_getApIsolationEnable()`
                                       and `wifi_setApIsolationEnable()` read and write that state
                                       separately, and this interface does not state whether they act
                                       on this same member. */
-  INT mgmtPowerControl;          /**< Transmit power for management frames.
+  INT mgmtPowerControl;          /*!< Transmit power for management frames.
                                       `wifi_getApManagementFramePowerControl()` documents the same
                                       quantity in dBm, and this member is signed accordingly; this
                                       interface states no accepted range here and does not say
                                       whether that call reads this member. */
-  UINT bssMaxSta;               /**< Largest number of stations that may associate with this `BSS`.
+  UINT bssMaxSta;               /*!< Largest number of stations that may associate with this `BSS`.
                                      `wifi_getApMaxAssociatedDevices()` and
                                      `wifi_setApMaxAssociatedDevices()` read and write that limit
                                      separately, and this interface states neither an accepted range
                                      nor a value meaning `no limit`. */
-  BOOL bssTransitionActivated;    /**< `TRUE` where the `BSS` has 802.11 BSS transition management
+  BOOL bssTransitionActivated;    /*!< `TRUE` where the `BSS` has 802.11 BSS transition management
                                        turned on. `wifi_ap_capabilities_t::BSSTransitionImplemented`
                                        reports whether the `AP` implements it at all, and this
                                        interface does not state what happens if the member is set
                                        where that capability is absent. */
-  BOOL nbrReportActivated;       /**< `TRUE` where the `BSS` answers 802.11k neighbour report
+  BOOL nbrReportActivated;       /*!< `TRUE` where the `BSS` answers 802.11k neighbour report
                                       requests. `bssTransitionActivated` above is the separate
                                       802.11v setting, and this interface states no dependency
                                       between the two. */
 
   BOOL rapidReconnectEnable; /**< Whether rapid reconnect is enabled. This field should not be implemented in the HAL. */
-  UINT rapidReconnThreshold; /**< Threshold governing rapid reconnect, which `rapidReconnectEnable`
+  UINT rapidReconnThreshold; /*!< Threshold governing rapid reconnect, which `rapidReconnectEnable`
                                   above turns on. This interface states neither a unit nor an
                                   accepted range for it, and the field is marked as not to be
                                   implemented in the `HAL`, so a caller must not rely on it being
                                   honoured. */
   BOOL vapStatsEnable;      /**< Whether VAP statistics are enabled. This field should not be implemented in the HAL. */
 
-  wifi_vap_security_t security;    /**< Security mode, encryption and credentials of this `BSS`.
+  wifi_vap_security_t security;    /*!< Security mode, encryption and credentials of this `BSS`.
                                         Within `wifi_vap_security_t` it is `mode` that selects which
                                         arm of that structure's union is valid, so a caller must set
                                         it before writing the credentials. */
-  wifi_interworking_t interworking; /**< 802.11u and Hotspot 2.0 configuration of this `BSS`. Its
+  wifi_interworking_t interworking; /*!< 802.11u and Hotspot 2.0 configuration of this `BSS`. Its
                                          `interworking.interworkingEnabled` is what says whether the
                                          Interworking element is advertised, and its `anqp` and
                                          `passpoint` members are largely marked as not to be
                                          implemented in the `HAL`. */
-  wifi_preassoc_control_t preassoc;  /**< Thresholds applied before a station associates - RSSI, SNR
+  wifi_preassoc_control_t preassoc;  /*!< Thresholds applied before a station associates - RSSI, SNR
                                           and channel utilization - together with the rate sets
                                           advertised. See `wifi_preassoc_control_t`, whose members
                                           are text fields whose comparison direction this interface
                                           does not state. */
-  wifi_postassoc_control_t postassoc; /**< Thresholds applied to an associated station, with the
+  wifi_postassoc_control_t postassoc; /*!< Thresholds applied to an associated station, with the
                                            sampling interval and count that feed them. See
                                            `wifi_postassoc_control_t`, whose comparison directions
                                            are likewise not stated by this interface. */
-  BOOL mac_filter_enable;           /**< `TRUE` where the `BSS` applies its MAC filter list. It is
+  BOOL mac_filter_enable;           /*!< `TRUE` where the `BSS` applies its MAC filter list. It is
                                          what makes `mac_filter_mode` below meaningful, and that
                                          member says whether the list admits or excludes the
                                          addresses on it. */
-  amenities_network_config_t am_config;  /**< Amenities configuration of this `BSS`, whose
+  amenities_network_config_t am_config;  /*!< Amenities configuration of this `BSS`, whose
                                               `npc.speed_tier` is conveyed to the RADIUS server as a
                                               vendor attribute. `connected_building_enabled` below
                                               is the flag for the feature itself, and this interface
                                               does not state what this member holds while that is
                                               `FALSE`. */
-  wifi_mac_filter_mode_t mac_filter_mode; /**< Whether the MAC filter list admits or excludes the
+  wifi_mac_filter_mode_t mac_filter_mode; /*!< Whether the MAC filter list admits or excludes the
                                                addresses on it, as one of the
                                                `wifi_mac_filter_mode_t` enumerators. It is
                                                meaningful only where `mac_filter_enable` above is
@@ -7654,96 +7649,96 @@ typedef struct {
 
   BOOL sec_changed; /**< Whether security settings have changed. This field should not be implemented in the HAL. */
 
-  wifi_wps_t wps;        /**< WPS onboarding configuration of this `BSS` - whether it is offered,
+  wifi_wps_t wps;        /*!< WPS onboarding configuration of this `BSS` - whether it is offered,
                               which methods, and the device PIN - as `wifi_wps_t` describes. */
-  BOOL wmm_enabled;     /**< `TRUE` where Wi-Fi Multimedia is enabled on the `BSS`. `UAPSDEnabled`
+  BOOL wmm_enabled;     /*!< `TRUE` where Wi-Fi Multimedia is enabled on the `BSS`. `UAPSDEnabled`
                              below is a separate setting, and `wifi_setApWmmEnable()` warns that
                              U-APSD cannot be enabled without WMM. `wifi_getApWmmEnable()` and
                              `wifi_setApWmmEnable()` read and write the `AP`'s WMM state separately,
                              and this interface does not state whether they act on this same member. */
-  BOOL UAPSDEnabled;    /**< `TRUE` where unscheduled automatic power save delivery is enabled.
+  BOOL UAPSDEnabled;    /*!< `TRUE` where unscheduled automatic power save delivery is enabled.
                              `wifi_setApWmmEnable()` warns that U-APSD cannot be enabled without
                              WMM, so this member is meaningful only where `wmm_enabled` above is
                              set; `wifi_getApWmmUapsdEnable()` and `wifi_setApWmmUapsdEnable()` read
                              and write the state separately. */
-  wifi_bitrate_t beaconRate; /**< Rate the `BSS` transmits beacons at, as a single `wifi_bitrate_t`
+  wifi_bitrate_t beaconRate; /*!< Rate the `BSS` transmits beacons at, as a single `wifi_bitrate_t`
                                   value. `beaconRateCtl` below carries a beacon-rate setting in text
                                   form as well, and this interface does not state which of the two
                                   takes effect if they disagree. */
   mac_address_t bssid;    /**< The BSSID. This variable should only be used in the get API. It can't be used to change the interface MAC. */
-  UINT wmmNoAck;         /**< No-acknowledgement policy for the WMM access categories.
+  UINT wmmNoAck;         /*!< No-acknowledgement policy for the WMM access categories.
                               `wifi_setApWmmOgAckPolicy()` sets that policy one class at a time, and
                               this interface states neither how the classes are packed into this
                               `UINT` nor whether that call reads this member, so a caller should
                               preserve what it read back. */
-  UINT wepKeyLength;     /**< Length of the WEP key in use. This interface states neither the unit -
+  UINT wepKeyLength;     /*!< Length of the WEP key in use. This interface states neither the unit -
                               bits or octets - nor an accepted set of lengths, and does not state
                               what the member holds when the security mode is not WEP. */
-  BOOL bssHotspot;       /**< `TRUE` where the `BSS` is operated as a hotspot.
+  BOOL bssHotspot;       /*!< `TRUE` where the `BSS` is operated as a hotspot.
                               `wifi_getApHotspotElement()` and `wifi_pushApHotspotElement()` read
                               and write the hotspot element separately, and this interface states
                               neither whether they act on this same member nor how it relates to the
                               Passpoint settings in `interworking.passpoint`, so a caller must not
                               read either from the other. */
-  UINT wpsPushButton;    /**< Push-button onboarding setting of this `BSS`. This interface states no
+  UINT wpsPushButton;    /*!< Push-button onboarding setting of this `BSS`. This interface states no
                               accepted values for the member and no relation to `wps.methods` above;
                               `wifi_setApWpsButtonPush()` starts a push-button exchange without
                               taking this value. */
-  char beaconRateCtl[32]; /**< Beacon rate expressed as text, in 32 bytes. `beaconRate` above
+  char beaconRateCtl[32]; /*!< Beacon rate expressed as text, in 32 bytes. `beaconRate` above
                                carries the same setting as a `wifi_bitrate_t`, and this interface
                                states neither which of the two takes effect if they disagree, nor
                                the accepted strings, nor whether the value is NUL-terminated - so a
                                caller must bound any read at 32 bytes. */
-  BOOL network_initiated_greylist; /**< `TRUE` where the network may place a client on the greylist
+  BOOL network_initiated_greylist; /*!< `TRUE` where the network may place a client on the greylist
                                         rather than only the local policy doing so.
                                         `wifi_enableGreylistAccessControl()` turns greylist access
                                         control on device-wide, and this interface does not state
                                         whether that call reads this member. */
-  BOOL mcast2ucast;              /**< `TRUE` where group-addressed frames are converted to unicast
+  BOOL mcast2ucast;              /*!< `TRUE` where group-addressed frames are converted to unicast
                                       before transmission on this `BSS`.
                                       `wifi_radio_capabilities_t::mcast2ucastSupported` reports
                                       whether the radio can do it at all, and this interface does
                                       not state what happens if the member is set where that
                                       capability is absent. */
-  BOOL connected_building_enabled; /**< `TRUE` where the Connected Building feature is enabled on
+  BOOL connected_building_enabled; /*!< `TRUE` where the Connected Building feature is enabled on
                                         the `BSS`; `am_config` above carries that feature's own
                                         configuration. This interface declares no call bound to the
                                         member and states no effect for it, so a caller should
                                         preserve what it read back rather than composing a value. */
   BOOL mdu_enabled;   /**< Whether Managed Wifi Phase 2 is enabled. */
-  wifi_mld_info_ap_t mld_info;        /**< Multi-link parameters of this `BSS`. See
+  wifi_mld_info_ap_t mld_info;        /*!< Multi-link parameters of this `BSS`. See
                                            `wifi_mld_info_ap_t`, whose `common_info.mld_enable` is
                                            what says whether the rest describes an active multi-link
                                            device. */
-  BOOL hostap_mgt_frame_ctrl;        /**< `TRUE` where management frame handling is left to the
+  BOOL hostap_mgt_frame_ctrl;        /*!< `TRUE` where management frame handling is left to the
                                           vendor's hostapd control path. This interface states
                                           neither which frames that covers nor a call that reports
                                           the member, so a caller cannot establish the effect
                                           through this interface. */
-  BOOL mbo_enabled;                  /**< `TRUE` where Multiband Operation is enabled on the `BSS`.
+  BOOL mbo_enabled;                  /*!< `TRUE` where Multiband Operation is enabled on the `BSS`.
                                           This interface declares no call that reports or writes the
                                           member on its own and states no relation to
                                           `bssTransitionActivated` above, so a caller cannot confirm
                                           the setting or its effect through this interface. */
-  BOOL   interop_ctrl;               /**< `TRUE` where the vendor's interoperability workarounds are
+  BOOL   interop_ctrl;               /*!< `TRUE` where the vendor's interoperability workarounds are
                                           applied on this `BSS`. This interface states neither which
                                           behaviours those are nor a call that reports the member,
                                           so a caller cannot establish the effect through this
                                           interface; `interop_tel` below controls only the reporting
                                           of it. */
-  BOOL   interop_tel;                /**< `TRUE` where the interoperability handling reports
+  BOOL   interop_tel;                /*!< `TRUE` where the interoperability handling reports
                                           telemetry. It controls only the reporting, not the
                                           workarounds themselves, which `interop_ctrl` above
                                           enables, so setting it does not change how the `BSS`
                                           behaves towards a client. */
-  UINT    inum_sta;                   /**< Number of stations the interoperability handling is
+  UINT    inum_sta;                   /*!< Number of stations the interoperability handling is
                                            configured for. This interface states no accepted range,
                                            no relation to `bssMaxSta` above and no member listing
                                            the stations themselves, so a caller should preserve a
                                            value it read back rather than composing one. */
   UCHAR vendor_elements[WIFI_AP_MAX_VENDOR_IE_LEN]; /**< The vendor elements to be added to beacon/probe response frames. Includes IE ID (0xDD), Length, and Payload */
   USHORT vendor_elements_len;        /**< Length of vendor_elements currently stored since it is not null terminated */
-  char interop_info[64];             /**< Vendor interop descriptor, in 64 bytes. This interface
+  char interop_info[64];             /*!< Vendor interop descriptor, in 64 bytes. This interface
                                           states neither the accepted values, nor the encoding, nor
                                           whether the value is `NUL`-terminated, so a caller must
                                           bound any read at 64 bytes and must not run an unbounded
@@ -7762,33 +7757,33 @@ typedef struct {
  */
 typedef struct
 {
-    wifi_vap_index_t vap_index;     /**< Index of the Virtual Access Point this structure describes.
+    wifi_vap_index_t vap_index;     /*!< Index of the Virtual Access Point this structure describes.
                                          `wifi_vap_index_t` is a `UINT` while the `apIndex`
                                          arguments elsewhere in this interface are `INT`, so a
                                          caller passing this value into one of those calls must
                                          check that it converts. */
-    wifi_vap_name_t vap_name;      /**< Name of the Virtual Access Point, in the 64-byte
+    wifi_vap_name_t vap_name;      /*!< Name of the Virtual Access Point, in the 64-byte
                                         `wifi_vap_name_t`. Termination is not stated, so a caller
                                         should bound any read at the declared length;
                                         `repurposed_vap_name` below carries the alternative name. */
-    wifi_radio_index_t radio_index; /**< Radio the Virtual Access Point belongs to, as a
+    wifi_radio_index_t radio_index; /*!< Radio the Virtual Access Point belongs to, as a
                                          `wifi_radio_index_t`. This interface does not state whether
                                          the value is the upper-layer radio index or a PHY index, so
                                          a caller must not assume it is interchangeable with either. */
-    CHAR bridge_name[WIFI_BRIDGE_NAME_LEN]; /**< Bridge the Virtual Access Point is attached to, in
+    CHAR bridge_name[WIFI_BRIDGE_NAME_LEN]; /*!< Bridge the Virtual Access Point is attached to, in
                                                  the `WIFI_BRIDGE_NAME_LEN` bytes that macro
                                                  declares as 32. This interface states neither the
                                                  encoding nor whether the value is NUL-terminated,
                                                  so a caller must bound any read at 32 bytes. */
-    wifi_vap_mode_t vap_mode;      /**< Role of the Virtual Access Point, as one of the
+    wifi_vap_mode_t vap_mode;      /*!< Role of the Virtual Access Point, as one of the
                                         `wifi_vap_mode_t` enumerators. It is also the selector for
                                         the `u` union below, so it must be set before that member is
                                         written and read before it is read. */
-    wifi_vap_name_t repurposed_vap_name; /**< Alternative Virtual Access Point name, in the 64-byte
+    wifi_vap_name_t repurposed_vap_name; /*!< Alternative Virtual Access Point name, in the 64-byte
                                               `wifi_vap_name_t`. This interface states neither when
                                               it is used in place of `vap_name` nor what it holds
                                               when there is no alternative. */
-    CHAR repurposed_bridge_name[WIFI_BRIDGE_NAME_LEN]; /**< Alternative bridge name, in
+    CHAR repurposed_bridge_name[WIFI_BRIDGE_NAME_LEN]; /*!< Alternative bridge name, in
                                                             `WIFI_BRIDGE_NAME_LEN` bytes. This
                                                             interface states neither when it is used
                                                             in place of `bridge_name`, nor whether
@@ -7796,11 +7791,11 @@ typedef struct
                                                             must bound any read at 32 bytes. */
     union
     {
-        wifi_front_haul_bss_t bss_info; /**< Fronthaul BSS information, valid when `vap_mode`
+        wifi_front_haul_bss_t bss_info; /*!< Fronthaul BSS information, valid when `vap_mode`
                         is `wifi_vap_mode_ap`. */
-        wifi_back_haul_sta_t sta_info; /**< Backhaul station information, valid when
+        wifi_back_haul_sta_t sta_info; /*!< Backhaul station information, valid when
                         `vap_mode` is `wifi_vap_mode_sta`. */
-    } u; /**< The role-specific half of the Virtual Access Point description, selected by
+    } u; /*!< The role-specific half of the Virtual Access Point description, selected by
                         `vap_mode`: `bss_info` for a fronthaul BSS and `sta_info` for a
                         backhaul station. `get_vap_ssid()` and `get_vap_security_mode()`
                         state the same rule for the members they reach through this union.
@@ -7816,11 +7811,11 @@ typedef struct
  */
 typedef struct
 {
-    unsigned int num_vaps;       /**< Number of leading entries of `vap_array` below that describe a
+    unsigned int num_vaps;       /*!< Number of leading entries of `vap_array` below that describe a
                                       Virtual Access Point. That array is dimensioned
                                       `MAX_NUM_VAP_PER_RADIO`, so a caller must clamp its read at
                                       that bound as well. */
-    wifi_vap_info_t vap_array[MAX_NUM_VAP_PER_RADIO]; /**< The `VAP`s of one radio, of which the
+    wifi_vap_info_t vap_array[MAX_NUM_VAP_PER_RADIO]; /*!< The `VAP`s of one radio, of which the
                                                            leading `num_vaps` entries are populated;
                                                            `MAX_NUM_VAP_PER_RADIO` dimensions the
                                                            array at 8, so a caller must clamp its
@@ -7834,33 +7829,33 @@ typedef struct
  */
 typedef struct
 {
-    BOOL rtsThresholdSupported; /**< `TRUE` where the `AP`'s radio honours an RTS/CTS threshold,
+    BOOL rtsThresholdSupported; /*!< `TRUE` where the `AP`'s radio honours an RTS/CTS threshold,
                                      which `wifi_radio_operationParam_t::rtsThreshold` carries in
                                      bytes. This interface does not state what the radio does with
                                      that value where the capability is `FALSE`. */
-    wifi_security_modes_t securityModesSupported; /**< Security modes the `AP` supports, as a
+    wifi_security_modes_t securityModesSupported; /*!< Security modes the `AP` supports, as a
                                                        bitmask of `wifi_security_modes_t` values -
                                                        those enumerators are distinct single bits,
                                                        so several are set at once. */
-    wifi_onboarding_methods_t methodsSupported; /**< Onboarding methods the `AP` supports, as a
+    wifi_onboarding_methods_t methodsSupported; /*!< Onboarding methods the `AP` supports, as a
                                                      bitmask of `wifi_onboarding_methods_t` values -
                                                      those enumerators are distinct single bits from
                                                      0x0001 to 0x2000, so several are set at once. */
-    BOOL WMMSupported; /**< `TRUE` where the `AP` can run Wi-Fi Multimedia, which is the feature
+    BOOL WMMSupported; /*!< `TRUE` where the `AP` can run Wi-Fi Multimedia, which is the feature
                             `wifi_front_haul_bss_t::wmm_enabled` carries a setting for.
                             `UAPSDSupported` below is the separate U-APSD capability, and this
                             interface does not state that one implies the other. */
-    BOOL UAPSDSupported; /**< `TRUE` where the `AP` can run unscheduled automatic power save
+    BOOL UAPSDSupported; /*!< `TRUE` where the `AP` can run unscheduled automatic power save
                               delivery, which `wifi_front_haul_bss_t::UAPSDEnabled` turns on.
                               `WMMSupported` above is the separate WMM capability, and U-APSD cannot
                               run without WMM per `wifi_setApWmmEnable()`. */
-    BOOL interworkingServiceSupported; /**< `TRUE` where the `AP` can run the 802.11u interworking
+    BOOL interworkingServiceSupported; /*!< `TRUE` where the `AP` can run the 802.11u interworking
                                             service. This interface does not state what
                                             `wifi_setApInterworkingServiceEnable()` does where the
                                             capability is `FALSE`, so a caller must not read a
                                             successful status from that call as proof that the
                                             service is running. */
-    BOOL BSSTransitionImplemented; /**< `TRUE` where the `AP` implements 802.11 BSS transition
+    BOOL BSSTransitionImplemented; /*!< `TRUE` where the `AP` implements 802.11 BSS transition
                                         management, which is the feature
                                         `wifi_front_haul_bss_t::bssTransitionActivated` carries a
                                         setting for. The member reports the implementation rather

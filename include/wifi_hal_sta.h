@@ -63,25 +63,25 @@ typedef struct
  */
 typedef struct
 {
-    UINT vap_index; /**< Index of the client `VAP` these statistics describe. The
+    UINT vap_index; /*!< Index of the client `VAP` these statistics describe. The
                          indices this interface defines are `AP_INDEX_1` to
                          `AP_INDEX_24` in `wifi_hal_generic.h`. */
-    wifi_connection_status_t connect_status; /**< Connection state reported for the
+    wifi_connection_status_t connect_status; /*!< Connection state reported for the
                          `VAP`, as one of the `wifi_connection_status_t` values in
                          `wifi_hal_generic.h`: disabled, disconnected, connected, or the
                          target `AP` not found. The interface names these as reported
                          values only and does not specify the transitions between
                          them. */
-    UINT channel; /**< IEEE 802.11 channel number the `VAP` is operating on. The band is
+    UINT channel; /*!< IEEE 802.11 channel number the `VAP` is operating on. The band is
                          not carried in this structure; a caller that needs it must take
                          it from the `BSS` information, for example `oper_freq_band` in
                          `wifi_bss_info_t`. */
-    UINT channelWidth; /**< Bandwidth the connection is using. This interface does not
+    UINT channelWidth; /*!< Bandwidth the connection is using. This interface does not
                          state the encoding of this member; the comparable `UINT` width
                          member elsewhere in the interface, `ap_channelWidth` in
                          `wifi_hal_telemetry.h`, carries a `wifi_channelBandwidth_t`
                          code rather than a count of MHz. */
-    UINT op_class; /**< Operating class the connection is using. This interface numbers
+    UINT op_class; /*!< Operating class the connection is using. This interface numbers
                          operating classes as IEEE 802.11-2020 Table E-4 global
                          operating classes; see `op_class_ch_list_t` in
                          `wifi_hal_generic.h`. */

@@ -107,8 +107,8 @@ typedef enum
  */
 typedef struct _wifi_channelMap_t
 {
-    INT ch_number;              /**< IEEE 802.11 channel number this entry describes. */
-    wifi_channelState_t ch_state; /**< Whether the channel `ch_number` names may be used now, as one
+    INT ch_number;              /*!< IEEE 802.11 channel number this entry describes. */
+    wifi_channelState_t ch_state; /*!< Whether the channel `ch_number` names may be used now, as one
                                        of the `wifi_channelState_t` enumerators: only
                                        `CHAN_STATE_AVAILABLE` reports it usable, and every other
                                        value names a DFS stage that must complete first. That
@@ -127,7 +127,7 @@ typedef struct _wifi_channelMap_t
 typedef struct
 {
     USHORT punct_bitmap; /**< A bitmap of disabled 20MHz channels. */
-    UCHAR punct_acs_threshold; /**< Threshold the automatic channel selection logic applies when
+    UCHAR punct_acs_threshold; /*!< Threshold the automatic channel selection logic applies when
                                     deciding which 20MHz sub-channels to puncture. `UCHAR`, so the
                                     representable range is 0 to 255; this interface states neither
                                     the unit, the quantity it is compared against, nor which values
@@ -141,8 +141,8 @@ typedef struct
  *
  * @note The name is spelt without word separators, and reads as a per-channel bound
  *       although the array it dimensions is per operating class. It is retained
- *       exactly as spelt for source compatibility; a future revision of this
- *       interface is expected to rename it for readability.
+ *       exactly as spelt for source compatibility, and this interface marks no
+ *       deprecation against it, so a caller uses this spelling.
  */
 #define MAXNUMNONOPERABLECHANNELS 10
 
@@ -151,8 +151,8 @@ typedef struct
  *        how many operating classes may be reported for one radio band.
  *
  * @note As with `MAXNUMNONOPERABLECHANNELS`, the name is spelt without word
- *       separators and is retained exactly as spelt for source compatibility; a
- *       future revision of this interface is expected to rename it for readability.
+ *       separators and is retained exactly as spelt for source compatibility, with no
+ *       deprecation marked against it in this interface.
  */
 #define MAXNUMOPERCLASSESPERBAND 20
 
@@ -175,13 +175,13 @@ typedef struct
  */
 typedef struct
 {
-    UINT opClass;                                /**< Global operating class this entry describes,
+    UINT opClass;                                /*!< Global operating class this entry describes,
                                                       in the sense of the 802.11 Table E-4 classes
                                                       the enclosing structure's comment cites. This
                                                       interface enumerates no values for it, and the
                                                       `maxTxPower` and `nonOperable` members below
                                                       apply only to this class. */
-    INT maxTxPower;                              /**< Highest transmit power permitted for the
+    INT maxTxPower;                              /*!< Highest transmit power permitted for the
                                                       operating class named by `opClass`. This
                                                       interface states neither the unit nor the
                                                       reference point for the value - it is not
@@ -189,12 +189,12 @@ typedef struct
                                                       `wifi_radio_operationParam_t::transmitPower`
                                                       carries - so a caller must not assume dBm, mW
                                                       or percent. */
-    UINT numberOfNonOperChan;                    /**< Number of leading entries of `nonOperable`
+    UINT numberOfNonOperChan;                    /*!< Number of leading entries of `nonOperable`
                                                       below that carry a channel.
                                                       `MAXNUMNONOPERABLECHANNELS` dimensions that
                                                       array, so a caller must clamp its read at that
                                                       bound as well. */
-    UINT nonOperable[MAXNUMNONOPERABLECHANNELS]; /**< Channels that may not be operated in the class
+    UINT nonOperable[MAXNUMNONOPERABLECHANNELS]; /*!< Channels that may not be operated in the class
                                                       `opClass` names, of which the leading
                                                       `numberOfNonOperChan` entries are populated.
                                                       This interface says nothing about the entries
@@ -210,7 +210,7 @@ typedef struct
  */
 typedef struct _wifi_radioTemperature_t
 {
-    UINT radio_Temperature; /**< Chipset temperature `wifi_hal_getRadioTemperature()` writes here.
+    UINT radio_Temperature; /*!< Chipset temperature `wifi_hal_getRadioTemperature()` writes here.
                                  This interface states neither the unit nor an expected range, so a
                                  caller must not assume degrees Celsius; the value is useful for
                                  detecting a trend rather than for comparing against an absolute
@@ -224,40 +224,40 @@ typedef struct _wifi_radioTemperature_t
  */
 typedef struct 
 {
-    BOOL enable;                /**< `TRUE` where the radio is to be operational.
+    BOOL enable;                /*!< `TRUE` where the radio is to be operational.
                                      `wifi_getRadioEnable()` and `wifi_setRadioEnable()` read and
                                      write the radio's enable state separately from this structure,
                                      and this interface does not state whether they act on this same
                                      member; it also does not state what the other members of this
                                      structure mean while the radio is disabled. */
-    wifi_freq_bands_t band;    /**< Band the radio operates in, as one of the `wifi_freq_bands_t`
+    wifi_freq_bands_t band;    /*!< Band the radio operates in, as one of the `wifi_freq_bands_t`
                                     enumerators. It is what makes `channel` and `channelSecondary`
                                     below unambiguous, since the same channel number denotes
                                     different channels in different bands. */
-    BOOL autoChannelEnabled;     /**< `TRUE` asks the radio to select its own operating channel,
+    BOOL autoChannelEnabled;     /*!< `TRUE` asks the radio to select its own operating channel,
                                       which is the capability
                                       `wifi_radio_capabilities_t::autoChannelSupported` reports.
                                       This interface does not state whether `channel` below is then
                                       ignored or is updated to the channel chosen, so a caller must
                                       read the parameter set back rather than assume either. */
-    UINT channel;               /**< Primary channel of the radio, interpreted within `band` above.
+    UINT channel;               /*!< Primary channel of the radio, interpreted within `band` above.
                                      `channelWidth` gives the bandwidth it is operated at and
                                      `channelSecondary` the secondary channels; this interface
                                      states no accepted set of numbers here, so a caller should take
                                      one from the radio's own channel list. */
-    UINT numSecondaryChannels;  /**< Number of leading entries of `channelSecondary` that carry a
+    UINT numSecondaryChannels;  /*!< Number of leading entries of `channelSecondary` that carry a
                                      channel. This interface says nothing about the entries beyond
                                      it, so a caller must not read past this count;
                                      `MAXNUMSECONDARYCHANNELS` dimensions that array and so bounds
                                      this member. */
-    UINT channelSecondary[MAXNUMSECONDARYCHANNELS]; /**< Secondary channels accompanying `channel`
+    UINT channelSecondary[MAXNUMSECONDARYCHANNELS]; /*!< Secondary channels accompanying `channel`
                                                          above, of which the leading
                                                          `numSecondaryChannels` entries are
                                                          populated; `MAXNUMSECONDARYCHANNELS`
                                                          dimensions the array, so a caller must
                                                          clamp its read at that bound too. The
                                                          numbers are interpreted within `band`. */
-    wifi_channelBandwidth_t channelWidth; /**< Bandwidth the radio operates its channel at, as one
+    wifi_channelBandwidth_t channelWidth; /*!< Bandwidth the radio operates its channel at, as one
                                                of the `wifi_channelBandwidth_t` enumerators, which
                                                are the whole of the accepted domain. The member is
                                                declared as a single enumerator, so a caller must not
@@ -265,49 +265,49 @@ typedef struct
                                                enumeration assigns distinct single bits; `channel`
                                                above names the primary channel and
                                                `channelSecondary` the secondary ones. */
-    wifi_ieee80211Variant_t variant; /**< 802.11 variants the radio is to operate with, as a bitmask
+    wifi_ieee80211Variant_t variant; /*!< 802.11 variants the radio is to operate with, as a bitmask
                                           of `wifi_ieee80211Variant_t` values - those enumerators
                                           are distinct single bits, so several may be set at once.
                                           `wifi_radio_capabilities_t::mode` reports the variants
                                           supported per band. */
-    UINT csa_beacon_count; /**< How long the radio announces an impending channel switch before
+    UINT csa_beacon_count; /*!< How long the radio announces an impending channel switch before
                                 making it. The name gives the unit as a beacon count, but this
                                 interface does not state it, nor an accepted range, nor whether zero
                                 means switch without announcing, so a caller should preserve a value
                                 it read back rather than composing one. */
-    wifi_countrycode_type_t countryCode; /**< Regulatory country the radio operates under, as one of
+    wifi_countrycode_type_t countryCode; /*!< Regulatory country the radio operates under, as one of
                                               the `wifi_countrycode_type_t` enumerators, which are
                                               the whole of the accepted domain. `regDomain` below
                                               carries a regulatory domain separately, and this
                                               interface does not state how the two relate or what
                                               happens if they disagree. */
-    UINT regDomain; /**< Regulatory domain the radio operates under. This interface states neither
+    UINT regDomain; /*!< Regulatory domain the radio operates under. This interface states neither
                          an encoding nor an accepted set of values for it, and `countryCode` above
                          carries the country separately, so a caller should preserve a value it read
                          back rather than composing one. */
-    wifi_operating_env_t operatingEnvironment; /**< Environment the regulatory rules are applied
+    wifi_operating_env_t operatingEnvironment; /*!< Environment the regulatory rules are applied
                                                     for, as one of the `wifi_operating_env_t`
                                                     enumerators - indoor, outdoor or non-country. It
                                                     qualifies `countryCode` and `regDomain` above
                                                     rather than replacing either. */
-    wifi_channelMap_t channel_map[64]; /**< Per-channel usability for this radio: each populated
+    wifi_channelMap_t channel_map[64]; /*!< Per-channel usability for this radio: each populated
                                             entry pairs a channel number with its state, as
                                             `wifi_channelMap_t` describes. The array is dimensioned
                                             64 here and this interface declares no count member for
                                             it, so a caller cannot tell how many entries are
                                             populated and must identify each entry it uses by that
                                             entry's `ch_number`. */
-    BOOL DCSEnabled; /**< `TRUE` where the radio may move its channel on its own in response to
+    BOOL DCSEnabled; /*!< `TRUE` where the radio may move its channel on its own in response to
                           conditions. `wifi_radio_capabilities_t::DCSSupported` reports whether the
                           radio supports it at all, and this interface does not state what happens
                           if the member is set where that capability is absent, nor how it relates
                           to `autoChannelEnabled` above. */
-    UINT dtimPeriod; /**< Delivery Traffic Indication Message period the radio advertises. This
+    UINT dtimPeriod; /*!< Delivery Traffic Indication Message period the radio advertises. This
                           interface states neither the unit nor an accepted range, so a caller
                           should preserve a value it read back rather than composing one. */
-    UINT beaconInterval; /**< Interval at which the radio transmits beacons. This interface states
+    UINT beaconInterval; /*!< Interval at which the radio transmits beacons. This interface states
                               neither the unit nor an accepted range for it. */
-    UINT operatingClass; /**< Global operating class the radio is currently using, in the sense
+    UINT operatingClass; /*!< Global operating class the radio is currently using, in the sense
                               `wifi_operating_classes_t::opClass` uses. This interface states no
                               accepted set for the member; `operatingClasses`, whose valid extent is
                               `numOperatingClasses`, carries the classes the radio reports as
@@ -315,7 +315,7 @@ typedef struct
     UINT basicDataTransmitRates; /**< The basic data transmit rates in Mbps. It uses bitmask to return multiple bitrates and wifi_bitrate_t has the definition of valid values. */
     UINT operationalDataTransmitRates; /**< The operational data transmit rates in Mbps. It uses bitmask to return multiple bitrates and wifi_bitrate_t has the definition of valid values. */
     UINT fragmentationThreshold; /**< The fragmentation threshold in bytes. */
-    wifi_guard_interval_t guardInterval; /**< Guard interval in force, as one of the
+    wifi_guard_interval_t guardInterval; /*!< Guard interval in force, as one of the
                                               `wifi_guard_interval_t` enumerators, which are the
                                               whole of the accepted domain. This interface does not
                                               state which of them a given radio accepts;
@@ -323,118 +323,118 @@ typedef struct
                                               `wifi_setGuardInterval()` applies one. */
     UINT transmitPower; /**< The transmit power in percentage, e.g., "75", "100". */
     UINT rtsThreshold; /**< The packet size threshold in bytes to apply RTS/CTS backoff rules. */
-    BOOL factoryResetSsid; /**< `TRUE` requests that the SSID be returned to its factory value. This
+    BOOL factoryResetSsid; /*!< `TRUE` requests that the SSID be returned to its factory value. This
                                 interface states neither when the reset takes effect, nor which
                                 SSIDs of the radio it covers, nor whether the member clears itself
                                 once the reset has been done, and it declares no call that reports
                                 the member back, so a caller cannot confirm the outcome through this
                                 interface. */
-    UINT radioStatsMeasuringRate; /**< How often the radio recalculates its statistics. This
+    UINT radioStatsMeasuringRate; /*!< How often the radio recalculates its statistics. This
                                        interface states neither the unit nor an accepted range, and
                                        does not state how the member relates to
                                        `radioStatsMeasuringInterval` below, so a caller should
                                        preserve a value it read back rather than composing one. */
-    UINT radioStatsMeasuringInterval; /**< Window each recalculated statistic covers. The unit is
+    UINT radioStatsMeasuringInterval; /*!< Window each recalculated statistic covers. The unit is
                                            not stated here; `wifi_radioTrafficStats2` names a
                                            measuring interval for its recalculated `INT` metrics
                                            without binding it to this member, so a caller must not
                                            assume the two are the same setting. */
-    BOOL ctsProtection; /**< `TRUE` where the radio protects its transmissions with a CTS exchange
+    BOOL ctsProtection; /*!< `TRUE` where the radio protects its transmissions with a CTS exchange
                              so that stations of older generations defer correctly. This interface
                              states no dependency on `variant` above and declares no call that
                              reports the member on its own, so a caller should read the parameter
                              set back to confirm it. */
-    BOOL obssCoex; /**< `TRUE` where the radio takes account of overlapping BSSs when it operates a
+    BOOL obssCoex; /*!< `TRUE` where the radio takes account of overlapping BSSs when it operates a
                         wide channel, which can lead it to use a narrower one. This interface states
                         neither the width it falls back to nor how the member relates to
                         `channelWidth` above. */
-    BOOL stbcEnable; /**< `TRUE` where the radio may use space-time block coding on transmit. This
+    BOOL stbcEnable; /*!< `TRUE` where the radio may use space-time block coding on transmit. This
                           interface states no dependency on the antenna count a radio reports and
                           declares no call that reports the member on its own. */
-    BOOL greenFieldEnable; /**< `TRUE` where the radio may use 802.11n greenfield preambles, which
+    BOOL greenFieldEnable; /*!< `TRUE` where the radio may use 802.11n greenfield preambles, which
                                 older stations cannot decode. This interface does not state what the
                                 radio does where such stations are present, so a caller must not
                                 read the member as a statement about interoperability. */
-    UINT userControl; /**< Vendor-defined control word. This interface states neither its unit, its
+    UINT userControl; /*!< Vendor-defined control word. This interface states neither its unit, its
                            accepted values nor its effect on the radio, so a caller should preserve
                            whatever it read back rather than composing a value. */
-    UINT adminControl; /**< Vendor-defined control word, separate from `userControl` above. This
+    UINT adminControl; /*!< Vendor-defined control word, separate from `userControl` above. This
                             interface states neither its unit, its accepted values nor its effect on
                             the radio, so a caller should preserve whatever it read back rather than
                             composing a value. */
-    UINT chanUtilThreshold; /**< Channel-utilization threshold for this radio. This interface states
+    UINT chanUtilThreshold; /*!< Channel-utilization threshold for this radio. This interface states
                                  neither the unit nor an accepted range, and does not state how the
                                  member relates to `chanUtilSelfHealEnable` below it or what the
                                  radio does when the threshold is crossed. */
-    BOOL chanUtilSelfHealEnable; /**< `TRUE` where the radio acts on its own once utilization passes
+    BOOL chanUtilSelfHealEnable; /*!< `TRUE` where the radio acts on its own once utilization passes
                                       `chanUtilThreshold` above. This interface does not state what
                                       that action is - whether the radio changes channel, bandwidth
                                       or something else - so a caller cannot predict the effect from
                                       this interface. */
-    BOOL DfsEnabled; /**< `TRUE` where the radio is currently permitted to operate on DFS channels.
+    BOOL DfsEnabled; /*!< `TRUE` where the radio is currently permitted to operate on DFS channels.
                           `wifi_getRadioDfsEnable()` and `wifi_setRadioDfsEnable()` read and write
                           the radio's DFS permission separately from this structure, and this
                           interface does not state whether they act on this same member.
                           `DfsEnabledBootup` below is the separate at-boot setting, and this
                           interface does not state that changing either one changes the other. */
-    BOOL DfsEnabledBootup; /**< `TRUE` where the radio is to permit DFS channels at its next boot.
+    BOOL DfsEnabledBootup; /*!< `TRUE` where the radio is to permit DFS channels at its next boot.
                                 `wifi_getRadioDfsAtBootUpEnable()` and
                                 `wifi_setRadioDfsAtBootUpEnable()` read and write that at-boot
                                 permission separately from this structure, and this interface does
                                 not state whether they act on this same member. The at-boot
                                 permission is stated to be independent of the current one
                                 `DfsEnabled` above carries, so the two may disagree. */
-    BOOL EcoPowerDown; /**< `TRUE` where the radio is to enter its reduced-power state. This
+    BOOL EcoPowerDown; /*!< `TRUE` where the radio is to enter its reduced-power state. This
                             interface states neither which parts of the radio the state affects, nor
                             whether traffic continues, nor a call that reports the member on its
                             own, so a caller cannot establish the effect through this interface. */
-    wifi_radio_11be_puncturing_info_t puncturingInfo; /**< Which 20MHz sub-channels are punctured
+    wifi_radio_11be_puncturing_info_t puncturingInfo; /*!< Which 20MHz sub-channels are punctured
                                                            out of a wide 802.11be channel, as
                                                            `wifi_radio_11be_puncturing_info_t`
                                                            describes. This interface does not state
                                                            whether the member is meaningful when
                                                            `variant` excludes 802.11be or when
                                                            `channelWidth` is too narrow to puncture. */
-    UINT autoChanRefreshPeriod; /**< Period between automatic channel-selection refreshes. This
+    UINT autoChanRefreshPeriod; /*!< Period between automatic channel-selection refreshes. This
                                      interface states neither the unit, an accepted range, nor a
                                      value that suppresses the refresh, and does not state how the
                                      member relates to `autoChannelEnabled`. */
-    INT mcs; /**< Modulation and coding scheme index in force for the radio. `INT`, and this
+    INT mcs; /*!< Modulation and coding scheme index in force for the radio. `INT`, and this
                   interface states no accepted range and no negative sentinel; `wifi_getRadioMCS()`
                   reports the value in use and `wifi_setRadioMCS()` writes it. */
-    BOOL amsduEnable; /**< `TRUE` where the radio may aggregate MSDUs. `amsduTid` below carries the
+    BOOL amsduEnable; /*!< `TRUE` where the radio may aggregate MSDUs. `amsduTid` below carries the
                            same setting per traffic identifier, and this interface does not state
                            which of the two takes effect if they disagree. */
-    BOOL amsduTid[MAX_AMSDU_TID]; /**< Per-traffic-identifier aggregation setting, indexed by
+    BOOL amsduTid[MAX_AMSDU_TID]; /*!< Per-traffic-identifier aggregation setting, indexed by
                                        traffic identifier and dimensioned `MAX_AMSDU_TID`, which
                                        this header declares as 8. `amsduEnable` above carries the
                                        radio-wide setting, and this interface does not state which
                                        of the two takes effect if they disagree. */
-    UINT DFSTimer; /**< Timer the radio applies to its DFS handling. This interface states neither
+    UINT DFSTimer; /*!< Timer the radio applies to its DFS handling. This interface states neither
                         the unit, nor which interval is timed - a channel availability check, a
                         non-occupancy period or something else - nor a value that disables the
                         timer, so a caller should preserve a value it read back rather than
                         composing one. */
-    char radarDetected[256]; /**< Radar-detection information the vendor layer reports, in the
+    char radarDetected[256]; /*!< Radar-detection information the vendor layer reports, in the
                                   256-byte buffer this declaration dimensions. This interface states
                                   neither the encoding of those bytes nor whether they are
                                   `NUL`-terminated, so a caller must not run an unbounded string
                                   function over the member and should treat the content as opaque. */
-    BOOL acs_keep_out_reset; /**< `TRUE` requests that the automatic channel selection keep-out list
+    BOOL acs_keep_out_reset; /*!< `TRUE` requests that the automatic channel selection keep-out list
                                   be cleared. This interface declares no member or call that reports
                                   the list itself, and does not state whether the flag clears once
                                   the reset has been done, so a caller cannot confirm the outcome
                                   through this interface. */
-    wifi_channels_list_per_bandwidth_t  channels_per_bandwidth[MAX_NUM_CHANNELBANDWIDTH_SUPPORTED]; /**< Channel
+    wifi_channels_list_per_bandwidth_t  channels_per_bandwidth[MAX_NUM_CHANNELBANDWIDTH_SUPPORTED]; /*!< Channel
                         lists per bandwidth, dimensioned `MAX_NUM_CHANNELBANDWIDTH_SUPPORTED`, which
                         this header declares as 6. This interface declares no count member for the
                         array, so a caller must identify each entry it uses by that entry's own
                         `chanwidth` rather than by its position. */
-    UINT numOperatingClasses; /**< Number of leading entries of `operatingClasses` below that
+    UINT numOperatingClasses; /*!< Number of leading entries of `operatingClasses` below that
                                    describe an operating class. `MAXNUMOPERCLASSESPERBAND`
                                    dimensions that array at 20, so a caller must clamp its read at
                                    that bound as well. */
-    wifi_operating_classes_t operatingClasses[MAXNUMOPERCLASSESPERBAND]; /**< Operating classes the
+    wifi_operating_classes_t operatingClasses[MAXNUMOPERCLASSESPERBAND]; /*!< Operating classes the
                         radio supports, of which the leading `numOperatingClasses` entries above are
                         populated; the array is dimensioned `MAXNUMOPERCLASSESPERBAND`, which this
                         header declares as 20. */
@@ -445,18 +445,18 @@ typedef struct
  */
 typedef struct
 {
-    CHAR aifsn; /**< AIFS number for one access category: the number of slot times a transmitter
+    CHAR aifsn; /*!< AIFS number for one access category: the number of slot times a transmitter
                      waits beyond the short interframe space before it may contend. `CHAR`, and this
                      interface states no accepted range and no slot duration, so a caller should
                      preserve a value it read back rather than composing one. */
-    CHAR cw_min; /**< Lower bound of the contention window for this access category. This interface
+    CHAR cw_min; /*!< Lower bound of the contention window for this access category. This interface
                       states neither the unit - a slot count or the 802.11 exponent from which one
                       is derived - nor an accepted range, so a caller must not assume either form. */
-    CHAR cw_max; /**< Upper bound of the contention window for this access category, in whatever
+    CHAR cw_max; /*!< Upper bound of the contention window for this access category, in whatever
                       form `cw_min` above uses, which this interface does not state. It also states
                       no rule that the maximum must be at least the minimum, so a caller should not
                       rely on the pair being validated. */
-    CHAR timer; /**< Timer field of the EDCA parameter set for one access category. `CHAR`, and this
+    CHAR timer; /*!< Timer field of the EDCA parameter set for one access category. `CHAR`, and this
                      interface states neither what the timer governs, its unit nor an accepted
                      range, so a caller should preserve a value it read back rather than composing
                      one. */
@@ -1327,7 +1327,7 @@ INT wifi_applyRadioSettings(INT radioIndex);
  *       that reads this setting back, so a caller must treat the setting as being in an
  *       unknown state.
  *
- * @return The status of the operation.
+ * @returns The status of the operation.
  * @retval RETURN_OK  CTS protection was set as requested.
  * @retval RETURN_ERR The call failed. This interface does not enumerate the conditions that
  *                    lead to this code. The caller should validate the index and read the
