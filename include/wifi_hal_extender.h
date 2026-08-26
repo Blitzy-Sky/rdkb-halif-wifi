@@ -159,7 +159,11 @@ typedef struct _wifi_associated_dev_rate_info_rx_stats
                         set. */
     ULLONG ppdus; /**< PPDUs received at this rate. Valid only if the HAS_PPDUS flag is
                         set. */
-    ULLONG retries; /**< Retried frames received at this rate. */
+    ULLONG retries; /**< Frames received at this rate that were marked as retries. `flags` above is
+                         what says which counters of this structure are valid, and it names no flag
+                         for this member, so this interface does not establish when it may be read;
+                         the counter is a subset of the frames counted elsewhere for the same rate
+                         rather than an addition to them. */
     UCHAR rssi_combined; /**< Most recent RSSI across all chains for this rate, valid only
                         if the HAS_RSSI_COMB flag is set. Carried as an unsigned octet
                         above the noise floor rather than as a signed dBm value, on the
@@ -296,8 +300,13 @@ typedef struct _wifi_associated_dev_stats
                         characters. */
     ULLONG cli_tx_bytes; /**< Bytes transmitted to the client, including framing
                         characters. */
-    ULLONG cli_rx_frames; /**< Frames received from the client. */
-    ULLONG cli_tx_frames; /**< Frames transmitted to the client. */
+    ULLONG cli_rx_frames; /**< Frames received from the client. `cli_rx_retries` below is the subset
+                               of them marked as retries; this interface states neither the interval
+                               the counter covers nor when it resets, so a caller should difference
+                               successive reads. */
+    ULLONG cli_tx_frames; /**< Frames transmitted to the client, counting first attempts.
+                               `cli_tx_retries` below counts retransmissions in addition to these,
+                               so the two must not be added as though they partitioned one total. */
     ULLONG cli_rx_retries; /**< Frames received from the client that were marked as
                         retries. A subset of `cli_rx_frames`. */
     ULLONG cli_tx_retries; /**< Frames retransmitted to the client. Counted in addition to
@@ -379,12 +388,18 @@ typedef struct
                                 answered. A probe request whose RSSI is outside the
                                 `rssiProbeLWM` to `rssiProbeHWM` range is not responded
                                 to. */
-    UINT rssiProbeLWM;     /**< Lower bound of the probe response RSSI range. */
+    UINT rssiProbeLWM;     /**< Lower bound of the range `rssiProbeHWM` above closes: a probe
+                                request whose RSSI falls below it is not responded to. This
+                                interface states no unit for the value, and carries it as a `UINT`,
+                                so a caller must not pass a negative dBm figure here. */
     UINT rssiAuthHWM;      /**< Upper bound of the RSSI range in which auth requests are
                                 answered. An auth request outside the `rssiAuthLWM` to
                                 `rssiAuthHWM` range is rejected with `authRejectReason`,
                                 or silently ignored when that member is zero. */
-    UINT rssiAuthLWM;      /**< Lower bound of the auth response RSSI range. */
+    UINT rssiAuthLWM;      /**< Lower bound of the range `rssiAuthHWM` above closes: an auth request
+                                below it is rejected with `authRejectReason`, or silently ignored
+                                where that member is zero. Carried as a `UINT` with no unit stated,
+                                so a negative dBm figure must not be passed. */
     UINT rssiInactXing;    /**< RSSI threshold whose crossing marks the inactivity
                                 transition in a `WIFI_STEERING_EVENT_RSSI_XING` event,
                                 reported in the event's `inactveXing` member. */
@@ -473,7 +488,11 @@ typedef struct
                                  count. */
     UINT phyMode;           /**< PHY mode the STA supports. This interface does not define
                                  the encoding of this member. */
-    UINT maxMCS;            /**< Highest MCS index the STA supports. */
+    UINT maxMCS;            /**< Highest MCS index the STA supports. This interface states no
+                                 accepted range and does not say which 802.11 generation numbers the
+                                 index, so a caller must not compare it against an index taken from
+                                 a different generation; `maxStreams` above is the separate
+                                 spatial-stream count. */
     UINT maxTxpower;        /**< Highest transmit power the STA supports. This interface
                                  does not state the unit of this member. */
     UINT isStaticSmps;      /**< Non-zero if the STA is operating in static spatial
@@ -490,13 +509,27 @@ typedef struct
  */
 typedef struct
 {
-    BOOL linkMeas;      /**< Supports link measurement. */
-    BOOL neighRpt;      /**< Supports neighbor reports. */
+    BOOL linkMeas;      /**< `TRUE` where the STA reports support for 802.11 link measurement. Every
+                             member of this structure is one decoded bit of the five-octet RM
+                             Enabled Capabilities field that `wifi_getRMCapabilities()` returns, so
+                             an absent capability here means the bit was clear rather than that the
+                             STA was not asked. */
+    BOOL neighRpt;      /**< `TRUE` where the STA reports support for neighbour reports, decoded
+                             from the same RM Enabled Capabilities field. `bcnRptPassive`,
+                             `bcnRptActive` and `bcnRptTable` below are the separate beacon-report
+                             capabilities and are not implied by this one. */
     BOOL bcnRptPassive; /**< Supports Passive 11k scans. */
     BOOL bcnRptActive;  /**< Supports Active 11k scans. */
-    BOOL bcnRptTable;   /**< Supports beacon report table. */
-    BOOL lciMeas;       /**< Supports LCI measurement. */
-    BOOL ftmRangeRpt;   /**< Supports FTM Range report. */
+    BOOL bcnRptTable;   /**< `TRUE` where the STA can answer a beacon request from its stored beacon
+                             table rather than by scanning. It is independent of `bcnRptPassive` and
+                             `bcnRptActive` above, so a caller must test the mode it intends to
+                             request. */
+    BOOL lciMeas;       /**< `TRUE` where the STA reports support for location civic and LCI
+                             measurement, decoded from the same RM Enabled Capabilities field. */
+    BOOL ftmRangeRpt;   /**< `TRUE` where the STA reports support for fine timing measurement range
+                             reporting, decoded from the same RM Enabled Capabilities field. This
+                             interface declares no call that requests such a report, so the member
+                             states a capability only. */
 } wifi_steering_rrmCaps_t;
 
 /**
@@ -523,36 +556,110 @@ typedef struct
 #ifdef WIFI_HAL_VERSION_3_PHASE2
 
 /**
- * @brief Client Connect Event Data
+ * @brief Client Connect Event Data - bitmask band form, compiled where
+ *        `WIFI_HAL_VERSION_3_PHASE2` is defined.
  *
- * This data is provided with `WIFI_STEERING_EVENT_CLIENT_CONNECT`.
+ * This data is provided with `WIFI_STEERING_EVENT_CLIENT_CONNECT`, as the `connect` member
+ * of the `data` union in `wifi_steering_event_t`. It reports what the associating client is
+ * capable of, which is the input a steering decision needs before it can move that client.
+ *
+ * This interface declares `wifi_steering_evConnect_t` twice, once in each arm of
+ * `WIFI_HAL_VERSION_3_PHASE2`, and the two declarations are separately documented because
+ * their public field layouts differ - see `Platform or Product Customization` in
+ * `docs/pages/halSpec.md`. This is the arm that carries the client's band support as the
+ * single bitmask `bandsCap`; the other arm carries it as the three `BOOL` members
+ * `bandCap2G`, `bandCap5G` and `bandCap6G`. The two are not interchangeable: they differ in
+ * member set, in size and in the offsets of the members that follow, so a handler compiled
+ * against one form must not be given a structure produced by the other, and source that has
+ * to build both ways must guard its access to the band members on the same flag.
  */
 typedef struct
 {
-    mac_address_t client_mac; /**< Client MAC Address. */
-    UINT isBTMSupported; /**< Client supports BSS TM. */
-    UINT isRRMSupported; /**< Client supports RRM. */
-    wifi_freq_bands_t bandsCap; /**< Bitmask with the frequencies that the Client is capable. */
-    wifi_steering_datarateInfo_t datarateInfo; /**< Client supported datarate information. */
-    wifi_steering_rrmCaps_t rrmCaps; /**< Client supported RRM capabilities. */
+    mac_address_t client_mac; /**< MAC address of the client that associated, as the six
+                                   octets of `mac_address_t` in `wifi_hal_generic.h`. It is
+                                   the key that ties this event to the disconnect, activity
+                                   and RSSI events for the same client. */
+    UINT isBTMSupported; /**< Non-zero if the client supports BSS Transition Management,
+                              which is what makes an 802.11v steer possible for it through
+                              `wifi_setBTMRequest()`. Carried as a `UINT` rather than a
+                              `BOOL`, so a caller should test for non-zero rather than
+                              compare against `TRUE`. */
+    UINT isRRMSupported; /**< Non-zero if the client supports Radio Resource Management,
+                              which is what makes a beacon measurement possible for it
+                              through `wifi_setRMBeaconRequest()`. Carried as a `UINT` on
+                              the same terms as `isBTMSupported`. The decoded detail of
+                              what it supports is in `rrmCaps`. */
+    wifi_freq_bands_t bandsCap; /**< Bands the client is capable of, as a bitwise OR of
+                                     `wifi_freq_bands_t` values from `wifi_hal_generic.h`.
+                                     The type is an enumeration used as a bitmask, so a
+                                     caller must test individual bits rather than compare
+                                     the member against a single enumerator. This form can
+                                     express the split-5GHz (`WIFI_FREQUENCY_5L_BAND`,
+                                     `WIFI_FREQUENCY_5H_BAND`) and `WIFI_FREQUENCY_60_BAND`
+                                     cases that the three-`BOOL` form of the other arm
+                                     cannot. */
+    wifi_steering_datarateInfo_t datarateInfo; /**< Client's PHY capabilities - widest
+                                     bandwidth, spatial streams, PHY mode, highest MCS and
+                                     transmit power, and the two power-save and MU-MIMO
+                                     flags. The member-by-member caveats are on
+                                     `wifi_steering_datarateInfo_t` itself. */
+    wifi_steering_rrmCaps_t rrmCaps; /**< Decoded RM Enabled Capabilities of the client:
+                                     which measurements it will accept. Meaningful only
+                                     where `isRRMSupported` is non-zero; this interface does
+                                     not state what the member carries otherwise. */
 } wifi_steering_evConnect_t;
 
 #else
 /**
- * @brief Client Connect Event Data
+ * @brief Client Connect Event Data - three-`BOOL` band form, compiled where
+ *        `WIFI_HAL_VERSION_3_PHASE2` is not defined.
  *
- * This data is provided with `WIFI_STEERING_EVENT_CLIENT_CONNECT`.
+ * This data is provided with `WIFI_STEERING_EVENT_CLIENT_CONNECT`, as the `connect` member
+ * of the `data` union in `wifi_steering_event_t`. It reports what the associating client is
+ * capable of, which is the input a steering decision needs before it can move that client.
+ *
+ * This interface declares `wifi_steering_evConnect_t` twice, once in each arm of
+ * `WIFI_HAL_VERSION_3_PHASE2`, and the two declarations are separately documented because
+ * their public field layouts differ - see `Platform or Product Customization` in
+ * `docs/pages/halSpec.md`. This is the arm that carries the client's band support as the
+ * three `BOOL` members `bandCap2G`, `bandCap5G` and `bandCap6G`; the other arm replaces all
+ * three with the single `wifi_freq_bands_t` bitmask `bandsCap`. The two are not
+ * interchangeable: they differ in member set, in size and in the offsets of the members that
+ * follow, so a handler compiled against one form must not be given a structure produced by
+ * the other, and source that has to build both ways must guard its access to the band
+ * members on the same flag.
  */
 typedef struct
 {
-    mac_address_t client_mac; /**< Client MAC Address. */
-    UINT isBTMSupported; /**< Client supports BSS TM. */
-    UINT isRRMSupported; /**< Client supports RRM. */
-    BOOL bandCap2G; /**< Client is 2.4GHz capable. */
-    BOOL bandCap5G; /**< Client is 5GHz capable. */
-    BOOL bandCap6G; /**< Client is 6GHz capable. */
-    wifi_steering_datarateInfo_t datarateInfo; /**< Client supported datarate information. */
-    wifi_steering_rrmCaps_t rrmCaps; /**< Client supported RRM capabilities. */
+    mac_address_t client_mac; /**< MAC address of the client that associated, as the six
+                                   octets of `mac_address_t` in `wifi_hal_generic.h`. It is
+                                   the key that ties this event to the disconnect, activity
+                                   and RSSI events for the same client. */
+    UINT isBTMSupported; /**< Non-zero if the client supports BSS Transition Management,
+                              which is what makes an 802.11v steer possible for it. Carried
+                              as a `UINT` rather than a `BOOL`, so a caller should test for
+                              non-zero rather than compare against `TRUE`. */
+    UINT isRRMSupported; /**< Non-zero if the client supports Radio Resource Management,
+                              which is what makes a beacon measurement possible for it.
+                              Carried as a `UINT` on the same terms as `isBTMSupported`. The
+                              decoded detail of what it supports is in `rrmCaps`. */
+    BOOL bandCap2G; /**< `TRUE` if the client is 2.4GHz capable. */
+    BOOL bandCap5G; /**< `TRUE` if the client is 5GHz capable. This form carries one flag
+                         for the whole 5GHz band, so it does not distinguish the low and
+                         high halves that `WIFI_FREQUENCY_5L_BAND` and
+                         `WIFI_FREQUENCY_5H_BAND` name in the other arm. */
+    BOOL bandCap6G; /**< `TRUE` if the client is 6GHz capable. This form has no member for
+                         60GHz, so a 60GHz capability is not reportable in this
+                         configuration. */
+    wifi_steering_datarateInfo_t datarateInfo; /**< Client's PHY capabilities - widest
+                                     bandwidth, spatial streams, PHY mode, highest MCS and
+                                     transmit power, and the two power-save and MU-MIMO
+                                     flags. The member-by-member caveats are on
+                                     `wifi_steering_datarateInfo_t` itself. */
+    wifi_steering_rrmCaps_t rrmCaps; /**< Decoded RM Enabled Capabilities of the client:
+                                     which measurements it will accept. Meaningful only
+                                     where `isRRMSupported` is non-zero; this interface does
+                                     not state what the member carries otherwise. */
 } wifi_steering_evConnect_t;
 #endif
 
@@ -563,7 +670,9 @@ typedef struct
  */
 typedef struct
 {
-    mac_address_t client_mac; /**< MAC address of the disconnected client. */
+    mac_address_t client_mac; /**< Address of the client that disconnected, as the six raw octets of
+                                   `mac_address_t` rather than text. `reason` and `source` below say
+                                   why it went and which end initiated it. */
     UINT reason; /**< IEEE 802.11 reason code carried in the deauthentication or
                         disassociation frame; see the reason-code reference on
                         `wifi_steering_clientConfig_t`. */
@@ -580,8 +689,13 @@ typedef struct
  */
 typedef struct
 {
-    mac_address_t client_mac; /**< Client MAC Address. */
-    BOOL active; /**< True if client is active. */
+    mac_address_t client_mac; /**< Address of the client whose activity changed. `mac_address_t` is
+                                   six raw octets rather than text, so it carries no terminator;
+                                   `active` beside it says which way the activity changed. */
+    BOOL active; /**< `TRUE` where the client has become active and `FALSE` where it has become
+                      idle; the event reports the change rather than a level, so a caller tracks
+                      state from the sequence of events. This interface states no idle threshold or
+                      timeout behind the transition. */
 } wifi_steering_evActivity_t;
 
 /**
@@ -709,7 +823,11 @@ typedef struct
                         `wifi_steering_clientMeasure()`. */
         wifi_steering_evAuthFail_t authFail; /**< Valid when `type` is
                         `WIFI_STEERING_EVENT_AUTH_FAIL`. */
-    } data;
+    } data; /**< The event payload, selected by `type`: exactly one arm is valid, the one
+                        whose own comment names the `type` value it belongs to. The arms
+                        overlap in storage, so a handler must switch on `type` before
+                        reading this member, and must treat no arm as readable where it does
+                        not recognise `type`. */
 } wifi_steering_event_t;
 
 // 802.11v BSS Transition Management Definitions
@@ -767,10 +885,10 @@ typedef struct
 {
     CHAR condensedStr[3]; /**< First two octets of the `dot11CountryString` MIB value,
                         which are the two-character ISO 3166-1 country code. The array is
-                        three octets so that the code can be held as a NUL-terminated
-                        string; this interface does not state whether the `HAL`
-                        terminates it, so a caller should read at most two characters
-                        rather than relying on termination. */
+                        three octets, one more than the code itself needs; this interface
+                        does not state what the third octet holds, nor whether the `HAL`
+                        writes a terminator, so a caller should read at most two
+                        characters rather than relying on termination. */
 } wifi_CondensedCountryString_t;
 
 /**
@@ -855,7 +973,10 @@ typedef struct
                         names an LCI measurement. */
         UCHAR lcr; /**< Location Civic Report (LCR) subject, valid when `type` names an LCR
                         measurement. */
-    } u;
+    } u; /**< The measurement subject, selected by `type`: only `lci` is valid for a
+                        measurement of LCI type and only `lcr` for one of LCR type. The arms
+                        overlap in storage, so a caller must read `type` first, and must
+                        treat neither arm as readable where it does not recognise `type`. */
 } wifi_Measurement_t;
 
 /**
@@ -887,14 +1008,46 @@ typedef struct
  *
  * This structure represents the VHT Capabilities Element (ID = 191), as
  * defined in 802.11-2016 section 9.4.2.158.
+ *
+ * The element has two parts and so does this structure: `info` is the VHT Capabilities
+ * Information field, and the four `USHORT` members after it are the Supported VHT-MCS and
+ * NSS Set field, split into its four 16-bit subfields in the order the cited section defines
+ * them. Every member is a packed bitmask or a bit-packed rate rather than a plain number,
+ * and this interface names none of the individual bits, so a caller decodes each member
+ * against the cited section rather than reading it as a value.
+ *
+ * The structure is of fixed shape, with no length or presence member of its own, so all five
+ * members are always present. Where one of these structures is reached through
+ * `wifi_NeighborReport_t` it is meaningful only while that report's `vhtCapsPresent` flag is
+ * `TRUE`.
  */
 typedef struct
 {
-    UINT   info;                   /**< Information field. */
-    USHORT mcs;                    /**< Supported VHT-MCS and NSS Set (part 1). */
-    USHORT rxHighestSupportedRate; /**< Supported VHT-MCS and NSS Set (part 2). */
-    USHORT txVHTmcs;               /**< Supported VHT-MCS and NSS Set (part 3). */
-    USHORT txHighestSupportedRate; /**< Supported VHT-MCS and NSS Set (part 4). */
+    UINT   info;                   /**< VHT Capabilities Information field, as the 32-bit
+                                        bitmask the cited section defines: maximum MPDU
+                                        length, supported channel width set, the STBC,
+                                        beamformer and beamformee capability bits, and the
+                                        remaining per-STA VHT capability bits. This interface
+                                        names none of them individually. */
+    USHORT mcs;                    /**< Rx VHT-MCS Map, the first 16-bit subfield of the
+                                        Supported VHT-MCS and NSS Set: two bits per spatial
+                                        stream naming the highest MCS the reporting STA can
+                                        receive on that stream, decoded per the cited
+                                        section. It is a per-stream map, not an MCS
+                                        index. */
+    USHORT rxHighestSupportedRate; /**< Rx Highest Supported Long GI Data Rate subfield,
+                                        carried in the low bits of the member with the
+                                        adjacent subfield the cited section places beside it
+                                        occupying the rest. A caller must therefore mask out
+                                        the rate rather than read the whole member as a
+                                        rate. */
+    USHORT txVHTmcs;               /**< Tx VHT-MCS Map, on the same two-bits-per-stream terms
+                                        as `mcs` but for what the reporting STA can
+                                        transmit. The two maps are independent, so a caller
+                                        must not read either as covering both
+                                        directions. */
+    USHORT txHighestSupportedRate; /**< Tx Highest Supported Long GI Data Rate subfield, on
+                                        the same terms as `rxHighestSupportedRate`. */
 } wifi_VHTCapabilities_t;
 
 /**
@@ -905,7 +1058,10 @@ typedef struct
  */
 typedef struct
 {
-    UCHAR primary; /**< Primary channel number of the BSS. */
+    UCHAR primary; /**< Primary channel of the BSS the element describes. The element carries no
+                        band, and the same channel number denotes different channels in different
+                        bands, so a caller must take the band from the context the element arrived
+                        in. */
     UCHAR opInfo[5]; /**< HT Operation Information field, as the five octets of bitmask
                         802.11 defines for the element. Fixed length, with no count
                         member. */
@@ -918,11 +1074,28 @@ typedef struct
  *
  * This structure represents the VHT Operation Element (ID = 192), as defined
  * in 802.11-2016 section 9.4.2.159.
+ *
+ * Where `wifi_VHTCapabilities_t` reports what a STA is able to do, this element reports how
+ * the BSS is actually operating, so the two are read together rather than interchangeably.
+ * The structure is of fixed shape with no length or presence member of its own; reached
+ * through `wifi_NeighborReport_t` it is meaningful only while that report's `vhtOpPresent`
+ * flag is `TRUE`.
  */
 typedef struct
 {
-    wifi_WideBWChannel_t opInfo; /**< Operating information (channel width, center of segment 0, center of segment 1). */
-    USHORT mcs_nss; /**< MCS and NSS set (bitfield). */
+    wifi_WideBWChannel_t opInfo; /**< VHT Operation Information field: the operating channel
+                        width code and the centre-frequency indices of the first and second
+                        frequency segments, held in the same three members as the Wide
+                        Bandwidth Channel element. `bandwidth` is a channel width code rather
+                        than a count of MHz, and `centerSeg1` is zero where the BSS is not
+                        using 80+80MHz - see `wifi_WideBWChannel_t` for the member
+                        detail. */
+    USHORT mcs_nss; /**< Basic VHT-MCS and NSS Set field, as the 16-bit bitmask the cited
+                        section defines: two bits per spatial stream naming the highest MCS
+                        every STA in the BSS is required to support on that stream. It is the
+                        BSS-wide requirement, not a per-STA capability, and this interface
+                        names none of the individual bits, so a caller decodes it against the
+                        cited section. */
 } wifi_VHTOperation_t;
 
 /**
@@ -1027,34 +1200,124 @@ typedef struct
     UCHAR channel; /**< Channel number of the candidate AP, interpreted within
                         `opClass`. */
     UCHAR phyTable; /**< PHY type of the candidate AP, as the 802.11 PHY type code. */
-    BOOL tsfPresent; /**< Whether the TSF Information field is present. */
-    wifi_TSFInfo_t tsfInfo; /**< TSF information. */
-    BOOL condensedCountrySringPresent; /**< Whether the Condensed Country String field is present. */
-    wifi_CondensedCountryString_t condensedCountryStr; /**< Condensed Country String. */
-    BOOL bssTransitionCandidatePreferencePresent; /**< Whether the BSS Transition Candidate Preference field is present. */
-    wifi_BSSTransitionCandidatePreference_t bssTransitionCandidatePreference; /**< BSS Transition Candidate Preference. */
-    BOOL btmTerminationDurationPresent; /**< Whether the BTM Termination Duration field is present. */
-    wifi_BTMTerminationDuration_t btmTerminationDuration; /**< BTM Termination Duration. */
-    BOOL bearingPresent; /**< Whether the Bearing field is present. */
-    wifi_Bearing_t bearing; /**< Bearing information. */
-    BOOL wideBandWidthChannelPresent; /**< Whether the Wide Bandwidth Channel field is present. */
-    wifi_WideBWChannel_t wideBandwidthChannel; /**< Wide Bandwidth Channel information. */
-    BOOL htCapsPresent; /**< Whether the HT Capabilities field is present. */
-    wifi_HTCapabilities_t htCaps; /**< HT Capabilities. */
-    BOOL vhtCapsPresent; /**< Whether the VHT Capabilities field is present. */
-    wifi_VHTCapabilities_t vbhtCaps; /**< VHT Capabilities. */
-    BOOL htOpPresent; /**< Whether the HT Operation field is present. */
-    wifi_HTOperation_t htOp; /**< HT Operation. */
-    BOOL vhtOpPresent; /**< Whether the VHT Operation field is present. */
-    wifi_VHTOperation_t vhtOp; /**< VHT Operation. */
-    BOOL secondaryChannelOffsetPresent; /**< Whether the Secondary Channel Offset field is present. */
-    wifi_SecondaryChannelOffset_t secondaryChannelOffset; /**< Secondary Channel Offset. */
-    BOOL rmEnabledCapsPresent; /**< Whether the RM Enabled Capabilities field is present. */
-    wifi_RMEnabledCapabilities_t rmEnabledCaps; /**< RM Enabled Capabilities. */
-    BOOL msmtPilotTransmissionPresent; /**< Whether the Measurement Pilot Transmission field is present. */
-    wifi_MeasurementPilotTransmission_t msmtPilotTransmission; /**< Measurement Pilot Transmission. */
-    BOOL vendorSpecificPresent; /**< Whether the Vendor Specific field is present. */
-    wifi_VendorSpecific_t vendorSpecific; /**< Vendor Specific information. */
+    BOOL tsfPresent; /**< `TRUE` where `tsfInfo` below carries TSF information; where it is `FALSE`
+                          a caller must not read that member. Each optional field of this structure
+                          has its own such flag, and this interface does not state what an absent
+                          field's storage holds. */
+    wifi_TSFInfo_t tsfInfo; /**< TSF Information subelement for the candidate AP - when its next
+                                 beacon is due and at what interval - valid only where `tsfPresent`
+                                 is `TRUE`. See `wifi_TSFInfo_t` for the units of both of its
+                                 fields. */
+    BOOL condensedCountrySringPresent; /**< `TRUE` if `condensedCountryStr` carries the
+                        candidate AP's country code. The member name misspells "String" as
+                        "Sring": the identifier a caller has to write is
+                        `condensedCountrySringPresent`, and the correctly spelt form does not
+                        exist in this interface. The type name `wifi_CondensedCountryString_t`
+                        and the field name `condensedCountryStr` beside it are both spelt
+                        normally, so the misspelling is confined to this one flag. */
+    wifi_CondensedCountryString_t condensedCountryStr; /**< Condensed Country String of the
+                        candidate AP, valid only where `condensedCountrySringPresent` is
+                        `TRUE`. See `wifi_CondensedCountryString_t` for how much of
+                        `condensedStr` a caller may read. */
+    BOOL bssTransitionCandidatePreferencePresent; /**< `TRUE` where
+                                                       `bssTransitionCandidatePreference` below
+                                                       carries a preference; where it is `FALSE` a
+                                                       caller must not read that member. */
+    wifi_BSSTransitionCandidatePreference_t bssTransitionCandidatePreference; /**< How strongly the
+                        serving AP prefers this candidate, valid only where
+                        `bssTransitionCandidatePreferencePresent` is `TRUE`.
+                        `wifi_BSSTransitionCandidatePreference_t` gives the 1 to 255 range, the
+                        direction in which it increases, and what 802.11 reserves 0 for. */
+    BOOL btmTerminationDurationPresent; /**< `TRUE` where `btmTerminationDuration` below carries a
+                                             termination time and duration; where it is `FALSE` a
+                                             caller must not read that member. */
+    wifi_BTMTerminationDuration_t btmTerminationDuration; /**< When the candidate's BSS is due to
+                        terminate and for how long, valid only where `btmTerminationDurationPresent`
+                        is `TRUE`. See `wifi_BTMTerminationDuration_t` for the units of both fields
+                        and for the width caveat on its `tsf` member. */
+    BOOL bearingPresent; /**< `TRUE` where `bearing` below carries the candidate's direction,
+                              distance and height; where it is `FALSE` a caller must not read that
+                              member. */
+    wifi_Bearing_t bearing; /**< Where the candidate AP lies relative to the serving AP, valid only
+                                 where `bearingPresent` is `TRUE`. See `wifi_Bearing_t` for the
+                                 direction, distance and height units. */
+    BOOL wideBandWidthChannelPresent; /**< `TRUE` where `wideBandwidthChannel` below carries the
+                                           candidate's channel width and centre-frequency segments;
+                                           where it is `FALSE` a caller must not read that member.
+                                           The flag and the member it guards are spelt differently -
+                                           `wideBandWidthChannelPresent` against
+                                           `wideBandwidthChannel` - so each must be written exactly
+                                           as declared. */
+    wifi_WideBWChannel_t wideBandwidthChannel; /**< Channel width and centre-frequency segments the
+                        candidate AP uses, valid only where `wideBandWidthChannelPresent` is `TRUE`.
+                        The flag is spelt `wideBandWidthChannelPresent` and this member
+                        `wideBandwidthChannel`, so a caller must write each exactly as declared. See
+                        `wifi_WideBWChannel_t`, which states that `bandwidth` is an 802.11 code
+                        rather than a count of MHz. */
+    BOOL htCapsPresent; /**< `TRUE` where `htCaps` below carries the candidate's HT Capabilities
+                             element; where it is `FALSE` a caller must not read that member. It
+                             says nothing about the VHT fields, which have their own flags. */
+    wifi_HTCapabilities_t htCaps; /**< HT Capabilities element of the candidate AP, valid only where
+                                       `htCapsPresent` above is `TRUE`. See `wifi_HTCapabilities_t`,
+                                       whose fields are 802.11 bitmasks and whose supported-MCS set
+                                       is a fixed 16 octets with no count member. */
+    BOOL vhtCapsPresent; /**< Whether the VHT Capabilities field is present. The flag is
+                        spelt `vhtCapsPresent` but the field it guards is spelt
+                        `vbhtCaps`. */
+    wifi_VHTCapabilities_t vbhtCaps; /**< VHT Capabilities of the candidate AP, valid only
+                        where `vhtCapsPresent` is `TRUE`. The member name carries a stray
+                        "b": the identifier a caller has to write is `vbhtCaps`, and there is
+                        no `vhtCaps` member in this structure to write instead, even though
+                        `htCaps` above and `vhtOp` below are both spelt normally. The
+                        misspelling is confined to this one field. See
+                        `wifi_VHTCapabilities_t` for the member detail. */
+    BOOL htOpPresent; /**< `TRUE` where `htOp` below carries the candidate's HT Operation element;
+                           where it is `FALSE` a caller must not read that member. */
+    wifi_HTOperation_t htOp; /**< HT Operation element of the candidate AP, valid only where
+                                  `htOpPresent` above is `TRUE`. See `wifi_HTOperation_t` for its
+                                  primary channel, its five octets of operation information and its
+                                  basic MCS set. */
+    BOOL vhtOpPresent; /**< `TRUE` where `vhtOp` below carries the candidate's VHT Operation
+                            element; where it is `FALSE` a caller must not read that member.
+                            `vhtCapsPresent` above guards the separate capabilities field. */
+    wifi_VHTOperation_t vhtOp; /**< VHT Operation element of the candidate AP, valid only where
+                                    `vhtOpPresent` above is `TRUE`. See `wifi_VHTOperation_t`, whose
+                                    `opInfo.bandwidth` is a channel width code rather than a count
+                                    of MHz and whose `mcs_nss` is the BSS-wide requirement rather
+                                    than a per-STA capability. */
+    BOOL secondaryChannelOffsetPresent; /**< `TRUE` where `secondaryChannelOffset` below carries the
+                                             offset of the candidate's secondary channel; where it
+                                             is `FALSE` a caller must not read that member. */
+    wifi_SecondaryChannelOffset_t secondaryChannelOffset; /**< Position of the candidate AP's
+                        secondary channel relative to its primary, valid only where
+                        `secondaryChannelOffsetPresent` is `TRUE`. `wifi_SecondaryChannelOffset_t`
+                        states that the value is the 802.11 offset code rather than a count of MHz. */
+    BOOL rmEnabledCapsPresent; /**< `TRUE` where `rmEnabledCaps` below carries the candidate's radio
+                                    measurement capabilities; where it is `FALSE` a caller must not
+                                    read that member. */
+    wifi_RMEnabledCapabilities_t rmEnabledCaps; /**< RM Enabled Capabilities element of the
+                                                     candidate AP, valid only where
+                                                     `rmEnabledCapsPresent` above is `TRUE`.
+                                                     `wifi_RMEnabledCapabilities_t` carries the five
+                                                     octets of bitmask in the same encoding
+                                                     `wifi_getRMCapabilities()` returns. */
+    BOOL msmtPilotTransmissionPresent; /**< `TRUE` where `msmtPilotTransmission` below carries the
+                                            candidate's pilot interval; where it is `FALSE` a caller
+                                            must not read that member. */
+    wifi_MeasurementPilotTransmission_t msmtPilotTransmission; /**< Measurement Pilot Transmission
+                        element of the candidate AP, valid only where `msmtPilotTransmissionPresent`
+                        above is `TRUE`. `wifi_MeasurementPilotTransmission_t` states that its
+                        interval is in units of 1024 microseconds and that zero means pilot frames
+                        are not transmitted. */
+    BOOL vendorSpecificPresent; /**< `TRUE` where `vendorSpecific` below carries a Vendor Specific
+                                     element; where it is `FALSE` a caller must not read that
+                                     member. The element's own content is in the vendor's format,
+                                     which this interface does not define. */
+    wifi_VendorSpecific_t vendorSpecific; /**< Vendor Specific element carried with this candidate,
+                        valid only where `vendorSpecificPresent` is `TRUE`. `wifi_VendorSpecific_t`
+                        states that neither the length of its OUI nor the meaningful extent of its
+                        buffer is established by this interface, so a caller must take both from the
+                        vendor's own format. */
     ssid_t target_ssid; /**< SSID of the candidate AP, in the 32-octet `ssid_t` of
                         `wifi_hal_generic.h`. An SSID may occupy all 32 octets, so it is
                         not necessarily NUL-terminated and a caller must not treat it as a
@@ -1215,10 +1478,14 @@ typedef struct
 {
     UCHAR ids[MAX_REQUESTED_ELEMS]; /**< Element IDs the reporting STA is asked to include
                         in each beacon report, bounded at `MAX_REQUESTED_ELEMS` entries.
-                        This interface carries no count member for the array, so how many
-                        entries are populated is not established here; a caller should
-                        treat a zero entry as the end of the list, since 0 is the SSID
-                        element ID and is not meaningful to request this way. */
+                        The array is of fixed length and this interface carries neither a
+                        count member nor a terminator for it, so how many entries are
+                        populated is not specified by this interface and a caller cannot
+                        determine the logical length from the data. In particular a zero
+                        entry does not mark the end of the list: 0 is the SSID element ID,
+                        so it is a valid element ID rather than a sentinel. Both parties
+                        therefore have to agree the populated length outside this
+                        interface. */
 } wifi_RequestedElementIDS_t;
 
 /**
@@ -1241,11 +1508,14 @@ typedef struct
     UCHAR opClass; /**< Operating class shared by every channel in `channels`, which is
                         what gives those channel numbers their band and width. */
     UCHAR channels[MAX_CHANNELS_REPORT]; /**< Channels the measurement is to cover, within
-                        `opClass`, bounded at `MAX_CHANNELS_REPORT` entries. This interface
-                        carries no count member for the array, so how many entries are
-                        populated is not established here; a caller should treat a zero
-                        entry as the end of the list, since 0 is not a valid channel
-                        number. */
+                        `opClass`, bounded at `MAX_CHANNELS_REPORT` entries. The array is of
+                        fixed length and this interface carries neither a count member nor a
+                        terminator for it, so how many entries are populated is not
+                        specified by this interface and a caller cannot determine the
+                        logical length from the data. A zero entry is not a sentinel either:
+                        this interface gives channel 0 a meaning of its own on the `channel`
+                        member of `wifi_BeaconRequest_t`. Both parties therefore have to
+                        agree the populated length outside this interface. */
 } wifi_ChannelReport_t;
 
 /**
@@ -1283,8 +1553,17 @@ typedef struct
     ssid_t ssid; /**< SSID the measurement is scoped to, valid only where `ssidPresent` is
                         `TRUE`. Held in the 32-octet `ssid_t` of `wifi_hal_generic.h` and
                         not necessarily NUL-terminated. */
-    BOOL beaconReportingPresent; /**< Whether the Beacon Reporting Detail field is present. */
-    wifi_BeaconReporting_t beaconReporting; /**< Beacon reporting configuration. */
+    BOOL beaconReportingPresent; /**< `TRUE` where `beaconReporting` below carries the condition and
+                                      threshold that decide when a beacon is reported; where it is
+                                      `FALSE` a caller must not read that member.
+                                      `reportingRetailPresent` below guards the separate
+                                      reporting-detail level. */
+    wifi_BeaconReporting_t beaconReporting; /**< Condition and threshold that decide when the STA
+                                                 reports a measured beacon, valid only where
+                                                 `beaconReportingPresent` above is `TRUE`.
+                                                 `wifi_BeaconReporting_t` states that a zero
+                                                 condition is 802.11's unconditional report, for
+                                                 which the threshold carries nothing. */
     BOOL reportingRetailPresent; /**< `TRUE` if `reportingDetail` carries a reporting
                         detail level. The member name misspells "reporting detail"; it is
                         the presence flag for `reportingDetail` and nothing else. */
@@ -1292,12 +1571,38 @@ typedef struct
                         fixed fields or elements, the fixed fields plus the requested
                         elements, or all fixed fields and elements. Valid only where
                         `reportingRetailPresent` is `TRUE`. */
-    BOOL wideBandWidthChannelPresent; /**< Whether the Wide Bandwidth Channel field is present. */
-    wifi_WideBWChannel_t wideBandwidthChannel; /**< Wide Bandwidth Channel information. */
-    BOOL requestedElementIDSPresent; /**< Whether the Requested Element IDs field is present. */
-    wifi_RequestedElementIDS_t requestedElementIDS; /**< Requested element IDs. */
-    BOOL extdRequestedElementIDSPresent; /**< Whether the Extended Requested Element IDs field is present. */
-    wifi_ExtdRequestedElementIDS_t extdRequestedElementIDS; /**< Extended requested element IDs. */
+    BOOL wideBandWidthChannelPresent; /**< `TRUE` where `wideBandwidthChannel` below scopes the
+                                           measurement to a channel width and centre-frequency
+                                           segments; where it is `FALSE` a caller must not read that
+                                           member. The flag and the member it guards are spelt
+                                           differently - `wideBandWidthChannelPresent` against
+                                           `wideBandwidthChannel` - so each must be written exactly
+                                           as declared. */
+    wifi_WideBWChannel_t wideBandwidthChannel; /**< Channel width and centre-frequency segments the
+                        measurement is scoped to, valid only where `wideBandWidthChannelPresent` is
+                        `TRUE`. See `wifi_WideBWChannel_t` for the encoding of `bandwidth` and for
+                        what a zero second segment means. */
+    BOOL requestedElementIDSPresent; /**< `TRUE` where `requestedElementIDS` below names the
+                                          elements to include in each report; where it is `FALSE` a
+                                          caller must not read that member.
+                                          `extdRequestedElementIDSPresent` below guards the extended
+                                          IDs separately, so the two may differ. */
+    wifi_RequestedElementIDS_t requestedElementIDS; /**< Element IDs the reporting STA is asked to
+                        include in each beacon report, valid only where `requestedElementIDSPresent`
+                        is `TRUE`. `wifi_RequestedElementIDS_t` states that its array carries
+                        neither a count nor a terminator, so the populated length has to be agreed
+                        outside this interface; `extdRequestedElementIDS` below carries the extended
+                        IDs separately. */
+    BOOL extdRequestedElementIDSPresent; /**< `TRUE` where `extdRequestedElementIDS` below names the
+                                              element ID extensions to include; where it is `FALSE`
+                                              a caller must not read that member. It is independent
+                                              of `requestedElementIDSPresent` above. */
+    wifi_ExtdRequestedElementIDS_t extdRequestedElementIDS; /**< Element ID extensions the reporting
+                        STA is asked to include, valid only where `extdRequestedElementIDSPresent`
+                        above is `TRUE`. The type is an alias of `wifi_RequestedElementIDS_t`, so
+                        its array carries neither a count nor a terminator and the populated length
+                        has to be agreed outside this interface; `requestedElementIDS` above carries
+                        the plain element IDs. */
     BOOL channelReportPresent; /**< `TRUE` if `channelReport` names the channels to
                         measure, which is what makes a `channel` of 255 meaningful. */
     wifi_ChannelReport_t channelReport; /**< Channels to measure, valid only where
@@ -1340,7 +1645,9 @@ typedef struct
     UCHAR rsni; /**< Received Signal to Noise Indicator for the reported frame, as the
                         802.11 RSNI encoding: an unsigned value in 0.5dB steps from
                         -10dB. */
-    bssid_t bssid; /**< BSSID of the reported BSS. */
+    bssid_t bssid; /**< Address of the BSS this report describes, as the six raw octets of `bssid_t`
+                        rather than text. It is the measured BSS rather than the one that requested
+                        the measurement. */
     UCHAR antenna; /**< Antenna ID the measurement was taken on. Zero means the antenna is
                         unknown or not reported. */
     UINT tsf; /**< TSF value of the reported BSS at the time of measurement. Held in a
@@ -1385,13 +1692,16 @@ typedef struct
  * @param[in,out] input_output_channelStats_array Array of `wifi_channelStats_t` that
  *                                    carries the request in and the result out. The caller
  *                                    allocates and owns it, per `Memory Model` in
- *                                    `docs/pages/halSpec.md`, and the `HAL` retains no
- *                                    reference to it after returning. On the way in the
- *                                    caller sets only `ch_number` in each of the first
- *                                    `array_size` elements; on the way out the `HAL`
- *                                    writes every other member of those elements and
- *                                    leaves `ch_number` as the caller set it. It must hold
- *                                    at least `array_size` elements, and at least one
+ *                                    `docs/pages/halSpec.md`. Whether the implementation
+ *                                    retains the pointer beyond the call is not specified
+ *                                    by this interface, so the caller should keep the
+ *                                    array allocated and unmoved while the `HAL` remains
+ *                                    initialised. On the way in the caller sets only
+ *                                    `ch_number` in each of the first `array_size`
+ *                                    elements; on the way out the `HAL` writes every
+ *                                    other member of those elements and leaves
+ *                                    `ch_number` as the caller set it. It must hold at
+ *                                    least `array_size` elements, and at least one
  *                                    element even when `array_size` is 0.
  * @param[in] array_size              Number of elements the `HAL` may read and write,
  *                                    which bounds `input_output_channelStats_array`. A
@@ -1411,13 +1721,11 @@ typedef struct
  *
  * @returns The status of the operation.
  * @retval WIFI_HAL_SUCCESS The requested statistics were written.
- * @retval WIFI_HAL_ERROR   `radioIndex` is not a valid radio,
- *                          `input_output_channelStats_array` is NULL, `array_size` is
- *                          negative, a requested channel is not one the radio can survey,
- *                          or the vendor layer could not supply the statistics. The caller
- *                          should validate its arguments, discard the array contents, and
- *                          treat channel occupancy as unknown rather than as zero, since
- *                          a zeroed accumulator is indistinguishable from an idle channel.
+ * @retval WIFI_HAL_ERROR   The call failed. This interface does not enumerate the
+ *                          conditions that lead to this code. The caller should validate
+ *                          its arguments, discard the array contents, and treat channel
+ *                          occupancy as unknown rather than as zero, since a zeroed
+ *                          accumulator is indistinguishable from an idle channel.
  *
  * @warning An `array_size` of 0 still causes one element to be written, so passing 0 with
  *          a NULL or zero-length array overruns the caller's storage.
@@ -1494,12 +1802,10 @@ INT wifi_getRadioChannelStats(INT radioIndex, wifi_channelStats_t *input_output_
  *
  * @returns The status of the operation.
  * @retval WIFI_HAL_SUCCESS The statistics were retrieved and the outputs written.
- * @retval WIFI_HAL_ERROR   `radioIndex` is not a valid radio, any pointer argument is
- *                          NULL, the client named by `clientMacAddress` is not associated
- *                          on that radio, or the vendor layer could not supply the
- *                          statistics. The caller should validate its arguments, release
- *                          nothing, and retry rather than treating the result as a client
- *                          with no receive traffic.
+ * @retval WIFI_HAL_ERROR   The call failed. This interface does not enumerate the
+ *                          conditions that lead to this code. The caller should validate
+ *                          its arguments, release nothing, and retry rather than treating
+ *                          the result as a client with no receive traffic.
  *
  * @warning The `HAL` allocates a fresh array on each successful call and nothing in this
  *          interface releases a previous one, so a caller that samples repeatedly must free
@@ -1565,11 +1871,10 @@ INT wifi_getApAssociatedDeviceRxStatsResult(INT radioIndex, mac_address_t *clien
  *
  * @returns The status of the operation.
  * @retval WIFI_HAL_SUCCESS The statistics were retrieved and the outputs written.
- * @retval WIFI_HAL_ERROR   `radioIndex` is not a valid radio, any pointer argument is
- *                          NULL, the client is not associated on that radio, or the vendor
- *                          layer could not supply the statistics. The caller should
- *                          validate its arguments, release nothing, and retry rather than
- *                          treating the result as a client with no transmit traffic.
+ * @retval WIFI_HAL_ERROR   The call failed. This interface does not enumerate the
+ *                          conditions that lead to this code. The caller should validate
+ *                          its arguments, release nothing, and retry rather than treating
+ *                          the result as a client with no transmit traffic.
  *
  * @warning The `HAL` allocates a fresh array on each successful call and nothing in this
  *          interface releases a previous one, so a caller that samples repeatedly must free
@@ -1601,9 +1906,12 @@ INT wifi_getApAssociatedDeviceTxStatsResult(INT radioIndex, mac_address_t *clien
  *                              reads it during the call.
  * @param[out] tid_stats        Pointer to a `wifi_associated_dev_tid_stats_t` structure to
  *                              store the TID statistics. The caller allocates and owns the
- *                              storage, per `Memory Model` in `docs/pages/halSpec.md`; the
- *                              `HAL` writes it during the call and retains no reference to
- *                              it afterwards. One structure is written, not an array, and
+ *                              storage, per `Memory Model` in `docs/pages/halSpec.md`.
+ *                              The `HAL` writes it during the call, and whether the
+ *                              implementation retains the pointer afterwards is not
+ *                              specified by this interface, so the caller should keep the
+ *                              structure allocated and unmoved while the `HAL` remains
+ *                              initialised. One structure is written, not an array, and
  *                              it always carries all sixteen TID entries indexed by TID.
  * @param[in] handle           Status validation handle used to determine reconnections,
  *                             incremented for every association. The caller allocates and
@@ -1619,11 +1927,10 @@ INT wifi_getApAssociatedDeviceTxStatsResult(INT radioIndex, mac_address_t *clien
  *
  * @returns The status of the operation.
  * @retval WIFI_HAL_SUCCESS The statistics were retrieved.
- * @retval WIFI_HAL_ERROR   `radioIndex` is not a valid radio, any pointer argument is
- *                          NULL, the client is not associated on that radio, or the vendor
- *                          layer could not supply the statistics. The caller should
- *                          validate its arguments and treat the per-TID latencies as
- *                          unknown rather than as zero.
+ * @retval WIFI_HAL_ERROR   The call failed. This interface does not enumerate the
+ *                          conditions that lead to this code. The caller should validate
+ *                          its arguments and treat the per-TID latencies as unknown rather
+ *                          than as zero.
  *
  * @note This interface documents `handle` as an input here and on
  *       `wifi_getApAssociatedDeviceStats()`, but as an output on
@@ -1661,9 +1968,12 @@ INT wifi_getApAssociatedDeviceTidStatsResult(INT radioIndex, mac_address_t *clie
  * @param[out] associated_dev_stats Pointer to a `wifi_associated_dev_stats_t` structure to
  *                                   store the device statistics. The caller allocates and
  *                                   owns the storage, per `Memory Model` in
- *                                   `docs/pages/halSpec.md`; the `HAL` writes it during the
- *                                   call and retains no reference to it afterwards. One
- *                                   structure is written, not an array.
+ *                                   `docs/pages/halSpec.md`. The `HAL` writes it during
+ *                                   the call, and whether the implementation retains the
+ *                                   pointer afterwards is not specified by this
+ *                                   interface, so the caller should keep the structure
+ *                                   allocated and unmoved while the `HAL` remains
+ *                                   initialised. One structure is written, not an array.
  * @param[in] handle               Status validation handle used to determine
  *                                 reconnections. This handle is incremented for
  *                                 every association. The caller allocates and owns the
@@ -1678,11 +1988,10 @@ INT wifi_getApAssociatedDeviceTidStatsResult(INT radioIndex, mac_address_t *clie
  *
  * @returns The status of the operation.
  * @retval WIFI_HAL_SUCCESS The statistics were retrieved.
- * @retval WIFI_HAL_ERROR   `apIndex` is not a valid AP, any pointer argument is NULL, the
- *                          client named by `clientMacAddress` is not associated with that
- *                          AP, or the vendor layer could not supply the statistics. The
- *                          caller should validate its arguments and treat the client's
- *                          traffic and signal level as unknown rather than as zero.
+ * @retval WIFI_HAL_ERROR   The call failed. This interface does not enumerate the
+ *                          conditions that lead to this code. The caller should validate
+ *                          its arguments and treat the client's traffic and signal level as
+ *                          unknown rather than as zero.
  *
  * @note This interface documents `handle` as an input here and on
  *       `wifi_getApAssociatedDeviceTidStatsResult()`, but as an output on the two per-rate
@@ -1727,11 +2036,11 @@ INT wifi_getApAssociatedDeviceStats(INT apIndex, mac_address_t *clientMacAddress
  *
  * @returns The status of the operation.
  * @retval WIFI_HAL_SUCCESS The radio index was written.
- * @retval WIFI_HAL_ERROR   `ssidIndex` does not name a configured SSID entry, `radioIndex`
- *                          is NULL, or the vendor layer could not resolve the mapping. The
- *                          caller should validate `ssidIndex` and must not fall back to a
- *                          default radio index, since addressing the wrong radio would
- *                          apply a subsequent call to the wrong hardware.
+ * @retval WIFI_HAL_ERROR   The call failed. This interface does not enumerate the
+ *                          conditions that lead to this code. The caller should validate
+ *                          `ssidIndex` and must not fall back to a default radio index,
+ *                          since addressing the wrong radio would apply a subsequent call
+ *                          to the wrong hardware.
  *
  * @note This call does not block, per `Blocking calls` in `docs/pages/halSpec.md`.
  * @note The `HAL` is expected to be thread safe, per `Threading Model` in
@@ -1768,11 +2077,10 @@ INT wifi_getSSIDRadioIndex(INT ssidIndex, INT *radioIndex);
  *
  * @returns The status of the operation.
  * @retval WIFI_HAL_SUCCESS The `HAL` accepted the request for `ssidIndex`.
- * @retval WIFI_HAL_ERROR   `ssidIndex` does not name a configured SSID entry, the staged
- *                          configuration is not one the hardware can accept, or the vendor
- *                          layer refused the request. This interface does not state
- *                          whether a failure leaves the previous configuration in force or
- *                          the hardware partly reconfigured, so the caller should read the
+ * @retval WIFI_HAL_ERROR   The call failed. This interface does not enumerate the
+ *                          conditions that lead to this code, and it does not state whether
+ *                          a failure leaves the previous configuration in force or the
+ *                          hardware partly reconfigured, so the caller should read the
  *                          affected settings back rather than assuming either.
  *
  * @note This call does not block, per `Blocking calls` in `docs/pages/halSpec.md`, and
@@ -1808,10 +2116,12 @@ INT wifi_applySSIDSettings(INT ssidIndex);
  *                       scan is whatever `scan_mode` alone implies.
  * @param[in] chan_list  Array of channel numbers to scan, holding `chan_num` entries. The
  *                       caller allocates and owns it, per `Memory Model` in
- *                       `docs/pages/halSpec.md`; the `HAL` reads it during the call and
- *                       must not be assumed to retain it afterwards. This interface does
- *                       not carry a band alongside the channel numbers, so they are
- *                       interpreted in the band of the radio behind `apIndex`.
+ *                       `docs/pages/halSpec.md`; the `HAL` reads it during the call, and
+ *                       whether the implementation retains the pointer afterwards is not
+ *                       specified by this interface, so the caller should keep the array
+ *                       allocated and unmoved while the `HAL` remains initialised. This
+ *                       interface does not carry a band alongside the channel numbers, so
+ *                       they are interpreted in the band of the radio behind `apIndex`.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
  *      in `docs/pages/halSpec.md`. A call made beforehand does not meet the runtime
@@ -1822,12 +2132,10 @@ INT wifi_applySSIDSettings(INT ssidIndex);
  *
  * @returns The status of the operation.
  * @retval WIFI_HAL_SUCCESS The `HAL` accepted the scan request.
- * @retval WIFI_HAL_ERROR   `apIndex` is not a valid AP, `scan_mode` is not a supported
- *                          mode, `chan_num` is non-zero with a NULL `chan_list`, a listed
- *                          channel is not one the radio supports, or the vendor layer
- *                          could not start the scan. The caller should validate its
- *                          arguments and retry rather than waiting for results that will
- *                          not arrive.
+ * @retval WIFI_HAL_ERROR   The call failed. This interface does not enumerate the
+ *                          conditions that lead to this code. The caller should validate
+ *                          its arguments and retry rather than waiting for results that
+ *                          will not arrive.
  *
  * @note This call does not block, per `Blocking calls` in `docs/pages/halSpec.md`, so it
  *       returns before the scan has run and does not itself wait out `dwell_time`.
@@ -1873,11 +2181,11 @@ INT wifi_startNeighborScan(INT apIndex, wifi_neighborScanMode_t scan_mode, INT d
  *
  * @returns The status of the operation.
  * @retval WIFI_HAL_SUCCESS The mode was set for `apIndex`.
- * @retval WIFI_HAL_ERROR   `apIndex` is not a valid AP, `mode` is outside the range 0 to
- *                          2, or the vendor layer refused the request. This interface does
- *                          not state whether a failure leaves the previous mode in force,
- *                          so the caller should re-apply the mode it wants rather than
- *                          assuming either outcome.
+ * @retval WIFI_HAL_ERROR   The call failed. This interface does not enumerate the
+ *                          conditions that lead to this code, and it does not state whether
+ *                          a failure leaves the previous mode in force, so the caller
+ *                          should re-apply the mode it wants rather than assuming either
+ *                          outcome.
  *
  * @note This call does not block, per `Blocking calls` in `docs/pages/halSpec.md`.
  * @note The `HAL` is expected to be thread safe, per `Threading Model` in
@@ -1907,14 +2215,19 @@ INT wifi_setApCsaDeauth(INT apIndex, INT mode);
  *                    define an enumeration for it, and treats it as the boolean the
  *                    description calls out, so a caller should pass 0 to disable and 1 to
  *                    enable.
- * @param[in] essid   The ESSID to filter on, as a caller-allocated, NUL-terminated string.
- *                    The caller owns the storage, per `Memory Model` in
- *                    `docs/pages/halSpec.md`; the `HAL` reads it during the call and must
- *                    not be assumed to retain it afterwards. A blank string selects the
- *                    form that filters on the interface's own configured SSID. This
- *                    interface states no maximum length for the argument; the `ssid_t` type
- *                    it uses for an SSID elsewhere is 32 octets, so a caller should not
- *                    exceed 32 characters plus the terminator.
+ * @param[in] essid   The ESSID to filter on, as a caller-allocated string. The caller
+ *                    passes NUL-terminated text, because this interface carries no length
+ *                    parameter for the argument. The caller owns the storage, per `Memory
+ *                    Model` in `docs/pages/halSpec.md`; the `HAL` reads it during the
+ *                    call, and whether the implementation retains the pointer afterwards
+ *                    is not specified by this interface, so the caller should keep it
+ *                    allocated and unmoved while the `HAL` remains initialised. A blank
+ *                    string selects the form that filters on the interface's own
+ *                    configured SSID. This interface states no maximum length for the
+ *                    argument. The `ssid_t` type it uses for an SSID elsewhere is 32
+ *                    octets with no room reserved for a terminator, so 32 characters is
+ *                    the longest SSID the interface can represent at all; a caller should
+ *                    stay within that and must not assume a longer argument is accepted.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
  *      in `docs/pages/halSpec.md`. A call made beforehand does not meet the runtime
@@ -1927,12 +2240,11 @@ INT wifi_setApCsaDeauth(INT apIndex, INT mode);
  *
  * @returns The status of the operation.
  * @retval WIFI_HAL_SUCCESS The filter setting was applied.
- * @retval WIFI_HAL_ERROR   `apIndex` is neither -1 nor an index in the range the interface
- *                          states, `essid` is NULL, the ESSID is longer than the driver
- *                          accepts, or the vendor layer refused the request. The caller
- *                          should validate its arguments and must not start a scan
- *                          expecting the filter to be in force, since a failed call leaves
- *                          the previous setting in an unspecified state.
+ * @retval WIFI_HAL_ERROR   The call failed. This interface does not enumerate the
+ *                          conditions that lead to this code. The caller should validate
+ *                          its arguments and must not start a scan expecting the filter to
+ *                          be in force, since a failed call leaves the previous setting in
+ *                          an unspecified state.
  *
  * @warning A filter left enabled suppresses non-matching BSSs from every later scan on
  *          that interface, so a caller that scans for neighbours after filtering will see
@@ -2038,12 +2350,35 @@ typedef unsigned int wifi_steer_matching_condition_t;
  */
 typedef struct
 {
-    CHAR *module; /**< Module name. */
-    mac_address_t sta_mac; /**< Station MAC address. */
-    mac_address_t src_bss; /**< Source BSS MAC address. */
-    mac_address_t dst_bss; /**< Destination BSS MAC address. */
-    wifi_steer_type_t type; /**< Steering type. */
-    wifi_steer_matching_condition_t cond; /**< Matching condition. */
+    CHAR *module; /**< Name of the module that raised the steering trigger. The member is a bare
+                       `CHAR *`: this interface states neither the representation, whether the bytes
+                       are `NUL`-terminated, how many of them are readable, which side owns the
+                       storage nor how long it stays valid. A handler reached through
+                       `wifi_steerTriggered_callback` must therefore not run an unbounded string
+                       function over the pointer, must not free it, and cannot bound a copy of the
+                       name from this interface - it has to take the length from the platform
+                       implementer. */
+    mac_address_t sta_mac; /**< Address of the station being steered, as the six raw octets of
+                                `mac_address_t` rather than text. `src_bss` and `dst_bss` below are
+                                the BSSs it is steered from and to. */
+    mac_address_t src_bss; /**< Address of the BSS the station is being steered away from, in the
+                                same six raw octets. This interface does not state what the member
+                                holds for a pre-association steer, where there is no serving BSS. */
+    mac_address_t dst_bss; /**< Address of the BSS the station is being steered towards, in the same
+                                six raw octets. This interface does not state what the member holds
+                                where the trigger names no target. */
+    wifi_steer_type_t type; /**< Which steering action was triggered, as one of the
+                                 `wifi_steer_type_t` enumerators - probe or association blocking
+                                 before association, and 802.11v or kick-MAC steering of an idle or
+                                 active station afterwards. That enumeration assigns no values, so a
+                                 caller must compare against the enumerators. */
+    wifi_steer_matching_condition_t cond; /**< Condition that matched to raise the steering trigger.
+                                               `wifi_steer_matching_condition_t` is a typedef of
+                                               `unsigned int` and this interface enumerates no
+                                               values for it, so a caller cannot decide from this
+                                               interface which condition a given value denotes;
+                                               `type` above names the steering type as a
+                                               `wifi_steer_type_t`. */
 } wifi_steer_trigger_data_t;
 /** @} */  //END OF GROUP WIFI_HAL_TYPES
 
@@ -2062,12 +2397,17 @@ typedef struct
  *
  * @param[in] apIndex Index of the AP the trigger relates to. The indices this interface
  *                    defines are `AP_INDEX_1` to `AP_INDEX_24` in `wifi_hal_generic.h`.
- * @param[in] data    Pointer to the steering trigger data. The `HAL` owns this storage and
- *                    it is valid only for the duration of the call; the client is
- *                    responsible for creating a copy of the data it needs afterwards, per
- *                    `Asynchronous Notification Model` in `docs/pages/halSpec.md`. That
- *                    applies to the `module` string the structure carries as much as to the
- *                    structure itself.
+ * @param[in] data    Pointer to the steering trigger data. This interface does not state
+ *                    which component owns the storage, how long it stays valid, or how many
+ *                    bytes are readable through it, so the client must not assume either
+ *                    that it survives the call or that it may be released. The one
+ *                    established obligation is the client copy duty in
+ *                    `Asynchronous Notification Model` in `docs/pages/halSpec.md`: copy what
+ *                    is needed before returning, and neither retain nor free the pointer.
+ *                    That applies to the `module` string the structure carries as much as to
+ *                    the structure itself, and the copy of that string must be bounded by a
+ *                    length obtained from the implementation rather than by an unbounded
+ *                    string function, because no extent is stated for it.
  *
  * @returns The status of the operation, returned by the handler to the `HAL`.
  * @retval WIFI_HAL_SUCCESS The handler accepted the trigger.
@@ -2102,17 +2442,23 @@ typedef INT (*wifi_steerTriggered_callback)(INT apIndex, wifi_steer_trigger_data
  * `wifi_steer_trigger_data_t` carries back on each event.
  *
  * @param[in] callback_proc Pointer to the callback function to register, of type
- *                          `wifi_steerTriggered_callback`. The `HAL` retains this function
- *                          pointer and invokes it until it is replaced, so the function
- *                          must remain callable for that whole period. The effect of
- *                          passing NULL is not specified by this interface.
+ *                          `wifi_steerTriggered_callback`. The `HAL` keeps this
+ *                          function pointer after the call returns, since it invokes
+ *                          the handler later, so the function must remain callable for
+ *                          as long as steering triggers are wanted. This interface
+ *                          declares no call that removes this handler and states no
+ *                          end to a registration, so it does not establish when the
+ *                          `HAL` stops using the pointer. The effect of passing NULL
+ *                          is not specified by this interface.
  * @param[in] module        Name identifying the registering component, as a
- *                          caller-allocated, NUL-terminated string. This interface defines
- *                          neither the set of legal names, nor a maximum length, nor
- *                          whether the `HAL` copies the string or retains the pointer, so
- *                          a caller must keep the storage allocated and unmodified for as
- *                          long as the handler stays registered. It is the only registrar
- *                          in this interface that takes such an argument.
+ *                          caller-allocated string; the caller passes NUL-terminated
+ *                          text, because this interface carries no length parameter for
+ *                          the argument. This interface defines neither the set of legal
+ *                          names, nor a maximum length, nor whether the `HAL` copies the
+ *                          string or retains the pointer, so a caller must keep the
+ *                          storage allocated and unmodified for as long as the handler
+ *                          stays registered. It is the only registrar in this interface
+ *                          that takes such an argument.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
  *      in `docs/pages/halSpec.md`. The effect of registering beforehand is not specified
@@ -2120,14 +2466,18 @@ typedef INT (*wifi_steerTriggered_callback)(INT apIndex, wifi_steer_trigger_data
  * @post The handler is installed and is invoked on each subsequent steering trigger.
  *
  * @execution callback
- * @sideeffect None
+ * @sideeffect Installs `callback_proc` as the handler the `HAL` invokes on each
+ *             steering trigger, and keeps that function pointer - and, since the
+ *             interface does not state that the `HAL` copies it, possibly the `module`
+ *             string - after this call returns. This interface states no other effect.
  *
  * @note This call returns no status, so a caller cannot tell from it whether the
  *       registration succeeded and must not treat its return as a confirmation; observing
  *       a first callback is the only evidence this interface offers.
  * @note This interface defines a single registration point and describes neither a list of
- *       handlers nor a way to unregister, so a caller should treat a later registration as
- *       replacing an earlier one and must not assume a handler can be removed.
+ *       handlers nor a way to unregister. It does not state whether a later registration
+ *       replaces an earlier one, adds to it or is rejected, so a caller should register
+ *       once and must not assume a handler can be removed.
  * @note The registration call itself is synchronous and does not block, per
  *       `Blocking calls` in `docs/pages/halSpec.md`; delivery of `wifi_steerTriggered_callback` is
  *       asynchronous.
@@ -2138,6 +2488,12 @@ typedef INT (*wifi_steerTriggered_callback)(INT apIndex, wifi_steer_trigger_data
  * @see wifi_steer_trigger_data_t
  */
 void wifi_steerTriggered_callback_register(wifi_steerTriggered_callback callback_proc, CHAR *module);
+/** @} */  //END OF GROUP WIFI_HAL_APIS
+
+/**
+ * @addtogroup WIFI_HAL_TYPES
+ * @{
+ */
 
 /**
  * @brief Wi-Fi steering event callback function.
@@ -2151,11 +2507,13 @@ void wifi_steerTriggered_callback_register(wifi_steerTriggered_callback callback
  * @param[in] steeringgroupIndex Index of the steering group the event belongs to, as passed
  *                               to `wifi_steering_setGroup()` - which spells the same
  *                               argument `steeringGroupIndex`, with a capital "G".
- * @param[in] event              Pointer to the steering event. The `HAL` owns this storage
- *                               and it is valid only for the duration of the call; the
- *                               client is responsible for creating a copy of the data it
- *                               needs afterwards, per `Asynchronous Notification Model` in
- *                               `docs/pages/halSpec.md`. The handler must read the `type`
+ * @param[in] event              Pointer to the steering event. This interface does not
+ *                               state which component owns the storage or how long it stays
+ *                               valid, so the client must not assume it survives the call
+ *                               or that it may be released. The established obligation is
+ *                               the client copy duty in `Asynchronous Notification Model`
+ *                               in `docs/pages/halSpec.md`: copy before returning, and
+ *                               neither retain nor free the pointer. The handler must read the `type`
  *                               member first and then only the union member `type` selects,
  *                               as `wifi_steering_event_t` sets out.
  *
@@ -2173,6 +2531,12 @@ void wifi_steerTriggered_callback_register(wifi_steerTriggered_callback callback
  * @see wifi_steering_event_t
  */
 typedef void (*wifi_steering_eventCB_t)(UINT steeringgroupIndex, wifi_steering_event_t *event);
+/** @} */  //END OF GROUP WIFI_HAL_TYPES
+
+/**
+ * @addtogroup WIFI_HAL_APIS
+ * @{
+ */
 
 /**
  * @brief Registers for steering event callbacks.
@@ -2184,10 +2548,12 @@ typedef void (*wifi_steering_eventCB_t)(UINT steeringgroupIndex, wifi_steering_e
  * past ones.
  *
  * @param[in] event_cb Pointer to the callback function to register, of type
- *                     `wifi_steering_eventCB_t`. The `HAL` retains this function pointer
- *                     and invokes it until it is unregistered or replaced, so the function
- *                     must remain callable for that whole period. The effect of passing
- *                     NULL is not specified by this interface; a caller that wants to stop
+ *                     `wifi_steering_eventCB_t`. The `HAL` keeps this function pointer
+ *                     after the call returns, since it invokes the handler later, so the
+ *                     function must remain callable until the registration is removed
+ *                     with `wifi_steering_eventUnregister()`, which is the only removal
+ *                     this interface declares. The effect of passing NULL is not
+ *                     specified by this interface; a caller that wants to stop
  *                     delivery should call `wifi_steering_eventUnregister()` instead.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
@@ -2202,14 +2568,19 @@ typedef void (*wifi_steering_eventCB_t)(UINT steeringgroupIndex, wifi_steering_e
  * @retval RETURN_ERR If any error is detected.
  *
  * @execution callback
- * @sideeffect None
+ * @sideeffect On success, installs `event_cb` as the single delivery point for
+ *             steering events across every group, and keeps that function pointer
+ *             after this call returns until `wifi_steering_eventUnregister()` removes
+ *             it. This interface states no other effect.
  *
  * @note `RETURN_OK` and `RETURN_ERR`, defined in `wifi_hal_generic.h`, carry the same
  *       values as the `WIFI_HAL_SUCCESS` and `WIFI_HAL_ERROR` codes the rest of this
  *       interface uses for the same two outcomes, and are the whole return-code contract of
- *       this call. On `RETURN_ERR` the caller should assume no handler is installed and
- *       must not wait for events; retrying the registration is the only recovery this
- *       interface offers.
+ *       this call. This interface does not state whether the handler is installed after
+ *       `RETURN_ERR`, so a caller must not wait for events on the strength of a failed
+ *       registration and must not assume the previous registration state is intact
+ *       either. `wifi_steering_eventUnregister()` is the only call this interface offers
+ *       for returning to a known state.
  * @note The registration call itself is synchronous and does not block, per
  *       `Blocking calls` in `docs/pages/halSpec.md`; delivery of `wifi_steering_eventCB_t` is
  *       asynchronous.
@@ -2510,8 +2881,9 @@ INT wifi_steering_clientDisconnect(UINT steeringgroupIndex, INT apIndex, mac_add
  * @note On `WIFI_HAL_ERROR` this interface does not state what the driver sends to the
  *       STA, so a handler that cannot build a request should still leave `request` in a
  *       consistent state rather than partly filled.
- * @note `query` is owned by the `HAL` and is valid only for the duration of the call; a
- *       handler that needs the query afterwards must copy it, per
+ * @note This interface does not state which component owns `query` or how long it stays
+ *       valid, so a handler must neither assume it survives the call nor release it. A
+ *       handler that needs the query afterwards copies it before returning, per
  *       `Asynchronous Notification Model` in `docs/pages/halSpec.md`. `request` is the caller's own
  *       storage and the driver reads it once the handler returns.
  * @note The handler must not suspend and must not invoke any blocking system calls, per
@@ -2553,8 +2925,9 @@ typedef INT (*wifi_BTMQueryRequest_callback)(UINT apIndex,
  * @note This is a notification rather than a request for a frame, so the return value
  *       reports only whether the handler consumed it. This interface does not state how the
  *       `HAL` acts on `WIFI_HAL_ERROR`, so a handler must not rely on redelivery.
- * @note `response` is owned by the `HAL` and is valid only for the duration of the call; a
- *       handler that needs it afterwards must copy it, per
+ * @note This interface does not state which component owns `response` or how long it stays
+ *       valid, so a handler must neither assume it survives the call nor release it. A
+ *       handler that needs it afterwards copies it before returning, per
  *       `Asynchronous Notification Model` in `docs/pages/halSpec.md`. Its `token` member is what matches the response
  *       to the request that prompted it, and its `status` member is what says whether the
  *       STA accepted the transition.
@@ -2609,10 +2982,16 @@ typedef INT (*wifi_BTMResponse_callback)(UINT apIndex,
  * @note On `WIFI_HAL_ERROR` this interface does not state what the driver sends to the
  *       STA, so a handler that cannot build a request should still leave `request` in a
  *       consistent state rather than partly filled.
- * @note `query` and `peerMac` are owned by the `HAL` and are valid only for the duration of
- *       the call; a handler that needs either afterwards must copy it, per
- *       `Asynchronous Notification Model` in `docs/pages/halSpec.md`. `request` is the caller's own
- *       storage and the driver reads it once the handler returns.
+ * @note `query` and `peerMac` are pointers the `HAL` supplies. `Asynchronous Notification
+ *       Model` in `docs/pages/halSpec.md` makes the copy the client's responsibility during
+ *       the callback, so a handler that needs either afterwards must copy it before
+ *       returning. That is the only statement this interface makes about their
+ *       availability: it does not say which component owns the storage, how long it stays
+ *       valid, or whether a handler may release it, so the handler should release neither
+ *       and retain neither pointer. `query` is a `wifi_BTMQuery_t *`, so its extent follows
+ *       from the type; `peerMac` is a bare `CHAR *` with no stated extent, so a copy of it
+ *       cannot be bounded from this interface. `request` is the caller's own storage and
+ *       the driver reads it once the handler returns.
  * @note The handler must not suspend and must not invoke any blocking system calls, per
  *       `Blocking calls` in `docs/pages/halSpec.md`. It runs on the path that answers the
  *       STA, so a slow handler delays the BTM response.
@@ -2653,9 +3032,15 @@ typedef INT (*wifi_BTMQueryRequest_callback)(UINT apIndex,
  * @note This is a notification rather than a request for a frame, so the return value
  *       reports only whether the handler consumed it. This interface does not state how the
  *       `HAL` acts on `WIFI_HAL_ERROR`, so a handler must not rely on redelivery.
- * @note `response` and `peerMac` are owned by the `HAL` and are valid only for the duration
- *       of the call; a handler that needs either afterwards must copy it, per
- *       `Asynchronous Notification Model` in `docs/pages/halSpec.md`. The response's `token` member is
+ * @note `response` and `peerMac` are pointers the `HAL` supplies. `Asynchronous
+ *       Notification Model` in `docs/pages/halSpec.md` makes the copy the client's
+ *       responsibility during the callback, so a handler that needs either afterwards must
+ *       copy it before returning. That is the only statement this interface makes about
+ *       their availability: it does not say which component owns the storage, how long it
+ *       stays valid, or whether a handler may release it, so the handler should release
+ *       neither and retain neither pointer. `response` is a `wifi_BTMResponse_t *`, so its
+ *       extent follows from the type; `peerMac` is a bare `CHAR *` with no stated extent, so
+ *       a copy of it cannot be bounded from this interface. The response's `token` member is
  *       what matches it to the request that prompted it, and its `status` member is what
  *       says whether the STA accepted the transition.
  * @note The handler must not suspend and must not invoke any blocking system calls, per
@@ -2694,9 +3079,13 @@ typedef INT (*wifi_BTMResponse_callback)(UINT apIndex,
  *                               `wifi_hal_generic.h`. Registration is per AP, so a caller
  *                               that serves several VAPs must register for each.
  * @param[in] btmQueryCallback  Pointer to the callback function for BTM queries, of type
- *                               `wifi_BTMQueryRequest_callback`. The `HAL` retains this
- *                               function pointer and invokes it until it is replaced, so it
- *                               must remain callable for that whole period.
+ *                               `wifi_BTMQueryRequest_callback`. The `HAL` keeps this
+ *                               function pointer after the call returns, since it invokes
+ *                               the handler later, so it must remain callable for as long
+ *                               as BTM queries are to be answered. This interface declares
+ *                               no call that removes it and states no end to a
+ *                               registration, so it does not establish when the `HAL`
+ *                               stops using the pointer.
  * @param[in] btmResponseCallback Pointer to the callback function for BTM
  *                                responses, of type `wifi_BTMResponse_callback`, retained
  *                                on the same terms. This interface does not state whether
@@ -2707,19 +3096,21 @@ typedef INT (*wifi_BTMResponse_callback)(UINT apIndex,
  *      in `docs/pages/halSpec.md`. The effect of registering beforehand is not specified by
  *      this interface.
  * @post On success both handlers are installed for `apIndex`. This interface defines no
- *       unregister call for them, so a caller should treat a later registration as
- *       replacing an earlier one and must not assume the handlers can be removed.
+ *       unregister call for them, so a caller must not assume the handlers can be
+ *       removed, and it does not state whether a later registration for the same
+ *       `apIndex` replaces the earlier handlers, adds to them or is rejected.
  *
  * @returns The status of the operation.
  * @retval WIFI_HAL_SUCCESS The handlers were installed for `apIndex`.
- * @retval WIFI_HAL_ERROR   `apIndex` is not a valid AP, a callback pointer is not one the
- *                          `HAL` accepts, or the vendor layer refused the request. On
- *                          failure the caller should assume no handler is installed, and
- *                          must not call `wifi_setBTMRequest()` expecting a response
- *                          notification.
+ * @retval WIFI_HAL_ERROR   The handlers were not installed as requested. This interface
+ *                          does not state whether either handler is installed after a
+ *                          failure, so a caller must not call `wifi_setBTMRequest()`
+ *                          expecting a response notification and must not assume the
+ *                          previous registration state is intact either.
  *
  * @execution callback
- * @sideeffect None
+ * @sideeffect On success, installs both handlers for `apIndex` and keeps both function
+ *             pointers after this call returns. This interface states no other effect.
  *
  * @note The registration call itself is synchronous and does not block, per
  *       `Blocking calls` in `docs/pages/halSpec.md`; delivery of both handlers is asynchronous.
@@ -2746,14 +3137,17 @@ INT wifi_BTMQueryRequest_callback_register(UINT apIndex, wifi_BTMQueryRequest_ca
  *                     defines are `AP_INDEX_1` to `AP_INDEX_24` in `wifi_hal_generic.h`.
  * @param[in] peerMac  MAC address of the peer STA, as the six octets of `mac_address_t`.
  *                     The caller owns the storage and the `HAL` reads it during the call.
- * @param[in] request  Pointer to the BTM request frame to send. One frame is passed, not an
- *                     array. The caller allocates and owns it, per `Memory Model` in
- *                     `docs/pages/halSpec.md`; the `HAL` reads it during the call and must
- *                     not be assumed to retain it afterwards. The caller sets `token` to
- *                     the dialog token it will match the response against, sets
- *                     `numCandidates` to bound the `candidates` array and `urlLen` to bound
- *                     `url`, and must set `requestMode` consistently with the optional
- *                     fields it has populated.
+ * @param[in] request  Pointer to the BTM request frame to send. One frame is passed, not
+ *                     an array. The caller allocates and owns it, per `Memory Model` in
+ *                     `docs/pages/halSpec.md`; the `HAL` reads it during the call, and
+ *                     whether the implementation retains the pointer afterwards is not
+ *                     specified by this interface, so the caller should keep the
+ *                     structure allocated and unmoved while the `HAL` remains
+ *                     initialised. The caller sets `token` to the dialog token it will
+ *                     match the response against, sets `numCandidates` to bound the
+ *                     `candidates` array and `urlLen` to bound `url`, and must set
+ *                     `requestMode` consistently with the optional fields it has
+ *                     populated.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
  *      in `docs/pages/halSpec.md`. A call made beforehand does not meet the runtime
@@ -2770,10 +3164,9 @@ INT wifi_BTMQueryRequest_callback_register(UINT apIndex, wifi_BTMQueryRequest_ca
  *
  * @returns The status of the operation.
  * @retval WIFI_HAL_SUCCESS The `HAL` accepted the request for transmission.
- * @retval WIFI_HAL_ERROR   `apIndex` is not a valid AP, `request` is NULL or internally
- *                          inconsistent, the peer is not associated or does not support
- *                          BTM, or the vendor layer could not send the frame. The caller
- *                          should validate its arguments and fall back to
+ * @retval WIFI_HAL_ERROR   The call failed. This interface does not enumerate the
+ *                          conditions that lead to this code. The caller should validate
+ *                          its arguments and fall back to
  *                          `wifi_steering_clientDisconnect()` if it must move a client that
  *                          cannot be transitioned.
  *
@@ -2813,26 +3206,26 @@ INT wifi_setBTMRequest(UINT apIndex, mac_address_t peerMac, wifi_BTMRequest_t *r
  * @param[in] apIndex      Index of the AP that received the report. The indices this
  *                         interface defines are `AP_INDEX_1` to `AP_INDEX_24` in
  *                         `wifi_hal_generic.h`.
- * @param[out] out_struct  Pointer to a `wifi_BeaconReport_t` structure to store
- *                         the beacon report. The argument is marked as an output, and the
- *                         handler is the party that writes it: the `HAL` supplies the
- *                         storage and invokes the handler to fill it, so the handler must
- *                         write at most `*out_array_size` elements and must not free or
- *                         retain the pointer.
- * @param[out] out_array_size Pointer to a variable to store the size of the
- *                         beacon report array, in elements. It bounds `out_struct`, so a
- *                         handler must read it before writing more than one element. This
- *                         interface does not state whether the `HAL` supplies the capacity
- *                         here on entry or expects the handler to report the count it
- *                         wrote, so a handler should write no more than one element unless
- *                         the value it reads on entry says otherwise.
- * @param[out] out_DialogToken Pointer to a variable to store the dialog token, matching the
- *                         token `wifi_setRMBeaconRequest()` returned for the request being
- *                         answered. For a triggered autonomous report it is 0, as the
- *                         description above states, which is how a handler tells a solicited
- *                         report from an unsolicited one.
+ * @param[in] out_struct   Pointer to the beacon report the `HAL` delivers, as an array of
+ *                         `wifi_BeaconReport_t` holding `*out_array_size` elements, one per
+ *                         measured BSS. The three pointer arguments are named from the
+ *                         `HAL`'s point of view, because they are the `HAL`'s outputs, but
+ *                         relative to the handler all three are inputs: the `HAL` allocates
+ *                         the storage and fills it before entering the handler, and the
+ *                         handler only reads it.
+ * @param[in] out_array_size Pointer to the number of `wifi_BeaconReport_t` elements
+ *                         `out_struct` points at, in elements. A handler must read
+ *                         `*out_array_size` before indexing and must not read past the last
+ *                         element it accounts for. This interface states no minimum, so a
+ *                         handler must not assume that at least one element is present.
+ * @param[in] out_DialogToken Pointer to the dialog token of the measurement this report
+ *                         answers, which is the value `wifi_setRMBeaconRequest()` wrote to
+ *                         its own `out_DialogToken` for that request. For a triggered
+ *                         autonomous report it is 0, as the description above states, which
+ *                         is how a handler tells a solicited report from an unsolicited
+ *                         one.
  *
- * @returns The status of the operation.
+ * @returns The status of the operation, returned by the handler to the `HAL`.
  * @retval RETURN_OK If successful.
  * @retval RETURN_ERR If any error is detected.
  *
@@ -2840,9 +3233,13 @@ INT wifi_setBTMRequest(UINT apIndex, mac_address_t peerMac, wifi_BTMRequest_t *r
  *       values as the `WIFI_HAL_SUCCESS` and `WIFI_HAL_ERROR` codes the rest of this
  *       interface uses. This interface does not state how the `HAL` acts on `RETURN_ERR`,
  *       so a handler must not rely on redelivery.
- * @note All three pointers are owned by the `HAL` and are valid only for the duration of
- *       the call; a handler that needs the report afterwards must copy it, per
- *       `Asynchronous Notification Model` in `docs/pages/halSpec.md`.
+ * @note The three pointers carry event data into the handler rather than results back out
+ *       of it. This interface does not state which component owns the three pointers or how
+ *       long they stay valid, so a handler that needs the report afterwards copies the
+ *       elements it wants before returning, and must not free or retain any of the three,
+ *       per `Asynchronous Notification Model` in `docs/pages/halSpec.md`. This interface does
+ *       not state that the `HAL` reads anything written back through them, so a handler
+ *       must not use them to return data.
  * @note The handler must not suspend and must not invoke any blocking system calls, per
  *       `Blocking calls` in `docs/pages/halSpec.md`.
  * @note The `HAL` is expected to be thread safe and may enter the handler on a `HAL`
@@ -2893,14 +3290,16 @@ typedef INT (*wifi_RMBeaconReport_callback)(UINT apIndex,
  *
  * @returns The status of the operation.
  * @retval WIFI_HAL_SUCCESS The handler was installed for `apIndex`.
- * @retval WIFI_HAL_ERROR   `apIndex` is not a valid AP, the callback pointer is not one the
- *                          `HAL` accepts, or the vendor layer refused the request. On
- *                          failure the caller should not issue a beacon request, since it
- *                          would be rejected for want of a handler and no report would
- *                          arrive.
+ * @retval WIFI_HAL_ERROR   The call failed. This interface does not enumerate the
+ *                          conditions that lead to this code. On failure the caller should
+ *                          not issue a beacon request, since it would be rejected for want
+ *                          of a handler and no report would arrive.
  *
  * @execution callback
- * @sideeffect None
+ * @sideeffect On success, installs `beaconReportCallback` as the handler that receives
+ *             beacon reports for `apIndex`, and keeps that function pointer after this
+ *             call returns until `wifi_RMBeaconRequestCallbackUnregister()` removes it.
+ *             This interface states no other effect.
  *
  * @note The registration call itself is synchronous and does not block, per
  *       `Blocking calls` in `docs/pages/halSpec.md`; delivery of the report is asynchronous.
@@ -2937,10 +3336,10 @@ INT wifi_RMBeaconRequestCallbackRegister(UINT apIndex, wifi_RMBeaconReport_callb
  *
  * @returns The status of the operation.
  * @retval WIFI_HAL_SUCCESS The handler was removed for `apIndex`.
- * @retval WIFI_HAL_ERROR   `apIndex` is not a valid AP, the callback pointer does not match
- *                          a registered handler, or the vendor layer refused the request. On
- *                          failure the caller must assume the handler may still be invoked
- *                          and so must not free anything the handler uses.
+ * @retval WIFI_HAL_ERROR   The call failed. This interface does not enumerate the
+ *                          conditions that lead to this code. On failure the caller must
+ *                          assume the handler may still be invoked and so must not free
+ *                          anything the handler uses.
  *
  * @note This call does not block, per `Blocking calls` in `docs/pages/halSpec.md`. It is a
  *       teardown call rather than a registration, so it carries no callback-execution
@@ -2983,12 +3382,11 @@ INT wifi_RMBeaconRequestCallbackUnregister(UINT apIndex, wifi_RMBeaconReport_cal
  *
  * @returns The status of the operation.
  * @retval WIFI_HAL_SUCCESS The `HAL` accepted the cancellation.
- * @retval WIFI_HAL_ERROR   `apIndex` is not a valid AP, no request with that dialog token is
- *                          outstanding on it, or the vendor layer refused the request. This
- *                          interface does not separate an unknown token from a genuine
- *                          failure, so the caller should treat the measurement as possibly
- *                          still running and must not release its handler on the strength of
- *                          this code alone.
+ * @retval WIFI_HAL_ERROR   The call failed. This interface does not enumerate the
+ *                          conditions that lead to this code, and it does not separate an
+ *                          unknown token from a genuine failure, so the caller should treat
+ *                          the measurement as possibly still running and must not release
+ *                          its handler on the strength of this code alone.
  *
  * @note This call does not block, per `Blocking calls` in `docs/pages/halSpec.md`.
  * @note The `HAL` is expected to be thread safe, per `Threading Model` in
@@ -3020,19 +3418,26 @@ INT wifi_cancelRMBeaconRequest(UINT apIndex, UCHAR dialogToken);
  *                           the `HAL` reads it during the call.
  * @param[in] in_request     Pointer to a `wifi_BeaconRequest_t` structure containing the
  *                           beacon request information. One request is passed, not an
- *                           array. The caller allocates and owns it, per `Memory Model` in
- *                           `docs/pages/halSpec.md`; the `HAL` reads it during the call and
- *                           must not be assumed to retain it afterwards. Each optional
- *                           subelement is read only where its `<field>Present` flag is
- *                           `TRUE`, and `numRepetitions` decides whether the measurement
- *                           runs once or repeats until cancelled.
- * @param[out] out_DialogToken Pointer to a variable to store the dialog token chosen by the
- *                           STA. The caller allocates and owns the single-octet variable.
- *                           On success it holds the token that identifies this request: it
- *                           is echoed in the `out_DialogToken` of each report the handler
- *                           receives, and it is the value `wifi_cancelRMBeaconRequest()`
- *                           takes. A caller that intends to cancel or to correlate reports
- *                           must therefore keep it.
+ *                           array. The caller allocates and owns it, per `Memory Model`
+ *                           in `docs/pages/halSpec.md`; the `HAL` reads it during the
+ *                           call, and whether the implementation retains the pointer
+ *                           afterwards is not specified by this interface, so the caller
+ *                           should keep the structure allocated and unmoved while the
+ *                           `HAL` remains initialised. Each optional subelement is read
+ *                           only where its `<field>Present` flag is `TRUE`, and
+ *                           `numRepetitions` decides whether the measurement runs once or
+ *                           repeats until cancelled.
+ * @param[out] out_DialogToken Pointer to a variable that receives the dialog token of this
+ *                           request. The caller allocates and owns the single-octet
+ *                           variable. The parameter is an output only - a caller supplies no
+ *                           token and this interface names no component as assigning the
+ *                           value, so which one chooses it is not established here and a
+ *                           caller must treat the octet as opaque rather than construct or
+ *                           predict one. What the value is for is correlation: on success it
+ *                           identifies this request, it is echoed in the `out_DialogToken`
+ *                           of each report the handler receives, and it is the value
+ *                           `wifi_cancelRMBeaconRequest()` takes. A caller that intends to
+ *                           cancel or to correlate reports must therefore keep it.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
  *      in `docs/pages/halSpec.md`. A call made beforehand does not meet the runtime
@@ -3055,11 +3460,14 @@ INT wifi_cancelRMBeaconRequest(UINT apIndex, UCHAR dialogToken);
  *
  * @note `RETURN_OK` and `RETURN_ERR`, defined in `wifi_hal_generic.h`, carry the same
  *       values as the `WIFI_HAL_SUCCESS` and `WIFI_HAL_ERROR` codes the rest of this
- *       interface uses, and are the whole return-code contract of this call. `RETURN_ERR`
- *       covers an invalid `apIndex`, a NULL pointer argument, a request the STA's
- *       capabilities do not support, a peer that is not associated, and the registered-
- *       handler pre-condition not being met; the caller should confirm the registration and
- *       the peer's RM capabilities with `wifi_getRMCapabilities()` before retrying.
+ *       interface uses, and are the whole return-code contract of this call. The one cause
+ *       this interface binds to `RETURN_ERR` is the missing handler registration, which the
+ *       description above states outright. Beyond that the code is opaque: it establishes
+ *       that the request was not accepted and not why, so a caller cannot distinguish an
+ *       invalid argument from an unsupported request from an absent peer by reading it, and
+ *       must not branch as though it could. Confirming the registration, and the peer's
+ *       capabilities with `wifi_getRMCapabilities()`, is what a caller can do before
+ *       retrying; anything further has to come from the implementation's own diagnostics.
  * @note This call does not block, per `Blocking calls` in `docs/pages/halSpec.md`, so it
  *       returns before the measurement has been made and does not wait out the request's
  *       `duration`.
@@ -3093,15 +3501,18 @@ INT wifi_setRMBeaconRequest(UINT apIndex,
  *                            length of the RM Enabled Capabilities element and the same
  *                            encoding the `capabilities` member of
  *                            `wifi_RMEnabledCapabilities_t` carries. The caller allocates
- *                            and owns the storage and must provide all five octets; the
- *                            `HAL` writes them during the call and retains no reference
- *                            afterwards. The array is exactly as long as it is declared, so
- *                            there is no count argument and none is needed. This interface
- *                            does not name the individual bits, so which octet and bit
- *                            carries a given capability follows 802.11-2016 rather than
- *                            anything established here; `wifi_steering_rrmCaps_t` names the
- *                            subset of those capabilities that steering uses, in decoded
- *                            form.
+ *                            and owns the storage and must provide all five octets. The
+ *                            `HAL` writes them during the call, and whether the
+ *                            implementation retains the pointer afterwards is not
+ *                            specified by this interface, so the caller should keep the
+ *                            five octets allocated and unmoved while the `HAL` remains
+ *                            initialised. The array is exactly as long as it is declared,
+ *                            so there is no count argument and none is needed. This
+ *                            interface does not name the individual bits, so which octet
+ *                            and bit carries a given capability follows 802.11-2016
+ *                            rather than anything established here;
+ *                            `wifi_steering_rrmCaps_t` names the subset of those
+ *                            capabilities that steering uses, in decoded form.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
  *      in `docs/pages/halSpec.md`. A call made beforehand does not meet the runtime
@@ -3113,11 +3524,10 @@ INT wifi_setRMBeaconRequest(UINT apIndex,
  *
  * @returns The status of the operation.
  * @retval WIFI_HAL_SUCCESS The capabilities were written.
- * @retval WIFI_HAL_ERROR   `peer` or `out_Capabilities` is NULL, the peer is not associated
- *                          or its capabilities are not known to the `HAL`, or the vendor
- *                          layer could not supply them. The caller should treat the peer's
- *                          RM support as unknown rather than absent, and may still issue a
- *                          beacon request and rely on its return code.
+ * @retval WIFI_HAL_ERROR   The call failed. This interface does not enumerate the
+ *                          conditions that lead to this code. The caller should treat the
+ *                          peer's RM support as unknown rather than absent, and may still
+ *                          issue a beacon request and rely on its return code.
  *
  * @note This call does not block, per `Blocking calls` in `docs/pages/halSpec.md`, so it
  *       reports capabilities the `HAL` already holds from association rather than querying

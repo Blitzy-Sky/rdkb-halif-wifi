@@ -37,12 +37,18 @@ extern "C"{
  * of the storage, per `Memory Model` in `docs/pages/halSpec.md`.
  *
  * Two kinds of member sit side by side here and must be read differently. The `ULONG`
- * members are cumulative counts of bytes or packets. The `INT` metrics - activity
- * factor, carrier-sense-threshold exceeded, retransmission and the three noise-floor
- * figures - together with `radio_ChannelUtilization`, are instead recalculated over the
- * measuring interval named in their member comments, and each reports `-1` until its
- * first interval has completed. A caller must therefore test those members for `-1`
- * before using them rather than treating the value as a measurement.
+ * members are cumulative counts of bytes or packets. The `INT` metrics - activity factor,
+ * carrier-sense-threshold exceeded, retransmission and the three noise-floor figures - are
+ * instead recalculated over the measuring interval named in their member comments, and each
+ * reports `-1` until its first interval has completed, so a caller must test those members
+ * for `-1` before treating the value as a measurement.
+ *
+ * `radio_ChannelUtilization` is recalculated on the same interval but is declared `ULONG`,
+ * an unsigned type, so it cannot hold `-1`: the "MUST return -1" its member comment carries
+ * from the data-model text cannot be represented, and a `-1` stored into it would read back
+ * as the largest value the type holds rather than as a negative number. This interface does
+ * not state how a caller distinguishes "not yet calculated" from a genuine reading of that
+ * member, so a caller must not test it for `-1` and must not assume any other sentinel.
  *
  * @note This interface does not state what resets the counters, or how often. The one
  *       statement it makes is that `radio_StatisticsStartTime` is updated whenever the
@@ -55,8 +61,19 @@ typedef struct _wifi_radioTrafficStats2
 {
     ULONG radio_BytesSent;             /**< The total number of bytes transmitted out of the interface, including framing characters. */
     ULONG radio_BytesReceived;         /**< The total number of bytes received on the interface, including framing characters. */
-    ULONG radio_PacketsSent;           /**< The total number of packets transmitted out of the interface. */
-    ULONG radio_PacketsReceived;       /**< The total number of packets received on the interface. */
+    ULONG radio_PacketsSent;           /**< Packets transmitted on the interface, counted
+                                            cumulatively. It counts packets rather than the octets
+                                            `radio_BytesSent` above counts, and the error and
+                                            discard counters below are separate figures rather than
+                                            subsets a caller may subtract from this one. */
+    ULONG radio_PacketsReceived;       /**< Packets received on the interface, counted cumulatively.
+                                            It counts packets rather than the octets
+                                            `radio_BytesReceived` above counts, and this structure
+                                            counts errored and discarded packets in
+                                            `radio_ErrorsReceived` and
+                                            `radio_DiscardPacketsReceived` separately, so those
+                                            figures cannot be subtracted from this one without a
+                                            statement this interface does not make. */
     ULONG radio_ErrorsSent;            /**< The total number of outbound packets that could not be transmitted because of errors. */
     ULONG radio_ErrorsReceived;        /**< The total number of inbound packets that contained errors preventing them from being delivered to a higher-layer protocol. */
     ULONG radio_DiscardPacketsSent;     /**< The total number of outbound packets which were chosen to be discarded even though no errors had been detected to prevent their being transmitted. One possible reason for discarding such a packet could be to free up buffer space. */
@@ -66,7 +83,7 @@ typedef struct _wifi_radioTrafficStats2
     ULONG radio_InvalidMACCount;       /**< The number of packets that were received with a detected invalid MAC header error. */
     ULONG radio_PacketsOtherReceived;  /**< The number of packets that were received, but which were destined for a MAC address that is not associated with this interface. */
     INT   radio_NoiseFloor;            /**< The noise floor for this radio channel where a recoverable signal can be obtained. Expressed as a signed integer in the range (-110:0). Measurement should capture all energy (in dBm) from sources other than Wi-Fi devices as well as interference from Wi-Fi devices too weak to be decoded. Measured in dBm */
-    ULONG radio_ChannelUtilization;     /**< Percentage of time the channel was occupied by the radio's own activity (Activity Factor) or the activity of other radios. Channel utilization MUST cover all user traffic, management traffic, and time the radio was unavailable for CSMA activities, including DIFS intervals, etc. The metric is calculated and updated in this parameter at the end of the interval defined by "Radio Statistics Measuring Interval". The calculation of this metric MUST only use the data collected from the just completed interval. If this metric is queried before it has been updated with an initial calculation, it MUST return -1. Units in Percentage */
+    ULONG radio_ChannelUtilization;     /**< Percentage of time the channel was occupied by the radio's own activity (Activity Factor) or the activity of other radios. Channel utilization MUST cover all user traffic, management traffic, and time the radio was unavailable for CSMA activities, including DIFS intervals, etc. The metric is calculated and updated in this parameter at the end of the interval defined by "Radio Statistics Measuring Interval". The calculation of this metric MUST only use the data collected from the just completed interval. If this metric is queried before it has been updated with an initial calculation, the data model this text is taken from requires it to return -1; this member is declared `ULONG`, which is unsigned, so that value cannot be represented here and a caller must not test for it. This interface states no alternative marker for the not-yet-calculated case. Units in Percentage */
     INT   radio_ActivityFactor;       /**< Percentage of time that the radio was transmitting or receiving Wi-Fi packets to/from associated clients. Activity factor MUST include all traffic that deals with communication between the radio and clients associated to the radio as well as management overhead for the radio, including NAV timers, beacons, probe responses,time for receiving devices to send an ACK, SIFC intervals, etc. The metric is calculated and updated in this parameter at the end of the interval defined by "Radio Statistics Measuring Interval". The calculation of this metric MUST only use the data collected from the just completed interval. If this metric is queried before it has been updated with an initial calculation, it MUST return -1. Units in Percentage */
     INT   radio_CarrierSenseThreshold_Exceeded; /**< Percentage of time that the radio was unable to transmit or receive Wi-Fi packets to/from associated clients due to energy detection (ED) on the channel or clear channel assessment (CCA). The metric is calculated and updated in this Parameter at the end of the interval defined by "Radio Statistics Measuring Interval". The calculation of this metric MUST only use the data collected from the just completed interval. If this metric is queried before it has been updated with an initial calculation, it MUST return -1. Units in Percentage */
     INT   radio_RetransmissionMetirc;   /**< Percentage of packets that had to be re-transmitted. Multiple re-transmissions of the same packet count as one. The metric is calculated and updated in this parameter at the end of the interval defined by "Radio Statistics Measuring Interval". The calculation of this metric MUST only use the data collected from the just completed interval. If this metric is queried before it has been updated with an initial calculation, it MUST return -1. Units in percentage */
@@ -101,8 +118,17 @@ typedef struct _wifi_ssidTrafficStats2
 {
     ULONG ssid_BytesSent;              /**< The total number of bytes transmitted out of the interface, including framing characters. */
     ULONG ssid_BytesReceived;          /**< The total number of bytes received on the interface, including framing characters. */
-    ULONG ssid_PacketsSent;            /**< The total number of packets transmitted out of the interface. */
-    ULONG ssid_PacketsReceived;        /**< The total number of packets received on the interface. */
+    ULONG ssid_PacketsSent;            /**< Packets transmitted on the interface, counted
+                                            cumulatively, and the transmit-side counterpart of
+                                            `ssid_PacketsReceived` above. It counts packets rather
+                                            than octets, and the retransmission and error counters
+                                            in this structure are separate figures. */
+    ULONG ssid_PacketsReceived;        /**< Packets received on the interface, counted cumulatively.
+                                            It counts packets rather than the octets
+                                            `ssid_BytesReceived` above counts, and the error and
+                                            discard counters further down this structure are
+                                            separate figures rather than subsets a caller may
+                                            subtract from this one. */
     ULONG ssid_RetransCount;           /**< The total number of transmitted packets which were retransmissions. Two retransmissions of the same packet results in this counter incrementing by two. */
     ULONG ssid_FailedRetransCount;      /**< The number of packets that were not transmitted successfully due to the number of retransmission attempts exceeding an 802.11 retry limit. This parameter is based on dot11FailedCount from [802.11-2012]. */
     ULONG ssid_RetryCount;             /**< The number of packets that were successfully transmitted after one or more retransmissions. This parameter is based on dot11RetryCount from [802.11-2012]. */
@@ -146,7 +172,12 @@ typedef struct _wifi_ssidTrafficStats2
 typedef struct _wifi_neighbor_ap2
 {
     CHAR ap_SSID[64];               /**< The current Service Set Identifier (SSID) in use by the neighboring Wi-Fi AP. The value may be empty for hidden SSIDs. */
-    CHAR ap_BSSID[64];              /**< The BSSID used for the neighboring Wi-Fi SSID. */
+    CHAR ap_BSSID[64];              /**< Address of the neighbouring Access Point, carried as text
+                                         in 64 bytes rather than as the six raw octets
+                                         `mac_address_t` uses elsewhere in this interface. This
+                                         interface states neither the textual form nor whether the
+                                         value is `NUL`-terminated, so a caller must bound any read
+                                         at 64 bytes. */
     CHAR ap_Mode[64];               /**< The mode the neighboring Wi-Fi radio is operating in. Enumeration of: AdHoc, Infrastructure. */
     UINT ap_Channel;                /**< The current radio channel used by the neighboring Wi-Fi radio. */
     INT ap_SignalStrength;           /**< An indicator of radio signal strength (RSSI) of the neighboring Wi-Fi radio measured in dBm, as an average of the last 100 packets received. */
@@ -155,7 +186,12 @@ typedef struct _wifi_neighbor_ap2
     CHAR ap_OperatingFrequencyBand[16]; /**< Indicates the frequency band at which the radio this SSID instance is operating. Enumeration of: 2.4GHz, 5GHz. */
     CHAR ap_SupportedStandards[64];   /**< Comma-separated list of strings. List items indicate which IEEE 802.11 standards this instance can support simultaneously, in the frequency band specified by ap_OperatingFrequencyBand. */
     CHAR ap_OperatingStandards[16];   /**< Comma-separated list of strings. Each list item MUST be a member of the list reported by the ap_SupportedStandards parameter. List items indicate which IEEE 802.11 standard that is detected for this instance. */
-    CHAR ap_OperatingChannelBandwidth[16]; /**< Indicates the bandwidth at which the channel is operating. */
+    CHAR ap_OperatingChannelBandwidth[16]; /**< Bandwidth of the neighbouring Access Point's
+                                                channel, as text in 16 bytes. This interface
+                                                enumerates no accepted strings for the member and
+                                                does not state whether the value is
+                                                `NUL`-terminated, so a caller must bound any read at
+                                                16 bytes and should treat the content as opaque. */
     UINT ap_BeaconPeriod;             /**< Time interval (in ms) between transmitting beacons. */
     INT ap_Noise;                    /**< Indicator of average noise strength (in dBm) received from the neighboring Wi-Fi radio. */
     CHAR ap_BasicDataTransferRates[256]; /**< Comma-separated list (maximum list length 256) of strings. Basic data transmit rates (in Mbps) for the SSID. For example, if ap_BasicDataTransferRates is "1,2", this indicates that the SSID is operating with basic rates of 1 Mbps and 2 Mbps. */
@@ -228,7 +264,11 @@ typedef struct _wifi_rssi_snapshot
                          *   against the reading before it, not against now, so an absolute
                          *   age is the running sum up to that index. These are host-endian
                          *   integers, in the same layout as `rssi` above. */
-    USHORT count;      /**< Sequence number of received management (beacon, ACK) frames. */
+    USHORT count;      /**< Sequence number the interface reports for the received management frames
+                            these readings came from. Despite the name it is not a count of the
+                            populated entries of `rssi` and `time_s` above: this interface states no
+                            relation between the member and those four-entry arrays, so a caller
+                            must not use it to bound them. */
 } wifi_rssi_snapshot_t;
 
 #ifdef WIFI_HAL_VERSION_3_PHASE2
@@ -320,24 +360,23 @@ typedef struct
 } wifi_VAPTelemetry_t;
 
 /**
-* @typedef wifi_na_sta_req_params_t
-* @brief Parameters to request unassociated station information.
-*
-* This structure specifies the station (STA) and radio context used to query
-* unassociated station link metrics. The HAL implementation converts the
-* operating class and channel to vendor-specific frequency/bandwidth parameters.
-*
-* The caller allocates an instance, fills all three members and passes a `const` pointer
-* to `wifi_getNASta()`, which reads it during the call and, being `const`, does not
-* modify it. The caller keeps ownership of the storage.
-*
-* The operating class is what makes the channel unambiguous: a channel number alone does
-* not name a band, so both members must describe the same channel or the request does not
-* identify a measurement context.
-*
-* @see wifi_getNASta
-* @see wifi_na_sta_info_t
-*/
+ * @brief Parameters to request unassociated station information.
+ *
+ * This structure specifies the station (STA) and radio context used to query
+ * unassociated station link metrics. The HAL implementation converts the
+ * operating class and channel to vendor-specific frequency/bandwidth parameters.
+ *
+ * The caller allocates an instance, fills all three members and passes a `const` pointer
+ * to `wifi_getNASta()`, which reads it during the call and, being `const`, does not
+ * modify it. The caller keeps ownership of the storage.
+ *
+ * The operating class is what makes the channel unambiguous: a channel number alone does
+ * not name a band, so both members must describe the same channel or the request does not
+ * identify a measurement context.
+ *
+ * @see wifi_getNASta
+ * @see wifi_na_sta_info_t
+ */
 typedef struct {
     mac_address_t sta_mac; /**< Station MAC address to query, as the six raw octets of
                                 `mac_address_t` in `wifi_hal_generic.h`. This is the
@@ -353,20 +392,19 @@ typedef struct {
 } wifi_na_sta_req_params_t;
 
 /**
-* @typedef wifi_na_sta_info_t
-* @brief Returned unassociated station link metrics.
-*
-* Contains the measurement result for one unassociated station, expressed
-* as RCPI (Received Channel Power Indicator) per IEEE 802.11-2020 §9.4.2.37.
-*
-* The caller allocates an instance and passes its address to `wifi_getNASta()`, which
-* fills every member; the caller keeps ownership of the storage. The first three members
-* restate the context the request supplied, so a caller correlating several measurements
-* can identify a result without tracking the request alongside it.
-*
-* @see wifi_getNASta
-* @see wifi_na_sta_req_params_t
-*/
+ * @brief Returned unassociated station link metrics.
+ *
+ * Contains the measurement result for one unassociated station, expressed
+ * as RCPI (Received Channel Power Indicator) per IEEE 802.11-2020 §9.4.2.37.
+ *
+ * The caller allocates an instance and passes its address to `wifi_getNASta()`, which
+ * fills every member; the caller keeps ownership of the storage. The first three members
+ * restate the context the request supplied, so a caller correlating several measurements
+ * can identify a result without tracking the request alongside it.
+ *
+ * @see wifi_getNASta
+ * @see wifi_na_sta_req_params_t
+ */
 typedef struct {
     mac_address_t sta_mac; /**< Station MAC address (echoed/filled by implementation), as
                                 the six raw octets of `mac_address_t` in
@@ -426,11 +464,11 @@ typedef struct {
  *
  * @returns The status of the operation.
  * @retval WIFI_HAL_SUCCESS The statistics were retrieved.
- * @retval WIFI_HAL_ERROR   `radioIndex` names no radio, `output_struct` is NULL, or the
- *                          vendor layer could not supply the statistics. The caller should
- *                          validate its arguments and discard the structure rather than
- *                          publishing its contents as a measurement of zero, then retry on
- *                          its next polling cycle.
+ * @retval WIFI_HAL_ERROR   The call failed. This interface does not enumerate the
+ *                          conditions that lead to this code. The caller should validate
+ *                          its arguments and discard the structure rather than publishing
+ *                          its contents as a measurement of zero, then retry on its next
+ *                          polling cycle.
  *
  * @note This interface does not state what resets these counters or how often, so a
  *       caller must not assume they are cumulative since boot. `radio_StatisticsStartTime`
@@ -480,11 +518,10 @@ INT wifi_getRadioTrafficStats2(INT radioIndex, wifi_radioTrafficStats2_t *output
  *
  * @returns The status of the operation.
  * @retval WIFI_HAL_SUCCESS The statistics were retrieved.
- * @retval WIFI_HAL_ERROR   `ssidIndex` names no SSID, `output_struct` is NULL, or the
- *                          vendor layer could not supply the statistics. The caller should
- *                          validate its arguments, discard the structure rather than
- *                          treating it as a zeroed measurement, and retry on its next
- *                          polling cycle.
+ * @retval WIFI_HAL_ERROR   The call failed. This interface does not enumerate the
+ *                          conditions that lead to this code. The caller should validate
+ *                          its arguments, discard the structure rather than treating it as
+ *                          a zeroed measurement, and retry on its next polling cycle.
  *
  * @note This interface does not state what resets these counters or how often, and this
  *       structure carries no start-time member, so a caller cannot detect a reset between
@@ -552,11 +589,10 @@ INT wifi_getSSIDTrafficStats2(INT ssidIndex, wifi_ssidTrafficStats2_t *output_st
  * @returns The status of the operation.
  * @retval WIFI_HAL_SUCCESS The results were retrieved; `*output_array_size` may be zero if
  *                          no Access Point was observed.
- * @retval WIFI_HAL_ERROR   `radioIndex` names no radio, either pointer argument is NULL,
- *                          the allocation failed, or the vendor layer could not supply the
- *                          results. The caller should validate its arguments, free
- *                          nothing, and retry rather than treating the failure as an empty
- *                          neighbourhood.
+ * @retval WIFI_HAL_ERROR   The call failed. This interface does not enumerate the
+ *                          conditions that lead to this code. The caller should validate
+ *                          its arguments, free nothing, and retry rather than treating the
+ *                          failure as an empty neighbourhood.
  *
  * @warning The `HAL` allocates a fresh array on each successful call and nothing in this
  *          interface releases a previous one, so a repeated caller must free the array it
@@ -595,15 +631,18 @@ INT wifi_getNeighboringWiFiStatus(INT radioIndex, BOOL scan, wifi_neighbor_ap2_t
  * @param[in] radioIndex         Radio index. The indices this interface defines are
  *                               `RADIO_INDEX_1` to `RADIO_INDEX_3` in
  *                               `wifi_hal_generic.h`, bounded by `MAX_NUM_RADIOS`.
- * @param[out] output_percentage Pointer to a variable to store the utilization
- *                               percentage. The caller allocates and owns the `INT`; the
- *                               `HAL` writes into it and keeps no reference to it. The
- *                               unit is a percentage of air time. The type is signed and
- *                               this interface does not state the range of the value or
- *                               whether a negative result signals "not yet measured" as
- *                               the interval metrics of `wifi_radioTrafficStats2_t`
- *                               explicitly do, so a caller should range-check the value
- *                               before using it rather than assume 0 to 100.
+ * @param[out] output_percentage Pointer to a variable to store the utilization percentage.
+ *                               The caller allocates and owns the `INT` and the `HAL`
+ *                               writes into it during the call; whether the implementation
+ *                               retains the pointer afterwards is not specified by this
+ *                               interface, so the caller should keep the variable allocated
+ *                               and unmoved while the `HAL` remains initialised. The unit
+ *                               is a percentage of air time. The type is signed and this
+ *                               interface does not state the range of the value or whether
+ *                               a negative result signals "not yet measured" as the
+ *                               interval metrics of `wifi_radioTrafficStats2_t` explicitly
+ *                               do, so a caller should range-check the value before using
+ *                               it rather than assume 0 to 100.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
  *      in `docs/pages/halSpec.md`. A call made beforehand does not meet the runtime
@@ -615,10 +654,10 @@ INT wifi_getNeighboringWiFiStatus(INT radioIndex, BOOL scan, wifi_neighbor_ap2_t
  *
  * @returns The status of the operation.
  * @retval WIFI_HAL_SUCCESS The utilization was retrieved.
- * @retval WIFI_HAL_ERROR   `radioIndex` names no radio, `output_percentage` is NULL, or
- *                          the vendor layer could not supply the figure. The caller should
- *                          validate its arguments and treat utilization as unknown - not
- *                          as zero, which would read as an idle channel.
+ * @retval WIFI_HAL_ERROR   The call failed. This interface does not enumerate the
+ *                          conditions that lead to this code. The caller should validate
+ *                          its arguments and treat utilization as unknown - not as zero,
+ *                          which would read as an idle channel.
  *
  * @note This interface does not state the interval the figure is measured over, so two
  *       readings taken in quick succession are not guaranteed to describe disjoint
@@ -650,8 +689,7 @@ INT wifi_getRadioBandUtilization (INT radioIndex, INT *output_percentage);
  * that array's `cli_MACAddress`, whereupon the `HAL` must allocate the `cli_CsiData`
  * member of each record and the caller is responsible for releasing it. The two uses
  * invert who allocates the array, so a caller must be deliberate about which one it is
- * making. Note that the description in `wifi_hal_generic.h` writes that member as
- * `cli_CSIData`; the declared name is `cli_CsiData`.
+ * making.
  *
  * @param[in] apIndex              Index of the Access Point. The indices this interface
  *                                 defines are `AP_INDEX_1` to `AP_INDEX_24` in
@@ -686,11 +724,10 @@ INT wifi_getRadioBandUtilization (INT radioIndex, INT *output_percentage);
  * @returns The status of the operation.
  * @retval WIFI_HAL_SUCCESS The diagnostics were retrieved; `*output_array_size` may be
  *                          zero if no device is associated.
- * @retval WIFI_HAL_ERROR   `apIndex` names no Access Point, either pointer argument is
- *                          NULL, the allocation failed, or the vendor layer could not
- *                          supply the diagnostics. The caller should validate its
- *                          arguments, free nothing, and retry rather than concluding that
- *                          no client is connected.
+ * @retval WIFI_HAL_ERROR   The call failed. This interface does not enumerate the
+ *                          conditions that lead to this code. The caller should validate
+ *                          its arguments, free nothing, and retry rather than concluding
+ *                          that no client is connected.
  *
  * @warning A successful call in the ordinary use hands the caller an array it must free,
  *          and nothing in this interface releases a previous one, so a repeated caller
@@ -725,13 +762,15 @@ INT wifi_getApAssociatedDeviceDiagnosticResult3(INT apIndex, wifi_associated_dev
  *                       The array is passed by reference as C arrays always are, and the
  *                       `HAL` reads it during the call; this interface does not state that
  *                       the `HAL` modifies it, and a caller has no reason to expect it to.
- * @param[out] dev_conn  Pointer to a `wifi_associated_dev3_t` structure to store
- *                       the diagnostic results. The caller allocates and owns the
- *                       structure; the `HAL` writes into it and keeps no reference to it
- *                       after returning. Note that a `wifi_associated_dev3_t` contains the
- *                       `cli_CsiData` pointer member, and this interface does not state
- *                       whether this call populates it, so a caller must not assume it is
- *                       either valid or NULL.
+ * @param[out] dev_conn  Pointer to a `wifi_associated_dev3_t` structure to store the
+ *                       diagnostic results. The caller allocates and owns the structure and
+ *                       the `HAL` writes into it during the call; whether the
+ *                       implementation retains the pointer afterwards is not specified by
+ *                       this interface, so the caller should keep the structure allocated
+ *                       and unmoved while the `HAL` remains initialised. Note that a
+ *                       `wifi_associated_dev3_t` contains the `cli_CsiData` pointer member,
+ *                       and this interface does not state whether this call populates it,
+ *                       so a caller must not assume it is either valid or NULL.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
  *      in `docs/pages/halSpec.md`. A call made beforehand does not meet the runtime
@@ -743,10 +782,8 @@ INT wifi_getApAssociatedDeviceDiagnosticResult3(INT apIndex, wifi_associated_dev
  *
  * @returns The status of the operation.
  * @retval WIFI_HAL_SUCCESS The diagnostics were retrieved for the named client.
- * @retval WIFI_HAL_ERROR   `apIndex` names no Access Point, `dev_conn` is NULL, the named
- *                          client is not associated with this Access Point, or the vendor
- *                          layer could not supply the diagnostics. This interface does not
- *                          distinguish those causes, so a caller cannot read the result as
+ * @retval WIFI_HAL_ERROR   The call failed. This interface does not enumerate the
+ *                          conditions that lead to this code, so a caller cannot read it as
  *                          proof that the client has disconnected; it should validate its
  *                          arguments and confirm the client's presence with
  *                          `wifi_getApAssociatedDeviceDiagnosticResult3()` before drawing
@@ -787,14 +824,21 @@ INT wifi_getApAssociatedClientDiagnosticResult(INT apIndex, mac_address_t mac_ad
  *      requirements and, per `Component Runtime Execution Requirements`, likely results
  *      in undefined behaviour.
  * @post On success detailed per-client statistics collection holds the requested state for
- *       the named radio. On failure the state is unchanged.
+ *       the named radio. On failure this interface does not state whether the previous
+ *       state survived, and it provides no getter that would let a caller find out, so the
+ *       collection state must be treated as unknown.
  *
  * @returns The status of the operation.
  * @retval WIFI_HAL_SUCCESS The requested state was applied.
- * @retval WIFI_HAL_ERROR   `radioIndex` names no radio, or the vendor layer could not
- *                          apply the change. The caller should validate its argument and
- *                          treat the collection state as unknown; this interface provides
- *                          no getter for it, so the state cannot be read back.
+ * @retval WIFI_HAL_ERROR   The call failed. This interface does not enumerate the
+ *                          conditions that lead to this code, and it does not state
+ *                          whether any part of the requested change took effect, so the
+ *                          resulting collection state is unknown. The caller should
+ *                          validate its argument before retrying. It cannot establish the
+ *                          state by reading it back either: this interface declares no
+ *                          getter for this setting, and the getter it does declare,
+ *                          `wifi_getRadioStatsEnable()`, reports the different setting
+ *                          `wifi_setRadioStatsEnable()` writes.
  *
  * @note This interface exposes no counterpart getter for this setting, unlike
  *       `wifi_setRadioStatsEnable()`, which pairs with `wifi_getRadioStatsEnable()`. A
@@ -839,11 +883,11 @@ INT wifi_setClientDetailedStatisticsEnable(INT radioIndex, BOOL enable);
  *
  * @returns The status of the operation.
  * @retval WIFI_HAL_SUCCESS The setting was retrieved.
- * @retval WIFI_HAL_ERROR   `radioIndex` names no radio, `output_enable` is NULL, or the
- *                          vendor layer could not supply the setting. The caller should
- *                          validate its arguments and treat the setting as unknown; it must
- *                          not fall back to setting a value it has not read, which would
- *                          silently change another component's configuration.
+ * @retval WIFI_HAL_ERROR   The call failed. This interface does not enumerate the
+ *                          conditions that lead to this code. The caller should validate
+ *                          its arguments and treat the setting as unknown; it must not fall
+ *                          back to setting a value it has not read, which would silently
+ *                          change another component's configuration.
  *
  * @note This interface does not state whether the setting persists across a restart;
  *       `Persistence Model` in `docs/pages/halSpec.md` places configuration persistence
@@ -876,15 +920,17 @@ INT wifi_getRadioStatsEnable(INT radioIndex, BOOL *output_enable);
  *      requirements and, per `Component Runtime Execution Requirements`, likely results
  *      in undefined behaviour.
  * @post On success radio statistics collection holds the requested state for the named
- *       radio, and `wifi_getRadioStatsEnable()` reports it. On failure the state is
- *       unchanged.
+ *       radio, and `wifi_getRadioStatsEnable()` reports it. On failure this interface does
+ *       not state whether any part of the requested change took effect, so the collection
+ *       state is unspecified and a caller must read it back with
+ *       `wifi_getRadioStatsEnable()` rather than assume the previous state survived.
  *
  * @returns The status of the operation.
  * @retval WIFI_HAL_SUCCESS The requested state was applied.
- * @retval WIFI_HAL_ERROR   `radioIndex` names no radio, or the vendor layer could not
- *                          apply the change. The caller should read the state back with
- *                          `wifi_getRadioStatsEnable()` rather than retrying blindly or
- *                          assuming the state it asked for.
+ * @retval WIFI_HAL_ERROR   The call failed. This interface does not enumerate the
+ *                          conditions that lead to this code. The caller should read the
+ *                          state back with `wifi_getRadioStatsEnable()` rather than
+ *                          retrying blindly or assuming the state it asked for.
  *
  * @note This interface does not state what `wifi_getRadioTrafficStats2()` reports while
  *       collection is disabled, nor whether disabling and re-enabling collection resets
@@ -917,9 +963,11 @@ INT wifi_setRadioStatsEnable(INT radioIndex, BOOL enable);
  *                      `MAX_VAP` above gives the interface-wide ceiling on the number of
  *                      VAPs.
  * @param[out] telemetry Pointer to a `wifi_VAPTelemetry_t` structure to store the
- *                       VAP telemetry data. The caller allocates and owns the structure;
- *                       the `HAL` writes into it and keeps no reference to it after
- *                       returning.
+ *                       VAP telemetry data. The caller allocates and owns the structure
+ *                       and the `HAL` writes into it during the call; whether the
+ *                       implementation retains the pointer afterwards is not specified by
+ *                       this interface, so the caller should keep the structure allocated
+ *                       and unmoved while the `HAL` remains initialised.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
  *      in `docs/pages/halSpec.md`. A call made beforehand does not meet the runtime
@@ -930,8 +978,8 @@ INT wifi_setRadioStatsEnable(INT radioIndex, BOOL enable);
  *
  * @returns The status of the operation.
  * @retval WIFI_HAL_SUCCESS The telemetry was retrieved.
- * @retval WIFI_HAL_ERROR   `apIndex` names no VAP, `telemetry` is NULL, or the vendor
- *                          layer could not supply the telemetry. The caller should validate
+ * @retval WIFI_HAL_ERROR   The call failed. This interface does not enumerate the
+ *                          conditions that lead to this code. The caller should validate
  *                          its arguments and discard the structure rather than reporting a
  *                          zero overflow count, which would read as a healthy VAP.
  *
@@ -966,8 +1014,10 @@ INT wifi_getVAPTelemetry(UINT apIndex, wifi_VAPTelemetry_t *telemetry);
 * @param[in] params Request parameters (STA MAC, operating class, channel). The caller
 *                   allocates and owns the structure. The pointer is `const`, so the `HAL`
 *                   reads the request and does not modify it, and a caller may reuse the
-*                   same instance across calls. The `HAL` keeps no reference to it after
-*                   returning.
+*                   same instance across calls. Whether the implementation retains the
+*                   pointer beyond the call is not specified by this interface, so the
+*                   caller should keep the structure allocated and unmoved while the `HAL`
+*                   remains initialised.
 * @param[out] sta_info Output structure filled with measurement result. The caller
 *                      allocates and owns the storage and the `HAL` writes all four
 *                      members; the first three restate the request context and `rcpi`
@@ -988,11 +1038,13 @@ INT wifi_getVAPTelemetry(UINT apIndex, wifi_VAPTelemetry_t *telemetry);
 *
 * @returns Status code.
 * @retval WIFI_HAL_SUCCESS Operation completed successfully.
-* @retval WIFI_HAL_ERROR Operation failed (invalid args, unsupported, internal error). The
-*                        causes are not distinguished, so a caller cannot tell an
-*                        unsupported platform from a station that could not be heard; it
-*                        should validate its arguments, treat the metric as unavailable, and
-*                        not retry a request the platform may not implement at all.
+* @retval WIFI_HAL_ERROR The call failed. This declaration is the one place in this
+*                        interface that names its own error conditions - invalid arguments,
+*                        an unsupported operation, or an internal error - and it does not
+*                        distinguish them, so a caller cannot tell an unsupported platform
+*                        from a station that could not be heard. It should validate its
+*                        arguments, treat the metric as unavailable, and not retry a request
+*                        the platform may not implement at all.
 *
 * @note This function must not suspend and must not invoke any blocking system calls;
 *       see `Blocking calls` in `docs/pages/halSpec.md`. Measuring an unassociated station

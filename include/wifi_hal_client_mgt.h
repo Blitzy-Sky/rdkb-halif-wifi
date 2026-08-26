@@ -113,15 +113,20 @@ INT wifi_setBandSteeringEnable(BOOL enable);
  * likely results in undefined behaviour (`docs/pages/halSpec.md`, Component
  * Runtime Execution Requirements).
  *
- * On success `output_ApGroup` holds a NUL-terminated string in that form. On
- * failure its contents must be treated as undefined; the single failure code
- * this API defines does not separate an unconfigured group from a read
- * failure, so a caller should not parse the buffer.
+ * On success `output_ApGroup` holds the value in that form. This interface
+ * does not state whether it is NUL-terminated or how its length is conveyed,
+ * so a caller must not assume either and must bound every read by the size it
+ * allocated. On failure its contents must be treated as undefined; the single
+ * failure code this API defines does not separate an unconfigured group from a
+ * read failure, so a caller should not parse the buffer.
  *
- * @param[out] output_ApGroup Caller-allocated buffer that receives the
- *                            NUL-terminated group string. The caller allocates
- *                            and owns it (`docs/pages/halSpec.md`, Memory
- *                            Model).
+ * @param[out] output_ApGroup Caller-allocated buffer that receives the group
+ *                            string, on the representation terms the
+ *                            description above states: this interface does not
+ *                            establish termination or a length, so every read
+ *                            must be bounded by the size the caller allocated.
+ *                            The caller allocates and owns it
+ *                            (`docs/pages/halSpec.md`, Memory Model).
  *
  * @returns The status of the operation.
  * @retval WIFI_HAL_SUCCESS If the group was read.
@@ -162,10 +167,13 @@ INT wifi_getBandSteeringApGroup(char *output_ApGroup);
  * state whether the value was applied, so a caller should read it back with
  * `wifi_getBandSteeringApGroup()` before relying on it.
  *
- * @param[in] ApGroup Caller-allocated, NUL-terminated group string in the form
- *                    above, holding at least one pair. The caller owns the
- *                    buffer (`docs/pages/halSpec.md`, Memory Model) and must
- *                    keep it valid for the duration of the call.
+ * @param[in] ApGroup Caller-allocated group string in the form above, holding
+ *                    at least one pair. The caller passes NUL-terminated text,
+ *                    because this interface carries no length parameter for
+ *                    the argument and states no maximum length for it. The
+ *                    caller owns the buffer (`docs/pages/halSpec.md`, Memory
+ *                    Model) and must keep it valid for the duration of the
+ *                    call.
  *
  * @returns The status of the operation.
  * @retval RETURN_OK  If the group was applied.
@@ -1062,9 +1070,11 @@ typedef struct _wifi_eap_config_t
  *                  neither the unit of a timeout nor the accepted range of
  *                  either kind of value.
  *
- * @param[in] param Caller-allocated, NUL-terminated selector naming the
- *                  setting group: `"eapolkey"`, `"eapidentityrequest"` or
- *                  `"eaprequest"`. The caller owns the buffer
+ * @param[in] param Caller-allocated selector naming the setting group:
+ *                  `"eapolkey"`, `"eapidentityrequest"` or `"eaprequest"`. The
+ *                  caller passes NUL-terminated text, because this interface
+ *                  carries no length parameter for the argument and states no
+ *                  maximum length for it. The caller owns the buffer
  *                  (`docs/pages/halSpec.md`, Memory Model) and must keep it
  *                  valid for the duration of the call. This interface does not
  *                  state whether the comparison is case sensitive, nor the

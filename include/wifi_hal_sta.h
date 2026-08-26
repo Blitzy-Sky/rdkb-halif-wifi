@@ -104,11 +104,14 @@ typedef struct
  *                     `AP_INDEX_1` to `AP_INDEX_24` in `wifi_hal_generic.h`; which of
  *                     them is provisioned as a client `VAP` is platform-dependent and is
  *                     not established by this interface.
- * @param[in] bss      Pointer to a `wifi_bss_info_t` structure containing
- *                     information about the BSS to connect to. One `BSS` is passed, not
- *                     an array. The caller allocates and owns the storage, per `Memory
- *                     Model` in `docs/pages/halSpec.md`; the `HAL` reads it during the
- *                     call and must not be assumed to retain it afterwards.
+ * @param[in] bss      Pointer to a `wifi_bss_info_t` structure containing information
+ *                     about the BSS to connect to. One `BSS` is passed, not an array. The
+ *                     caller allocates and owns the storage, per `Memory Model` in
+ *                     `docs/pages/halSpec.md`; the `HAL` reads it during the call, and
+ *                     whether the implementation retains the pointer afterwards is not
+ *                     specified by this interface, so the caller should keep the
+ *                     structure allocated and unmoved while the `HAL` remains
+ *                     initialised.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
  *      in `docs/pages/halSpec.md`. A call made beforehand does not meet the runtime
@@ -124,12 +127,11 @@ typedef struct
  *
  * @returns The status of the operation.
  * @retval RETURN_OK The `HAL` accepted the connect request for `ap_index`.
- * @retval RETURN_ERR `ap_index` is not a usable client `VAP`, `bss` is NULL or describes
- *                    a `BSS` the `VAP` cannot join, or the vendor layer refused the
- *                    request. The caller should validate its arguments, read the
- *                    connection state back before retrying, and treat a failure that
- *                    persists across retries as the `VAP` being unable to reach that
- *                    `BSS`.
+ * @retval RETURN_ERR The call failed. This interface does not enumerate the conditions that
+ *                    lead to this code. The caller should validate its arguments and read
+ *                    the connection state back before retrying; it must not read a
+ *                    persistent failure as proof that the `BSS` is unreachable, since this
+ *                    interface does not report that separately.
  *
  * @note `RETURN_OK` and `RETURN_ERR`, defined in `wifi_hal_generic.h`, carry the same
  *       values as the `WIFI_HAL_SUCCESS` and `WIFI_HAL_ERROR` codes the rest of this
@@ -172,11 +174,11 @@ INT wifi_connect(INT ap_index, wifi_bss_info_t *bss);
  *
  * @returns The status of the operation.
  * @retval RETURN_OK The `HAL` accepted the disconnect request for `ap_index`.
- * @retval RETURN_ERR `ap_index` is not a usable client `VAP`, or the vendor layer could
- *                    not service the request. This interface does not separate a `VAP`
- *                    that was not associated in the first place from a genuine failure,
- *                    so the caller should read the connection state with
- *                    `wifi_getStationStats()` rather than inferring it from this code.
+ * @retval RETURN_ERR The call failed. This interface does not enumerate the conditions that
+ *                    lead to this code, and it does not separate a `VAP` that was not
+ *                    associated in the first place from a genuine failure, so the caller
+ *                    should read the connection state with `wifi_getStationStats()` rather
+ *                    than inferring it from this code.
  *
  * @note This call does not block, per `Blocking calls` in `docs/pages/halSpec.md`.
  * @note The `HAL` is expected to be thread safe, per `Threading Model` in
@@ -202,8 +204,10 @@ INT wifi_disconnect(INT ap_index);
  * @param[out] cap      Pointer to a caller-allocated `wifi_sta_capability_t`. The caller
  *                      allocates and owns the storage, per `Memory Model` in
  *                      `docs/pages/halSpec.md`; the `HAL` writes no member through it,
- *                      because the structure defines none, and retains no reference to it
- *                      after returning.
+ *                      because the structure defines none. Whether the implementation
+ *                      retains the pointer beyond the call is not specified by this
+ *                      interface, so the caller should keep the structure allocated and
+ *                      unmoved while the `HAL` remains initialised.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
  *      in `docs/pages/halSpec.md`. A call made beforehand does not meet the runtime
@@ -214,11 +218,10 @@ INT wifi_disconnect(INT ap_index);
  *
  * @returns The status of the operation.
  * @retval RETURN_OK The `HAL` accepted the request for `ap_index`.
- * @retval RETURN_ERR `ap_index` is not a usable client `VAP`, `cap` is NULL, or the
- *                    vendor layer could not service the request. The caller should
- *                    validate its arguments and log a failure that persists across
- *                    retries; because no data crosses the interface here, there is
- *                    nothing further for the caller to recover.
+ * @retval RETURN_ERR The call failed. This interface does not enumerate the conditions that
+ *                    lead to this code. The caller should validate its arguments and log a
+ *                    failure that persists across retries; because no data crosses the
+ *                    interface here, there is nothing further for the caller to recover.
  *
  * @note This call does not block, per `Blocking calls` in `docs/pages/halSpec.md`.
  * @note The `HAL` is expected to be thread safe, per `Threading Model` in
@@ -276,11 +279,10 @@ INT wifi_getStationCapability(INT ap_index, wifi_sta_capability_t *cap);
  * @returns The status of the operation.
  * @retval RETURN_OK The scan completed and the outputs were written; `*num_bss` may be
  *                   zero if no `BSS` was found.
- * @retval RETURN_ERR `ap_index` is not a usable client `VAP`, any pointer argument is
- *                    NULL, the requested channel or band is not supported, or the vendor
- *                    layer could not scan. The caller should validate its arguments,
- *                    release nothing, and retry the scan rather than treating the result
- *                    as an empty network list.
+ * @retval RETURN_ERR The call failed. This interface does not enumerate the conditions that
+ *                    lead to this code. The caller should validate its arguments, release
+ *                    nothing, and retry the scan rather than treating the result as an
+ *                    empty network list.
  *
  * @warning The `HAL` allocates a fresh array on each successful call and nothing in this
  *          interface releases a previous one, so a caller that scans repeatedly must free
@@ -312,8 +314,11 @@ INT wifi_findNetworks(INT ap_index, wifi_channel_t *channel, wifi_bss_info_t **b
  * @param[out] sta      Pointer to a `wifi_station_stats_t` structure to store the
  *                      station statistics. The caller allocates and owns the storage, per
  *                      `Memory Model` in `docs/pages/halSpec.md`; the `HAL` writes the
- *                      members during the call and retains no reference to it after
- *                      returning. A single structure is written, not an array.
+ *                      members during the call. Whether the implementation retains the
+ *                      pointer beyond the call is not specified by this interface, so the
+ *                      caller should keep the structure allocated and unmoved while the
+ *                      `HAL` remains initialised. A single structure is written, not an
+ *                      array.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
  *      in `docs/pages/halSpec.md`. A call made beforehand does not meet the runtime
@@ -325,10 +330,9 @@ INT wifi_findNetworks(INT ap_index, wifi_channel_t *channel, wifi_bss_info_t **b
  *
  * @returns The status of the operation.
  * @retval RETURN_OK The statistics were retrieved.
- * @retval RETURN_ERR `ap_index` is not a usable client `VAP`, `sta` is NULL, or the
- *                    vendor layer could not supply the statistics. The caller should
- *                    validate its arguments and treat the connection state as unknown
- *                    rather than as disconnected.
+ * @retval RETURN_ERR The call failed. This interface does not enumerate the conditions that
+ *                    lead to this code. The caller should validate its arguments and treat
+ *                    the connection state as unknown rather than as disconnected.
  *
  * @note This call does not block, per `Blocking calls` in `docs/pages/halSpec.md`.
  * @note The `HAL` is expected to be thread safe, per `Threading Model` in
@@ -398,10 +402,14 @@ typedef INT ( * wifi_staConnectionStatus_callback)(INT apIndex, wifi_bss_info_t 
  * status.
  *
  * @param[in] callback_proc Pointer to the callback function to register, of type
- *                          `wifi_staConnectionStatus_callback`. The `HAL` retains this
- *                          function pointer and invokes it until it is replaced, so the
- *                          function must remain callable for that whole period. The
- *                          effect of passing NULL is not specified by this interface.
+ *                          `wifi_staConnectionStatus_callback`. The `HAL` keeps this
+ *                          function pointer after the call returns, since it invokes
+ *                          the handler later, so the function must remain callable for
+ *                          as long as notifications are wanted. This interface
+ *                          declares no call that removes a handler and states no end
+ *                          to a registration, so it does not establish when the `HAL`
+ *                          stops using the pointer. The effect of passing NULL is not
+ *                          specified by this interface.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
  *      in `docs/pages/halSpec.md`. The effect of registering beforehand is not specified
@@ -410,14 +418,16 @@ typedef INT ( * wifi_staConnectionStatus_callback)(INT apIndex, wifi_bss_info_t 
  *       change of a client `VAP`.
  *
  * @execution callback
- * @sideeffect None
+ * @sideeffect Installs `callback_proc` as the handler the `HAL` invokes on each
+ *             connection-status change of a client `VAP`, and keeps that function
+ *             pointer after this call returns. This interface states no other effect.
  *
  * @note The registration call itself is synchronous and returns nothing; delivery of
  *       `wifi_staConnectionStatus_callback` is asynchronous.
  * @note This interface defines a single registration point and describes neither a list
- *       of handlers nor a way to unregister, so a caller should treat a later
- *       registration as replacing an earlier one and must not assume a handler can be
- *       removed.
+ *       of handlers nor a way to unregister. It does not state whether a later
+ *       registration replaces an earlier one, adds to it or is rejected, so a caller
+ *       should register once and must not assume a handler can be removed.
  * @note This function must not suspend and must not invoke any blocking system calls; see
  *       `Blocking calls` in `docs/pages/halSpec.md`. The same holds for the handler.
  * @note The `HAL` is expected to be thread safe, per `Threading Model` in

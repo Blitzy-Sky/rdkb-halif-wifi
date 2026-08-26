@@ -108,7 +108,12 @@ typedef enum
 typedef struct _wifi_channelMap_t
 {
     INT ch_number;              /**< IEEE 802.11 channel number this entry describes. */
-    wifi_channelState_t ch_state; /**< Usability, or the DFS stage blocking it. */
+    wifi_channelState_t ch_state; /**< Whether the channel `ch_number` names may be used now, as one
+                                       of the `wifi_channelState_t` enumerators: only
+                                       `CHAN_STATE_AVAILABLE` reports it usable, and every other
+                                       value names a DFS stage that must complete first. That
+                                       enumeration carries no ordering rule, so a caller must not
+                                       read a transition sequence out of successive values. */
 } wifi_channelMap_t;
 
 /**
@@ -122,7 +127,12 @@ typedef struct _wifi_channelMap_t
 typedef struct
 {
     USHORT punct_bitmap; /**< A bitmap of disabled 20MHz channels. */
-    UCHAR punct_acs_threshold; /**< Puncturing ACS threshold. */
+    UCHAR punct_acs_threshold; /**< Threshold the automatic channel selection logic applies when
+                                    deciding which 20MHz sub-channels to puncture. `UCHAR`, so the
+                                    representable range is 0 to 255; this interface states neither
+                                    the unit, the quantity it is compared against, nor which values
+                                    a radio accepts, so a caller should carry a value it read back
+                                    from this interface rather than composing one. */
 } __attribute__((packed)) wifi_radio_11be_puncturing_info_t;
 
 /**
@@ -165,10 +175,32 @@ typedef struct
  */
 typedef struct
 {
-    UINT opClass;                                /**< Global operating Class value */
-    INT maxTxPower;                              /**< Max Tx Power */
-    UINT numberOfNonOperChan;                    /**< Number of Nonoperable channels */
-    UINT nonOperable[MAXNUMNONOPERABLECHANNELS]; /**< Array of Non Operable channel value */
+    UINT opClass;                                /**< Global operating class this entry describes,
+                                                      in the sense of the 802.11 Table E-4 classes
+                                                      the enclosing structure's comment cites. This
+                                                      interface enumerates no values for it, and the
+                                                      `maxTxPower` and `nonOperable` members below
+                                                      apply only to this class. */
+    INT maxTxPower;                              /**< Highest transmit power permitted for the
+                                                      operating class named by `opClass`. This
+                                                      interface states neither the unit nor the
+                                                      reference point for the value - it is not
+                                                      documented as the percentage
+                                                      `wifi_radio_operationParam_t::transmitPower`
+                                                      carries - so a caller must not assume dBm, mW
+                                                      or percent. */
+    UINT numberOfNonOperChan;                    /**< Number of leading entries of `nonOperable`
+                                                      below that carry a channel.
+                                                      `MAXNUMNONOPERABLECHANNELS` dimensions that
+                                                      array, so a caller must clamp its read at that
+                                                      bound as well. */
+    UINT nonOperable[MAXNUMNONOPERABLECHANNELS]; /**< Channels that may not be operated in the class
+                                                      `opClass` names, of which the leading
+                                                      `numberOfNonOperChan` entries are populated.
+                                                      This interface says nothing about the entries
+                                                      beyond that count, and the channel numbers are
+                                                      only meaningful within the band the operating
+                                                      class belongs to. */
 } __attribute__((packed)) wifi_operating_classes_t;
 
 /**
@@ -178,7 +210,11 @@ typedef struct
  */
 typedef struct _wifi_radioTemperature_t
 {
-    UINT radio_Temperature; /**< Wi-Fi radio chipset temperature. */
+    UINT radio_Temperature; /**< Chipset temperature `wifi_hal_getRadioTemperature()` writes here.
+                                 This interface states neither the unit nor an expected range, so a
+                                 caller must not assume degrees Celsius; the value is useful for
+                                 detecting a trend rather than for comparing against an absolute
+                                 threshold. */
 } wifi_radioTemperature_t;
 
 /**
@@ -188,54 +224,220 @@ typedef struct _wifi_radioTemperature_t
  */
 typedef struct 
 {
-    BOOL enable;                /**< Whether the radio is enabled. */
-    wifi_freq_bands_t band;    /**< The radio frequency band. */
-    BOOL autoChannelEnabled;     /**< Whether auto channel selection is enabled. */
-    UINT channel;               /**< The radio primary channel. */
-    UINT numSecondaryChannels;  /**< The number of secondary channels in the list. */
-    UINT channelSecondary[MAXNUMSECONDARYCHANNELS]; /**< The list of secondary radio channels. */
-    wifi_channelBandwidth_t channelWidth; /**< The channel bandwidth. */
-    wifi_ieee80211Variant_t variant; /**< The radio operating mode. */
-    UINT csa_beacon_count; /**< Specifies how long Channel Switch Announcement (CSA) needs to be announced. */
-    wifi_countrycode_type_t countryCode; /**< The country code. */
-    UINT regDomain; /**< The regulatory domain. */
-    wifi_operating_env_t operatingEnvironment; /**< The Wi-Fi operating environment. */
-    wifi_channelMap_t channel_map[64]; /**< Channel map. */
-    BOOL DCSEnabled; /**< Whether Dynamic Channel Selection (DCS) is enabled. */
-    UINT dtimPeriod; /**< The DTIM period. */
-    UINT beaconInterval; /**< The beacon interval. */
-    UINT operatingClass; /**< The operating class. */
+    BOOL enable;                /**< `TRUE` where the radio is to be operational.
+                                     `wifi_getRadioEnable()` and `wifi_setRadioEnable()` read and
+                                     write the radio's enable state separately from this structure,
+                                     and this interface does not state whether they act on this same
+                                     member; it also does not state what the other members of this
+                                     structure mean while the radio is disabled. */
+    wifi_freq_bands_t band;    /**< Band the radio operates in, as one of the `wifi_freq_bands_t`
+                                    enumerators. It is what makes `channel` and `channelSecondary`
+                                    below unambiguous, since the same channel number denotes
+                                    different channels in different bands. */
+    BOOL autoChannelEnabled;     /**< `TRUE` asks the radio to select its own operating channel,
+                                      which is the capability
+                                      `wifi_radio_capabilities_t::autoChannelSupported` reports.
+                                      This interface does not state whether `channel` below is then
+                                      ignored or is updated to the channel chosen, so a caller must
+                                      read the parameter set back rather than assume either. */
+    UINT channel;               /**< Primary channel of the radio, interpreted within `band` above.
+                                     `channelWidth` gives the bandwidth it is operated at and
+                                     `channelSecondary` the secondary channels; this interface
+                                     states no accepted set of numbers here, so a caller should take
+                                     one from the radio's own channel list. */
+    UINT numSecondaryChannels;  /**< Number of leading entries of `channelSecondary` that carry a
+                                     channel. This interface says nothing about the entries beyond
+                                     it, so a caller must not read past this count;
+                                     `MAXNUMSECONDARYCHANNELS` dimensions that array and so bounds
+                                     this member. */
+    UINT channelSecondary[MAXNUMSECONDARYCHANNELS]; /**< Secondary channels accompanying `channel`
+                                                         above, of which the leading
+                                                         `numSecondaryChannels` entries are
+                                                         populated; `MAXNUMSECONDARYCHANNELS`
+                                                         dimensions the array, so a caller must
+                                                         clamp its read at that bound too. The
+                                                         numbers are interpreted within `band`. */
+    wifi_channelBandwidth_t channelWidth; /**< Bandwidth the radio operates its channel at, as one
+                                               of the `wifi_channelBandwidth_t` enumerators, which
+                                               are the whole of the accepted domain. The member is
+                                               declared as a single enumerator, so a caller must not
+                                               build a bitmask of several here even though that
+                                               enumeration assigns distinct single bits; `channel`
+                                               above names the primary channel and
+                                               `channelSecondary` the secondary ones. */
+    wifi_ieee80211Variant_t variant; /**< 802.11 variants the radio is to operate with, as a bitmask
+                                          of `wifi_ieee80211Variant_t` values - those enumerators
+                                          are distinct single bits, so several may be set at once.
+                                          `wifi_radio_capabilities_t::mode` reports the variants
+                                          supported per band. */
+    UINT csa_beacon_count; /**< How long the radio announces an impending channel switch before
+                                making it. The name gives the unit as a beacon count, but this
+                                interface does not state it, nor an accepted range, nor whether zero
+                                means switch without announcing, so a caller should preserve a value
+                                it read back rather than composing one. */
+    wifi_countrycode_type_t countryCode; /**< Regulatory country the radio operates under, as one of
+                                              the `wifi_countrycode_type_t` enumerators, which are
+                                              the whole of the accepted domain. `regDomain` below
+                                              carries a regulatory domain separately, and this
+                                              interface does not state how the two relate or what
+                                              happens if they disagree. */
+    UINT regDomain; /**< Regulatory domain the radio operates under. This interface states neither
+                         an encoding nor an accepted set of values for it, and `countryCode` above
+                         carries the country separately, so a caller should preserve a value it read
+                         back rather than composing one. */
+    wifi_operating_env_t operatingEnvironment; /**< Environment the regulatory rules are applied
+                                                    for, as one of the `wifi_operating_env_t`
+                                                    enumerators - indoor, outdoor or non-country. It
+                                                    qualifies `countryCode` and `regDomain` above
+                                                    rather than replacing either. */
+    wifi_channelMap_t channel_map[64]; /**< Per-channel usability for this radio: each populated
+                                            entry pairs a channel number with its state, as
+                                            `wifi_channelMap_t` describes. The array is dimensioned
+                                            64 here and this interface declares no count member for
+                                            it, so a caller cannot tell how many entries are
+                                            populated and must identify each entry it uses by that
+                                            entry's `ch_number`. */
+    BOOL DCSEnabled; /**< `TRUE` where the radio may move its channel on its own in response to
+                          conditions. `wifi_radio_capabilities_t::DCSSupported` reports whether the
+                          radio supports it at all, and this interface does not state what happens
+                          if the member is set where that capability is absent, nor how it relates
+                          to `autoChannelEnabled` above. */
+    UINT dtimPeriod; /**< Delivery Traffic Indication Message period the radio advertises. This
+                          interface states neither the unit nor an accepted range, so a caller
+                          should preserve a value it read back rather than composing one. */
+    UINT beaconInterval; /**< Interval at which the radio transmits beacons. This interface states
+                              neither the unit nor an accepted range for it. */
+    UINT operatingClass; /**< Global operating class the radio is currently using, in the sense
+                              `wifi_operating_classes_t::opClass` uses. This interface states no
+                              accepted set for the member; `operatingClasses`, whose valid extent is
+                              `numOperatingClasses`, carries the classes the radio reports as
+                              supported. */
     UINT basicDataTransmitRates; /**< The basic data transmit rates in Mbps. It uses bitmask to return multiple bitrates and wifi_bitrate_t has the definition of valid values. */
     UINT operationalDataTransmitRates; /**< The operational data transmit rates in Mbps. It uses bitmask to return multiple bitrates and wifi_bitrate_t has the definition of valid values. */
     UINT fragmentationThreshold; /**< The fragmentation threshold in bytes. */
-    wifi_guard_interval_t guardInterval; /**< The guard interval. */
+    wifi_guard_interval_t guardInterval; /**< Guard interval in force, as one of the
+                                              `wifi_guard_interval_t` enumerators, which are the
+                                              whole of the accepted domain. This interface does not
+                                              state which of them a given radio accepts;
+                                              `wifi_getGuardInterval()` reports the value in use and
+                                              `wifi_setGuardInterval()` applies one. */
     UINT transmitPower; /**< The transmit power in percentage, e.g., "75", "100". */
     UINT rtsThreshold; /**< The packet size threshold in bytes to apply RTS/CTS backoff rules. */
-    BOOL factoryResetSsid; /**< Whether to factory reset the SSID. */
-    UINT radioStatsMeasuringRate; /**< The rate at which radio statistics are measured. */
-    UINT radioStatsMeasuringInterval; /**< The interval at which radio statistics are measured. */
-    BOOL ctsProtection; /**< Whether CTS protection is enabled. */
-    BOOL obssCoex; /**< Whether OBSS coex is enabled. */
-    BOOL stbcEnable; /**< Whether STBC is enabled. */
-    BOOL greenFieldEnable; /**< Whether greenfield is enabled. */
-    UINT userControl; /**< User control. */
-    UINT adminControl; /**< Admin control. */
-    UINT chanUtilThreshold; /**< Channel utilization threshold. */
-    BOOL chanUtilSelfHealEnable; /**< Whether channel utilization self-healing is enabled. */
-    BOOL DfsEnabled; /**< Whether DFS is enabled. */
-    BOOL DfsEnabledBootup; /**< Whether DFS is enabled on bootup. */
-    BOOL EcoPowerDown; /**< Whether eco power down is enabled. */
-    wifi_radio_11be_puncturing_info_t puncturingInfo; /**< Puncturing information. */
-    UINT autoChanRefreshPeriod; /**< Auto channel refresh period. */
-    INT mcs; /**< MCS index. */
-    BOOL amsduEnable; /**< Whether AMSDU is enabled. */
-    BOOL amsduTid[MAX_AMSDU_TID]; /**< Whether AMSDU is enabled for particular traffic id. */
-    UINT DFSTimer; /**< DFS timer. */
-    char radarDetected[256]; /**< Radar detected information. */
-    BOOL acs_keep_out_reset; /**< ACS Keep Out Channels list to be reset */
-    wifi_channels_list_per_bandwidth_t  channels_per_bandwidth[MAX_NUM_CHANNELBANDWIDTH_SUPPORTED]; /**< All the channel list for a particular channel bandwidth */
-    UINT numOperatingClasses; /**< Number of valid operating classes in the array operatingClasses */
-    wifi_operating_classes_t operatingClasses[MAXNUMOPERCLASSESPERBAND]; /**< Array of supported Operating classes as per Data elements Schema */
+    BOOL factoryResetSsid; /**< `TRUE` requests that the SSID be returned to its factory value. This
+                                interface states neither when the reset takes effect, nor which
+                                SSIDs of the radio it covers, nor whether the member clears itself
+                                once the reset has been done, and it declares no call that reports
+                                the member back, so a caller cannot confirm the outcome through this
+                                interface. */
+    UINT radioStatsMeasuringRate; /**< How often the radio recalculates its statistics. This
+                                       interface states neither the unit nor an accepted range, and
+                                       does not state how the member relates to
+                                       `radioStatsMeasuringInterval` below, so a caller should
+                                       preserve a value it read back rather than composing one. */
+    UINT radioStatsMeasuringInterval; /**< Window each recalculated statistic covers. The unit is
+                                           not stated here; `wifi_radioTrafficStats2` names a
+                                           measuring interval for its recalculated `INT` metrics
+                                           without binding it to this member, so a caller must not
+                                           assume the two are the same setting. */
+    BOOL ctsProtection; /**< `TRUE` where the radio protects its transmissions with a CTS exchange
+                             so that stations of older generations defer correctly. This interface
+                             states no dependency on `variant` above and declares no call that
+                             reports the member on its own, so a caller should read the parameter
+                             set back to confirm it. */
+    BOOL obssCoex; /**< `TRUE` where the radio takes account of overlapping BSSs when it operates a
+                        wide channel, which can lead it to use a narrower one. This interface states
+                        neither the width it falls back to nor how the member relates to
+                        `channelWidth` above. */
+    BOOL stbcEnable; /**< `TRUE` where the radio may use space-time block coding on transmit. This
+                          interface states no dependency on the antenna count a radio reports and
+                          declares no call that reports the member on its own. */
+    BOOL greenFieldEnable; /**< `TRUE` where the radio may use 802.11n greenfield preambles, which
+                                older stations cannot decode. This interface does not state what the
+                                radio does where such stations are present, so a caller must not
+                                read the member as a statement about interoperability. */
+    UINT userControl; /**< Vendor-defined control word. This interface states neither its unit, its
+                           accepted values nor its effect on the radio, so a caller should preserve
+                           whatever it read back rather than composing a value. */
+    UINT adminControl; /**< Vendor-defined control word, separate from `userControl` above. This
+                            interface states neither its unit, its accepted values nor its effect on
+                            the radio, so a caller should preserve whatever it read back rather than
+                            composing a value. */
+    UINT chanUtilThreshold; /**< Channel-utilization threshold for this radio. This interface states
+                                 neither the unit nor an accepted range, and does not state how the
+                                 member relates to `chanUtilSelfHealEnable` below it or what the
+                                 radio does when the threshold is crossed. */
+    BOOL chanUtilSelfHealEnable; /**< `TRUE` where the radio acts on its own once utilization passes
+                                      `chanUtilThreshold` above. This interface does not state what
+                                      that action is - whether the radio changes channel, bandwidth
+                                      or something else - so a caller cannot predict the effect from
+                                      this interface. */
+    BOOL DfsEnabled; /**< `TRUE` where the radio is currently permitted to operate on DFS channels.
+                          `wifi_getRadioDfsEnable()` and `wifi_setRadioDfsEnable()` read and write
+                          the radio's DFS permission separately from this structure, and this
+                          interface does not state whether they act on this same member.
+                          `DfsEnabledBootup` below is the separate at-boot setting, and this
+                          interface does not state that changing either one changes the other. */
+    BOOL DfsEnabledBootup; /**< `TRUE` where the radio is to permit DFS channels at its next boot.
+                                `wifi_getRadioDfsAtBootUpEnable()` and
+                                `wifi_setRadioDfsAtBootUpEnable()` read and write that at-boot
+                                permission separately from this structure, and this interface does
+                                not state whether they act on this same member. The at-boot
+                                permission is stated to be independent of the current one
+                                `DfsEnabled` above carries, so the two may disagree. */
+    BOOL EcoPowerDown; /**< `TRUE` where the radio is to enter its reduced-power state. This
+                            interface states neither which parts of the radio the state affects, nor
+                            whether traffic continues, nor a call that reports the member on its
+                            own, so a caller cannot establish the effect through this interface. */
+    wifi_radio_11be_puncturing_info_t puncturingInfo; /**< Which 20MHz sub-channels are punctured
+                                                           out of a wide 802.11be channel, as
+                                                           `wifi_radio_11be_puncturing_info_t`
+                                                           describes. This interface does not state
+                                                           whether the member is meaningful when
+                                                           `variant` excludes 802.11be or when
+                                                           `channelWidth` is too narrow to puncture. */
+    UINT autoChanRefreshPeriod; /**< Period between automatic channel-selection refreshes. This
+                                     interface states neither the unit, an accepted range, nor a
+                                     value that suppresses the refresh, and does not state how the
+                                     member relates to `autoChannelEnabled`. */
+    INT mcs; /**< Modulation and coding scheme index in force for the radio. `INT`, and this
+                  interface states no accepted range and no negative sentinel; `wifi_getRadioMCS()`
+                  reports the value in use and `wifi_setRadioMCS()` writes it. */
+    BOOL amsduEnable; /**< `TRUE` where the radio may aggregate MSDUs. `amsduTid` below carries the
+                           same setting per traffic identifier, and this interface does not state
+                           which of the two takes effect if they disagree. */
+    BOOL amsduTid[MAX_AMSDU_TID]; /**< Per-traffic-identifier aggregation setting, indexed by
+                                       traffic identifier and dimensioned `MAX_AMSDU_TID`, which
+                                       this header declares as 8. `amsduEnable` above carries the
+                                       radio-wide setting, and this interface does not state which
+                                       of the two takes effect if they disagree. */
+    UINT DFSTimer; /**< Timer the radio applies to its DFS handling. This interface states neither
+                        the unit, nor which interval is timed - a channel availability check, a
+                        non-occupancy period or something else - nor a value that disables the
+                        timer, so a caller should preserve a value it read back rather than
+                        composing one. */
+    char radarDetected[256]; /**< Radar-detection information the vendor layer reports, in the
+                                  256-byte buffer this declaration dimensions. This interface states
+                                  neither the encoding of those bytes nor whether they are
+                                  `NUL`-terminated, so a caller must not run an unbounded string
+                                  function over the member and should treat the content as opaque. */
+    BOOL acs_keep_out_reset; /**< `TRUE` requests that the automatic channel selection keep-out list
+                                  be cleared. This interface declares no member or call that reports
+                                  the list itself, and does not state whether the flag clears once
+                                  the reset has been done, so a caller cannot confirm the outcome
+                                  through this interface. */
+    wifi_channels_list_per_bandwidth_t  channels_per_bandwidth[MAX_NUM_CHANNELBANDWIDTH_SUPPORTED]; /**< Channel
+                        lists per bandwidth, dimensioned `MAX_NUM_CHANNELBANDWIDTH_SUPPORTED`, which
+                        this header declares as 6. This interface declares no count member for the
+                        array, so a caller must identify each entry it uses by that entry's own
+                        `chanwidth` rather than by its position. */
+    UINT numOperatingClasses; /**< Number of leading entries of `operatingClasses` below that
+                                   describe an operating class. `MAXNUMOPERCLASSESPERBAND`
+                                   dimensions that array at 20, so a caller must clamp its read at
+                                   that bound as well. */
+    wifi_operating_classes_t operatingClasses[MAXNUMOPERCLASSESPERBAND]; /**< Operating classes the
+                        radio supports, of which the leading `numOperatingClasses` entries above are
+                        populated; the array is dimensioned `MAXNUMOPERCLASSESPERBAND`, which this
+                        header declares as 20. */
 } __attribute__((packed)) wifi_radio_operationParam_t;
 
 /**
@@ -243,10 +445,21 @@ typedef struct
  */
 typedef struct
 {
-    CHAR aifsn; /**< Arbitration Inter-Frame Space (AIFS) number. */
-    CHAR cw_min; /**< Minimum contention window size. */
-    CHAR cw_max; /**< Maximum contention window size. */
-    CHAR timer; /**< Timer value. */
+    CHAR aifsn; /**< AIFS number for one access category: the number of slot times a transmitter
+                     waits beyond the short interframe space before it may contend. `CHAR`, and this
+                     interface states no accepted range and no slot duration, so a caller should
+                     preserve a value it read back rather than composing one. */
+    CHAR cw_min; /**< Lower bound of the contention window for this access category. This interface
+                      states neither the unit - a slot count or the 802.11 exponent from which one
+                      is derived - nor an accepted range, so a caller must not assume either form. */
+    CHAR cw_max; /**< Upper bound of the contention window for this access category, in whatever
+                      form `cw_min` above uses, which this interface does not state. It also states
+                      no rule that the maximum must be at least the minimum, so a caller should not
+                      rely on the pair being validated. */
+    CHAR timer; /**< Timer field of the EDCA parameter set for one access category. `CHAR`, and this
+                     interface states neither what the timer governs, its unit nor an accepted
+                     range, so a caller should preserve a value it read back rather than composing
+                     one. */
 } wifi_edca_t;
 
 /**
@@ -276,22 +489,25 @@ typedef enum
  * @param[in] radioIndex  Index of the Wi-Fi radio, in the range `RADIO_INDEX_1` to
  *                        `MAX_NUM_RADIOS`.
  * @param[out] output_int  Caller-allocated `ULONG` that receives the reset count. The
- *                         caller allocates and releases it; the `HAL` writes into it
- *                         and retains no reference to it after returning.
+ *                         caller allocates and releases it, and the `HAL` writes into it
+ *                         during the call. Whether the implementation retains the pointer
+ *                         beyond the call is not specified by this interface, so the
+ *                         caller should keep the variable allocated and unmoved while the
+ *                         `HAL` remains initialised.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
- *      in `docs/pages/halSpec.md`. A call made beforehand fails with `WIFI_HAL_ERROR`
- *      and writes nothing to the output.
+ *      in `docs/pages/halSpec.md`. This interface does not specify the outcome of a call
+ *      made beforehand: neither the status code nor the effect of the call is
+ *      established, so a caller must not rely on either.
  * @post On success the output holds the count; on failure the output is left
  *       unspecified, so a caller must not read it unless the call succeeded.
  *
  * @returns The status of the operation.
  * @retval WIFI_HAL_SUCCESS The count was retrieved.
- * @retval WIFI_HAL_ERROR   `radioIndex` is out of range, `output_int` is NULL, or the
- *                          vendor layer could not supply the value. The caller should
- *                          validate its arguments; a failure that persists across
- *                          retries should be logged and the count treated as
- *                          unavailable.
+ * @retval WIFI_HAL_ERROR   The call failed. This interface does not enumerate the
+ *                          conditions that lead to this code. The caller should validate
+ *                          its arguments; a failure that persists across retries should be
+ *                          logged and the count treated as unavailable.
  *
  * @note This function must not suspend and must not invoke any blocking system calls;
  *       see `Blocking calls` in `docs/pages/halSpec.md`.
@@ -309,18 +525,19 @@ INT wifi_getRadioResetCount(INT radioIndex, ULONG *output_int);
  * subset of radios - use `wifi_factoryResetRadio()` for that.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
- *      in `docs/pages/halSpec.md`. A call made beforehand fails with `WIFI_HAL_ERROR`
- *      and changes nothing.
+ *      in `docs/pages/halSpec.md`. This interface does not specify the outcome of a call
+ *      made beforehand: neither the status code nor the effect of the call is
+ *      established, so a caller must not rely on either.
  * @post On success every radio holds its factory default parameters. On failure this
  *       interface does not state whether the reset was applied to some radios and not
  *       others, so a caller should read the parameters back rather than assume either.
  *
  * @returns The status of the operation.
  * @retval WIFI_HAL_SUCCESS Every radio was reset.
- * @retval WIFI_HAL_ERROR   The vendor layer could not complete the reset. The caller
- *                          should read the radio parameters back with
- *                          `wifi_getRadioOperatingParameters()` to establish the
- *                          resulting state before retrying.
+ * @retval WIFI_HAL_ERROR   The call failed. This interface does not enumerate the
+ *                          conditions that lead to this code. The caller should read the
+ *                          radio parameters back with `wifi_getRadioOperatingParameters()`
+ *                          to establish the resulting state before retrying.
  *
  * @warning This discards every radio setting a caller has applied, including channel,
  *          bandwidth and transmit power. It is not a diagnostic call.
@@ -344,16 +561,17 @@ INT wifi_factoryResetRadios();
  *                        used elsewhere in this header; the two are the same type.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
- *      in `docs/pages/halSpec.md`. A call made beforehand fails with `WIFI_HAL_ERROR`
- *      and changes nothing.
+ *      in `docs/pages/halSpec.md`. This interface does not specify the outcome of a call
+ *      made beforehand: neither the status code nor the effect of the call is
+ *      established, so a caller must not rely on either.
  * @post On success the radio holds its factory default parameters. On failure the
  *       configuration is left unspecified, so a caller should read it back.
  *
  * @returns The status of the operation.
  * @retval WIFI_HAL_SUCCESS The radio was reset.
- * @retval WIFI_HAL_ERROR   `radioIndex` is out of range, or the vendor layer could not
- *                          complete the reset. The caller should validate the index and
- *                          read the parameters back before retrying.
+ * @retval WIFI_HAL_ERROR   The call failed. This interface does not enumerate the
+ *                          conditions that lead to this code. The caller should validate
+ *                          the index and read the parameters back before retrying.
  *
  * @warning This discards every setting a caller has applied to this radio.
  *
@@ -376,21 +594,25 @@ INT wifi_factoryResetRadio(int radioIndex);
  *                        `MAX_NUM_RADIOS`.
  * @param[out] output_bool  Caller-allocated `BOOL` that receives `TRUE` when the radio
  *                          is enabled and `FALSE` when it is not. The caller allocates
- *                          and releases it; the `HAL` writes into it and retains no
- *                          reference to it after returning.
+ *                          and releases it, and the `HAL` writes into it during the call.
+ *                          Whether the implementation retains the pointer beyond the call
+ *                          is not specified by this interface, so the caller should keep
+ *                          the variable allocated and unmoved while the `HAL` remains
+ *                          initialised.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
- *      in `docs/pages/halSpec.md`. A call made beforehand fails with `WIFI_HAL_ERROR`
- *      and writes nothing to the output.
+ *      in `docs/pages/halSpec.md`. This interface does not specify the outcome of a call
+ *      made beforehand: neither the status code nor the effect of the call is
+ *      established, so a caller must not rely on either.
  * @post On success the output holds the administrative state; on failure it is left
  *       unspecified.
  *
  * @returns The status of the operation.
  * @retval WIFI_HAL_SUCCESS The state was retrieved.
- * @retval WIFI_HAL_ERROR   `radioIndex` is out of range, `output_bool` is NULL, or the
- *                          vendor layer could not supply the value. The caller should
- *                          validate its arguments and treat the state as unknown rather
- *                          than assuming a default.
+ * @retval WIFI_HAL_ERROR   The call failed. This interface does not enumerate the
+ *                          conditions that lead to this code. The caller should validate
+ *                          its arguments and treat the state as unknown rather than
+ *                          assuming a default.
  *
  * @note This function must not suspend and must not invoke any blocking system calls;
  *       see `Blocking calls` in `docs/pages/halSpec.md`.
@@ -414,16 +636,20 @@ INT wifi_getRadioEnable(INT radioIndex, BOOL *output_bool);
  * @param[in] enable      `TRUE` to enable the radio, `FALSE` to disable it.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
- *      in `docs/pages/halSpec.md`. A call made beforehand fails with `WIFI_HAL_ERROR`
- *      and changes nothing.
- * @post On success the radio holds the requested administrative state. On failure the
- *       state is unchanged.
+ *      in `docs/pages/halSpec.md`. This interface does not specify the outcome of a call
+ *      made beforehand: neither the status code nor the effect of the call is
+ *      established, so a caller must not rely on either.
+ * @post On success the radio holds the requested administrative state. On failure this
+ *       interface does not specify how much of the requested change was applied, so a
+ *       caller should read the affected state back rather than assume the previous one
+ *       survived.
  *
  * @returns The status of the operation.
  * @retval WIFI_HAL_SUCCESS The state was applied.
- * @retval WIFI_HAL_ERROR   `radioIndex` is out of range, or the vendor layer could not
- *                          apply the change. The caller should read the state back with
- *                          `wifi_getRadioEnable()` rather than retrying blindly.
+ * @retval WIFI_HAL_ERROR   The call failed. This interface does not enumerate the
+ *                          conditions that lead to this code. The caller should read the
+ *                          state back with `wifi_getRadioEnable()` rather than retrying
+ *                          blindly.
  *
  * @note Enabling a radio does not by itself make it operational; poll
  *       `wifi_getRadioStatus()` for that.
@@ -447,21 +673,25 @@ INT wifi_setRadioEnable(INT radioIndex, BOOL enable);
  *                        `MAX_NUM_RADIOS`.
  * @param[out] output_bool  Caller-allocated `BOOL` that receives `TRUE` when the radio
  *                          is operational and `FALSE` when it is not. The caller
- *                          allocates and releases it; the `HAL` writes into it and
- *                          retains no reference to it after returning.
+ *                          allocates and releases it, and the `HAL` writes into it during
+ *                          the call. Whether the implementation retains the pointer
+ *                          beyond the call is not specified by this interface, so the
+ *                          caller should keep the variable allocated and unmoved while
+ *                          the `HAL` remains initialised.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
- *      in `docs/pages/halSpec.md`. A call made beforehand fails with `WIFI_HAL_ERROR`
- *      and writes nothing to the output.
+ *      in `docs/pages/halSpec.md`. This interface does not specify the outcome of a call
+ *      made beforehand: neither the status code nor the effect of the call is
+ *      established, so a caller must not rely on either.
  * @post On success the output holds the operational state; on failure it is left
  *       unspecified.
  *
  * @returns The status of the operation.
  * @retval WIFI_HAL_SUCCESS The state was retrieved.
- * @retval WIFI_HAL_ERROR   `radioIndex` is out of range, `output_bool` is NULL, or the
- *                          vendor layer could not supply the value. The caller should
- *                          validate its arguments and retry the poll rather than
- *                          concluding the radio is down.
+ * @retval WIFI_HAL_ERROR   The call failed. This interface does not enumerate the
+ *                          conditions that lead to this code. The caller should validate
+ *                          its arguments and retry the poll rather than concluding the
+ *                          radio is down.
  *
  * @note This interface specifies no transition model for the operational state, so a
  *       caller waiting for a radio to come up must poll rather than expect an event.
@@ -482,22 +712,30 @@ INT wifi_getRadioStatus(INT radioIndex, BOOL *output_bool);
  * @param[in] radioIndex  Index of the Wi-Fi radio, in the range `RADIO_INDEX_1` to
  *                        `MAX_NUM_RADIOS`.
  * @param[out] output_string  Caller-allocated, caller-owned character buffer that
- *                            receives the NUL-terminated interface name. The `HAL`
- *                            writes into it and retains no reference to it after
- *                            returning, so a caller may pass a stack buffer safely.
+ *                            receives the interface name. This interface does not state
+ *                            whether the name is `NUL`-terminated or how its length is
+ *                            conveyed, so a caller must not assume either and must bound
+ *                            every read by the size it allocated, which the warning
+ *                            below is the only guidance on. The `HAL` writes into it
+ *                            during the call. Whether the implementation retains the
+ *                            pointer beyond the call is not specified by this interface,
+ *                            so a caller should keep the buffer allocated and unmoved
+ *                            while the `HAL` remains initialised rather than assuming a
+ *                            lifetime that ends with the call.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
- *      in `docs/pages/halSpec.md`. A call made beforehand fails with `WIFI_HAL_ERROR`
- *      and writes nothing to the output.
- * @post On success the buffer holds a NUL-terminated name; on failure its contents are
- *       left unspecified.
+ *      in `docs/pages/halSpec.md`. This interface does not specify the outcome of a call
+ *      made beforehand: neither the status code nor the effect of the call is
+ *      established, so a caller must not rely on either.
+ * @post On success the buffer holds the interface name, on the representation terms
+ *       `output_string` above states; on failure its contents are left unspecified.
  *
  * @returns The status of the operation.
  * @retval WIFI_HAL_SUCCESS The name was retrieved.
- * @retval WIFI_HAL_ERROR   `radioIndex` is out of range, `output_string` is NULL, or the
- *                          vendor layer could not supply the name. The caller should
- *                          validate its arguments and treat the name as unavailable
- *                          rather than reading the buffer.
+ * @retval WIFI_HAL_ERROR   The call failed. This interface does not enumerate the
+ *                          conditions that lead to this code. The caller should validate
+ *                          its arguments and treat the name as unavailable rather than
+ *                          reading the buffer.
  *
  * @warning The signature carries no buffer length, so this interface does not specify
  *          how many bytes the `HAL` may write. A caller must size the buffer from its
@@ -523,22 +761,26 @@ INT wifi_getRadioIfName(INT radioIndex, CHAR *output_string);
  *                        `MAX_NUM_RADIOS`.
  * @param[out] channel_list  Caller-allocated `wifi_channels_list_t` that receives the
  *                           occupied channels in `channels_list` and their count in
- *                           `num_channels`. The caller allocates and releases it; the
- *                           `HAL` writes into it and retains no reference to it after
- *                           returning. The array holds `MAX_CHANNELS` entries and only
+ *                           `num_channels`. The caller allocates and releases it, and the
+ *                           `HAL` writes into it during the call. Whether the
+ *                           implementation retains the pointer beyond the call is not
+ *                           specified by this interface, so the caller should keep the
+ *                           structure allocated and unmoved while the `HAL` remains
+ *                           initialised. The array holds `MAX_CHANNELS` entries and only
  *                           the first `num_channels` are written.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
- *      in `docs/pages/halSpec.md`. A call made beforehand fails with `WIFI_HAL_ERROR`
- *      and writes nothing to the output.
+ *      in `docs/pages/halSpec.md`. This interface does not specify the outcome of a call
+ *      made beforehand: neither the status code nor the effect of the call is
+ *      established, so a caller must not rely on either.
  * @post On success `num_channels` gives the number of valid entries; on failure the
  *       structure is left unspecified, so a caller must not read `num_channels`.
  *
  * @returns The status of the operation.
  * @retval WIFI_HAL_SUCCESS The list was retrieved.
- * @retval WIFI_HAL_ERROR   `radioIndex` is out of range, `channel_list` is NULL, or the
- *                          vendor layer could not supply the list. The caller should
- *                          validate its arguments and treat the occupancy as unknown.
+ * @retval WIFI_HAL_ERROR   The call failed. This interface does not enumerate the
+ *                          conditions that lead to this code. The caller should validate
+ *                          its arguments and treat the occupancy as unknown.
  *
  * @note This declaration is compiled only when `WIFI_HAL_VERSION_3_PHASE2` is defined,
  *       so a caller must guard its use with the same macro.
@@ -563,19 +805,23 @@ INT wifi_getRadioChannelsInUse(wifi_radio_index_t radioIndex, wifi_channels_list
  *                        `MAX_NUM_RADIOS`.
  * @param[out] output_bool  Caller-allocated `BOOL` that receives `TRUE` when DFS is
  *                          enabled and `FALSE` when it is not. The caller allocates and
- *                          releases it; the `HAL` writes into it and retains no
- *                          reference to it after returning.
+ *                          releases it, and the `HAL` writes into it during the call.
+ *                          Whether the implementation retains the pointer beyond the call
+ *                          is not specified by this interface, so the caller should keep
+ *                          the variable allocated and unmoved while the `HAL` remains
+ *                          initialised.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
- *      in `docs/pages/halSpec.md`. A call made beforehand fails with `WIFI_HAL_ERROR`
- *      and writes nothing to the output.
+ *      in `docs/pages/halSpec.md`. This interface does not specify the outcome of a call
+ *      made beforehand: neither the status code nor the effect of the call is
+ *      established, so a caller must not rely on either.
  * @post On success the output holds the DFS setting; on failure it is left unspecified.
  *
  * @returns The status of the operation.
  * @retval WIFI_HAL_SUCCESS The setting was retrieved.
- * @retval WIFI_HAL_ERROR   `radioIndex` is out of range, `output_bool` is NULL, or the
- *                          vendor layer could not supply the value. The caller should
- *                          validate its arguments and treat the setting as unknown.
+ * @retval WIFI_HAL_ERROR   The call failed. This interface does not enumerate the
+ *                          conditions that lead to this code. The caller should validate
+ *                          its arguments and treat the setting as unknown.
  *
  * @note This function must not suspend and must not invoke any blocking system calls;
  *       see `Blocking calls` in `docs/pages/halSpec.md`.
@@ -597,20 +843,26 @@ INT wifi_getRadioDfsEnable(INT radioIndex, BOOL *output_bool);
  * @param[in] radioIndex  Index of the Wi-Fi radio, in the range `RADIO_INDEX_1` to
  *                        `MAX_NUM_RADIOS`. Declared here as `INT`, unlike the `UINT`
  *                        that `wifi_setZeroDFSState()` takes.
- * @param[in] enabled     `TRUE` to permit DFS channels, `FALSE` to forbid them.
+ * @param[in] enabled     `TRUE` to permit DFS channels, `FALSE` to forbid them. `BOOL` is
+ *                        `unsigned char` and `TRUE` and `FALSE` are `1` and `0`, all three
+ *                        defined in `wifi_hal_generic.h`. This interface names no other
+ *                        accepted value and does not state how a value outside that pair is
+ *                        treated, so a caller should pass one of the two names.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
- *      in `docs/pages/halSpec.md`. A call made beforehand fails with `WIFI_HAL_ERROR`
- *      and changes nothing.
- * @post On success the radio holds the requested DFS setting. On failure the setting is
- *       unchanged.
+ *      in `docs/pages/halSpec.md`. This interface does not specify the outcome of a call
+ *      made beforehand: neither the status code nor the effect of the call is
+ *      established, so a caller must not rely on either.
+ * @post On success the radio holds the requested DFS setting. On failure this interface
+ *       does not specify how much of the requested change was applied, so a caller should
+ *       read the affected state back rather than assume the previous one survived.
  *
  * @returns The status of the operation.
  * @retval WIFI_HAL_SUCCESS The setting was applied.
- * @retval WIFI_HAL_ERROR   `radioIndex` is out of range, the regulatory domain does not
- *                          permit the request, or the vendor layer could not apply it.
- *                          The caller should read the setting back with
- *                          `wifi_getRadioDfsEnable()` rather than retrying blindly.
+ * @retval WIFI_HAL_ERROR   The call failed. This interface does not enumerate the
+ *                          conditions that lead to this code. The caller should read the
+ *                          setting back with `wifi_getRadioDfsEnable()` rather than
+ *                          retrying blindly.
  *
  * @warning Disabling DFS while the radio is operating on a DFS channel may force a
  *          channel change. This interface does not state which channel is selected, so
@@ -620,6 +872,13 @@ INT wifi_getRadioDfsEnable(INT radioIndex, BOOL *output_bool);
  *       see `Blocking calls` in `docs/pages/halSpec.md`.
  * @note The `HAL` is expected to be thread safe, per `Threading Model` in
  *       `docs/pages/halSpec.md`.
+ * @note The declaration above is the contract, and its second parameter is named
+ *       `enabled`. `wifi_hal_emu.h` declares the same function with the same parameter
+ *       types under the name `enable`; that header is an emulation surface and no header
+ *       includes it, as the scope note in `docs/pages/halSpec.md` records. A reader of the
+ *       generated documentation sees the two blocks presented as one entry, under whichever
+ *       of the two parameter names the generator encountered first, so the name in that
+ *       prototype is not necessarily the one this declaration uses.
  * @see wifi_getRadioDfsEnable
  */
 INT wifi_setRadioDfsEnable(INT radioIndex, BOOL enabled);
@@ -633,20 +892,24 @@ INT wifi_setRadioDfsEnable(INT radioIndex, BOOL enabled);
  * @param[in] radioIndex  Index of the Wi-Fi radio, in the range `RADIO_INDEX_1` to
  *                        `MAX_NUM_RADIOS`.
  * @param[out] enable     Caller-allocated `BOOL` that receives `TRUE` when DFS is to be
- *                        enabled at boot and `FALSE` when it is not. The caller
- *                        allocates and releases it; the `HAL` writes into it and retains
- *                        no reference to it after returning.
+ *                        enabled at boot and `FALSE` when it is not. The caller allocates
+ *                        and releases it, and the `HAL` writes into it during the call.
+ *                        Whether the implementation retains the pointer beyond the call
+ *                        is not specified by this interface, so the caller should keep
+ *                        the variable allocated and unmoved while the `HAL` remains
+ *                        initialised.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
- *      in `docs/pages/halSpec.md`. A call made beforehand fails with `WIFI_HAL_ERROR`
- *      and writes nothing to the output.
+ *      in `docs/pages/halSpec.md`. This interface does not specify the outcome of a call
+ *      made beforehand: neither the status code nor the effect of the call is
+ *      established, so a caller must not rely on either.
  * @post On success the output holds the boot-time setting; on failure it is left
  *       unspecified.
  *
  * @returns The status of the operation.
  * @retval WIFI_HAL_SUCCESS The setting was retrieved.
- * @retval WIFI_HAL_ERROR   `radioIndex` is out of range, `enable` is NULL, or the vendor
- *                          layer could not supply the value. The caller should validate
+ * @retval WIFI_HAL_ERROR   The call failed. This interface does not enumerate the
+ *                          conditions that lead to this code. The caller should validate
  *                          its arguments and treat the setting as unknown.
  *
  * @note This function must not suspend and must not invoke any blocking system calls;
@@ -669,17 +932,20 @@ INT wifi_getRadioDfsAtBootUpEnable(INT radioIndex, BOOL *enable);
  * @param[in] enable      `TRUE` to enable DFS at the next boot, `FALSE` to disable it.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
- *      in `docs/pages/halSpec.md`. A call made beforehand fails with `WIFI_HAL_ERROR`
- *      and changes nothing.
- * @post On success the boot-time setting holds the requested value. On failure it is
- *       unchanged.
+ *      in `docs/pages/halSpec.md`. This interface does not specify the outcome of a call
+ *      made beforehand: neither the status code nor the effect of the call is
+ *      established, so a caller must not rely on either.
+ * @post On success the boot-time setting holds the requested value. On failure this
+ *       interface does not specify how much of the requested change was applied, so a
+ *       caller should read the affected state back rather than assume the previous one
+ *       survived.
  *
  * @returns The status of the operation.
  * @retval WIFI_HAL_SUCCESS The setting was applied.
- * @retval WIFI_HAL_ERROR   `radioIndex` is out of range, or the vendor layer could not
- *                          store the setting. The caller should read it back with
- *                          `wifi_getRadioDfsAtBootUpEnable()` rather than retrying
- *                          blindly.
+ * @retval WIFI_HAL_ERROR   The call failed. This interface does not enumerate the
+ *                          conditions that lead to this code. The caller should read it
+ *                          back with `wifi_getRadioDfsAtBootUpEnable()` rather than
+ *                          retrying blindly.
  *
  * @note Storage of this setting across a reboot is the implementation's
  *       responsibility; `Persistence Model` in `docs/pages/halSpec.md` places general
@@ -703,20 +969,24 @@ INT wifi_setRadioDfsAtBootUpEnable(INT radioIndex, BOOL enable);
  * @param[in] radioIndex  Index of the Wi-Fi radio, in the range `RADIO_INDEX_1` to
  *                        `MAX_NUM_RADIOS`.
  * @param[out] output_INT  Caller-allocated `INT` that receives the MCS index. The caller
- *                         allocates and releases it; the `HAL` writes into it and
- *                         retains no reference to it after returning.
+ *                         allocates and releases it, and the `HAL` writes into it during
+ *                         the call. Whether the implementation retains the pointer beyond
+ *                         the call is not specified by this interface, so the caller
+ *                         should keep the variable allocated and unmoved while the `HAL`
+ *                         remains initialised.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
- *      in `docs/pages/halSpec.md`. A call made beforehand fails with `WIFI_HAL_ERROR`
- *      and writes nothing to the output.
+ *      in `docs/pages/halSpec.md`. This interface does not specify the outcome of a call
+ *      made beforehand: neither the status code nor the effect of the call is
+ *      established, so a caller must not rely on either.
  * @post On success the output holds the configured index; on failure it is left
  *       unspecified.
  *
  * @returns The status of the operation.
  * @retval WIFI_HAL_SUCCESS The index was retrieved.
- * @retval WIFI_HAL_ERROR   `radioIndex` is out of range, `output_INT` is NULL, or the
- *                          vendor layer could not supply the value. The caller should
- *                          validate its arguments and treat the index as unknown.
+ * @retval WIFI_HAL_ERROR   The call failed. This interface does not enumerate the
+ *                          conditions that lead to this code. The caller should validate
+ *                          its arguments and treat the index as unknown.
  *
  * @note This function must not suspend and must not invoke any blocking system calls;
  *       see `Blocking calls` in `docs/pages/halSpec.md`.
@@ -741,17 +1011,19 @@ INT wifi_getRadioMCS(INT radioIndex, INT *output_INT);
  *                        failure.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
- *      in `docs/pages/halSpec.md`. A call made beforehand fails with `WIFI_HAL_ERROR`
- *      and changes nothing.
- * @post On success the radio transmits using the requested index. On failure the
- *       configuration is unchanged.
+ *      in `docs/pages/halSpec.md`. This interface does not specify the outcome of a call
+ *      made beforehand: neither the status code nor the effect of the call is
+ *      established, so a caller must not rely on either.
+ * @post On success the radio transmits using the requested index. On failure this interface
+ *       does not specify how much of the requested change was applied, so a caller should
+ *       read the affected state back rather than assume the previous one survived.
  *
  * @returns The status of the operation.
  * @retval WIFI_HAL_SUCCESS The index was applied.
- * @retval WIFI_HAL_ERROR   `radioIndex` is out of range, the vendor layer rejected
- *                          `MCS`, or it could not apply the change. The caller should
- *                          read the value back with `wifi_getRadioMCS()` rather than
- *                          retrying with the same argument.
+ * @retval WIFI_HAL_ERROR   The call failed. This interface does not enumerate the
+ *                          conditions that lead to this code. The caller should read the
+ *                          value back with `wifi_getRadioMCS()` rather than retrying with
+ *                          the same argument.
  *
  * @note This function must not suspend and must not invoke any blocking system calls;
  *       see `Blocking calls` in `docs/pages/halSpec.md`.
@@ -772,20 +1044,24 @@ INT wifi_setRadioMCS(INT radioIndex, INT MCS);
  * @param[in] radioIndex  Index of the Wi-Fi radio, in the range `RADIO_INDEX_1` to
  *                        `MAX_NUM_RADIOS`.
  * @param[out] output_ulong  Caller-allocated `ULONG` that receives the transmit power in
- *                           dBm. The caller allocates and releases it; the `HAL` writes
- *                           into it and retains no reference to it after returning.
+ *                           dBm. The caller allocates and releases it, and the `HAL`
+ *                           writes into it during the call. Whether the implementation
+ *                           retains the pointer beyond the call is not specified by this
+ *                           interface, so the caller should keep the variable allocated
+ *                           and unmoved while the `HAL` remains initialised.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
- *      in `docs/pages/halSpec.md`. A call made beforehand fails with `WIFI_HAL_ERROR`
- *      and writes nothing to the output.
+ *      in `docs/pages/halSpec.md`. This interface does not specify the outcome of a call
+ *      made beforehand: neither the status code nor the effect of the call is
+ *      established, so a caller must not rely on either.
  * @post On success the output holds the power in dBm; on failure it is left unspecified.
  *
  * @returns The status of the operation.
  * @retval WIFI_HAL_SUCCESS The power was retrieved.
- * @retval WIFI_HAL_ERROR   `radioIndex` is out of range, `output_ulong` is NULL, or the
- *                          vendor layer could not supply the value. The caller should
- *                          validate its arguments and treat the power as unknown rather
- *                          than assuming a maximum.
+ * @retval WIFI_HAL_ERROR   The call failed. This interface does not enumerate the
+ *                          conditions that lead to this code. The caller should validate
+ *                          its arguments and treat the power as unknown rather than
+ *                          assuming a maximum.
  *
  * @note The parameter is unsigned, so this interface cannot express a negative dBm
  *       value through it.
@@ -807,19 +1083,23 @@ INT wifi_getRadioTransmitPower(INT radioIndex, ULONG *output_ulong);
  *                        `MAX_NUM_RADIOS`.
  * @param[out] output_ulong  Caller-allocated `ULONG` that receives the power as a
  *                           percentage of full power, in the range 0 to 100. The caller
- *                           allocates and releases it; the `HAL` writes into it and
- *                           retains no reference to it after returning.
+ *                           allocates and releases it, and the `HAL` writes into it
+ *                           during the call. Whether the implementation retains the
+ *                           pointer beyond the call is not specified by this interface,
+ *                           so the caller should keep the variable allocated and unmoved
+ *                           while the `HAL` remains initialised.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
- *      in `docs/pages/halSpec.md`. A call made beforehand fails with `WIFI_HAL_ERROR`
- *      and writes nothing to the output.
+ *      in `docs/pages/halSpec.md`. This interface does not specify the outcome of a call
+ *      made beforehand: neither the status code nor the effect of the call is
+ *      established, so a caller must not rely on either.
  * @post On success the output holds the percentage; on failure it is left unspecified.
  *
  * @returns The status of the operation.
  * @retval WIFI_HAL_SUCCESS The percentage was retrieved.
- * @retval WIFI_HAL_ERROR   `radioIndex` is out of range, `output_ulong` is NULL, or the
- *                          vendor layer could not supply the value. The caller should
- *                          validate its arguments and treat the setting as unknown.
+ * @retval WIFI_HAL_ERROR   The call failed. This interface does not enumerate the
+ *                          conditions that lead to this code. The caller should validate
+ *                          its arguments and treat the setting as unknown.
  *
  * @note This function must not suspend and must not invoke any blocking system calls;
  *       see `Blocking calls` in `docs/pages/halSpec.md`.
@@ -844,17 +1124,20 @@ INT wifi_getRadioPercentageTransmitPower(INT radioIndex, ULONG *output_ulong);
  *                           documents the same quantity, giving 75 and 100 as examples.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
- *      in `docs/pages/halSpec.md`. A call made beforehand fails with `WIFI_HAL_ERROR`
- *      and changes nothing.
- * @post On success the radio transmits at the requested percentage. On failure the
- *       setting is unchanged.
+ *      in `docs/pages/halSpec.md`. This interface does not specify the outcome of a call
+ *      made beforehand: neither the status code nor the effect of the call is
+ *      established, so a caller must not rely on either.
+ * @post On success the radio transmits at the requested percentage. On failure this
+ *       interface does not specify how much of the requested change was applied, so a
+ *       caller should read the affected state back rather than assume the previous one
+ *       survived.
  *
  * @returns The status of the operation.
  * @retval WIFI_HAL_SUCCESS The power was applied.
- * @retval WIFI_HAL_ERROR   `radioIndex` is out of range, `TransmitPower` is outside the
- *                          accepted range, or the vendor layer could not apply the
- *                          change. The caller should clamp the value to 0 to 100 and
- *                          read the setting back rather than retrying unchanged.
+ * @retval WIFI_HAL_ERROR   The call failed. This interface does not enumerate the
+ *                          conditions that lead to this code. The caller should re-check
+ *                          the value against the 0 to 100 range `@param` states and read
+ *                          the setting back rather than retrying unchanged.
  *
  * @warning Reducing transmit power shrinks coverage and can disconnect associated
  *          clients at the edge of the cell.
@@ -876,19 +1159,23 @@ INT wifi_setRadioTransmitPower(INT radioIndex, ULONG TransmitPower);
  * @param[in] radioIndex  Index of the Wi-Fi radio, in the range `RADIO_INDEX_1` to
  *                        `MAX_NUM_RADIOS`.
  * @param[out] output     Caller-allocated `INT` that receives the supported threshold
- *                        range in dBm. The caller allocates and releases it; the `HAL`
- *                        writes into it and retains no reference to it after returning.
+ *                        range in dBm. The caller allocates and releases it, and the
+ *                        `HAL` writes into it during the call. Whether the implementation
+ *                        retains the pointer beyond the call is not specified by this
+ *                        interface, so the caller should keep the variable allocated and
+ *                        unmoved while the `HAL` remains initialised.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
- *      in `docs/pages/halSpec.md`. A call made beforehand fails with `WIFI_HAL_ERROR`
- *      and writes nothing to the output.
+ *      in `docs/pages/halSpec.md`. This interface does not specify the outcome of a call
+ *      made beforehand: neither the status code nor the effect of the call is
+ *      established, so a caller must not rely on either.
  * @post On success the output holds the supported range; on failure it is left
  *       unspecified.
  *
  * @returns The status of the operation.
  * @retval WIFI_HAL_SUCCESS The range was retrieved.
- * @retval WIFI_HAL_ERROR   `radioIndex` is out of range, `output` is NULL, or the vendor
- *                          layer could not supply the value. The caller should validate
+ * @retval WIFI_HAL_ERROR   The call failed. This interface does not enumerate the
+ *                          conditions that lead to this code. The caller should validate
  *                          its arguments and treat the range as unknown rather than
  *                          assuming one.
  *
@@ -915,20 +1202,24 @@ INT wifi_getRadioCarrierSenseThresholdRange(INT radioIndex, INT *output);
  * @param[in] radioIndex  Index of the Wi-Fi radio, in the range `RADIO_INDEX_1` to
  *                        `MAX_NUM_RADIOS`.
  * @param[out] output     Caller-allocated `INT` that receives the threshold in dBm. The
- *                        caller allocates and releases it; the `HAL` writes into it and
- *                        retains no reference to it after returning. The type is signed
- *                        because an RSSI threshold is normally negative.
+ *                        caller allocates and releases it, and the `HAL` writes into it
+ *                        during the call. Whether the implementation retains the pointer
+ *                        beyond the call is not specified by this interface, so the
+ *                        caller should keep the variable allocated and unmoved while the
+ *                        `HAL` remains initialised. The type is signed because an RSSI
+ *                        threshold is normally negative.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
- *      in `docs/pages/halSpec.md`. A call made beforehand fails with `WIFI_HAL_ERROR`
- *      and writes nothing to the output.
+ *      in `docs/pages/halSpec.md`. This interface does not specify the outcome of a call
+ *      made beforehand: neither the status code nor the effect of the call is
+ *      established, so a caller must not rely on either.
  * @post On success the output holds the threshold in use; on failure it is left
  *       unspecified.
  *
  * @returns The status of the operation.
  * @retval WIFI_HAL_SUCCESS The threshold was retrieved.
- * @retval WIFI_HAL_ERROR   `radioIndex` is out of range, `output` is NULL, or the vendor
- *                          layer could not supply the value. The caller should validate
+ * @retval WIFI_HAL_ERROR   The call failed. This interface does not enumerate the
+ *                          conditions that lead to this code. The caller should validate
  *                          its arguments and treat the threshold as unknown.
  *
  * @note This function must not suspend and must not invoke any blocking system calls;
@@ -953,17 +1244,19 @@ INT wifi_getRadioCarrierSenseThresholdInUse(INT radioIndex, INT *output);
  *                        for which this interface states no fixed bound.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
- *      in `docs/pages/halSpec.md`. A call made beforehand fails with `WIFI_HAL_ERROR`
- *      and changes nothing.
- * @post On success the radio uses the requested threshold. On failure the setting is
- *       unchanged.
+ *      in `docs/pages/halSpec.md`. This interface does not specify the outcome of a call
+ *      made beforehand: neither the status code nor the effect of the call is
+ *      established, so a caller must not rely on either.
+ * @post On success the radio uses the requested threshold. On failure this interface does
+ *       not specify how much of the requested change was applied, so a caller should read
+ *       the affected state back rather than assume the previous one survived.
  *
  * @returns The status of the operation.
  * @retval WIFI_HAL_SUCCESS The threshold was applied.
- * @retval WIFI_HAL_ERROR   `radioIndex` is out of range, the vendor layer rejected
- *                          `threshold`, or it could not apply the change. The caller
- *                          should read the supported range and the value in use back,
- *                          rather than retrying with the same argument.
+ * @retval WIFI_HAL_ERROR   The call failed. This interface does not enumerate the
+ *                          conditions that lead to this code. The caller should read the
+ *                          supported range and the value in use back, rather than retrying
+ *                          with the same argument.
  *
  * @warning Setting the threshold too high makes the radio transmit over ongoing
  *          neighbouring transmissions, which degrades both networks.
@@ -988,18 +1281,19 @@ INT wifi_setRadioCarrierSenseThresholdInUse(INT radioIndex, INT threshold);
  *                        `MAX_NUM_RADIOS`.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
- *      in `docs/pages/halSpec.md`. A call made beforehand fails with `WIFI_HAL_ERROR`
- *      and changes nothing.
+ *      in `docs/pages/halSpec.md`. This interface does not specify the outcome of a call
+ *      made beforehand: neither the status code nor the effect of the call is
+ *      established, so a caller must not rely on either.
  * @post On success the staged settings are active in the hardware. On failure this
  *       interface does not state whether any part of the set was applied, so a caller
  *       should read the operating parameters back rather than assume either.
  *
  * @returns The status of the operation.
  * @retval WIFI_HAL_SUCCESS The staged settings were applied.
- * @retval WIFI_HAL_ERROR   `radioIndex` is out of range, or the vendor layer could not
- *                          apply the staged set. The caller should read the parameters
- *                          back with `wifi_getRadioOperatingParameters()` to establish
- *                          the resulting state.
+ * @retval WIFI_HAL_ERROR   The call failed. This interface does not enumerate the
+ *                          conditions that lead to this code. The caller should read the
+ *                          parameters back with `wifi_getRadioOperatingParameters()` to
+ *                          establish the resulting state.
  *
  * @note This interface does not enumerate which setters stage rather than apply, so a
  *       caller that wants a deterministic result should configure the radio through
@@ -1025,18 +1319,25 @@ INT wifi_applyRadioSettings(INT radioIndex);
  * @param[in] enable      `TRUE` to enable CTS protection, `FALSE` to disable it.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
- *      in `docs/pages/halSpec.md`. A call made beforehand fails with `RETURN_ERR` and
- *      changes nothing.
- * @post On success the radio holds the requested setting. On failure it is unchanged.
+ *      in `docs/pages/halSpec.md`. This interface does not specify the outcome of a call
+ *      made beforehand: neither the status code nor the effect of the call is
+ *      established, so a caller must not rely on either.
+ * @post On success the radio holds the requested setting. On failure this interface does
+ *       not specify how much of the requested change was applied, and it offers no call
+ *       that reads this setting back, so a caller must treat the setting as being in an
+ *       unknown state.
  *
  * @return The status of the operation.
  * @retval RETURN_OK  CTS protection was set as requested.
- * @retval RETURN_ERR `radioIndex` is out of range, or the vendor layer could not apply
- *                    the change. The caller should validate the index and read the
+ * @retval RETURN_ERR The call failed. This interface does not enumerate the conditions that
+ *                    lead to this code. The caller should validate the index and read the
  *                    radio's operating parameters back rather than retrying blindly.
  *
  * @execution Synchronous
- * @sideeffect None
+ * @sideeffect On success, changes the radio's CTS protection behaviour, which affects
+ *             every station associated with that radio. This interface states no
+ *             other effect, and does not state whether the change survives a restart;
+ *             see `Persistence Model` in `docs/pages/halSpec.md`.
  *
  * @note This block states its outcome as `RETURN_OK`/`RETURN_ERR` where its neighbours
  *       use `WIFI_HAL_SUCCESS`/`WIFI_HAL_ERROR`. The two pairs are numerically identical
@@ -1064,16 +1365,20 @@ INT wifi_setRadioCtsProtectionEnable(INT radioIndex, BOOL enable);
  * @param[in] enable   `TRUE` to enable OBSS coexistence, `FALSE` to disable it.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
- *      in `docs/pages/halSpec.md`. A call made beforehand fails with `WIFI_HAL_ERROR`
- *      and changes nothing.
- * @post On success the radio holds the requested setting. On failure it is unchanged.
+ *      in `docs/pages/halSpec.md`. This interface does not specify the outcome of a call
+ *      made beforehand: neither the status code nor the effect of the call is
+ *      established, so a caller must not rely on either.
+ * @post On success the radio holds the requested setting. On failure this interface does
+ *       not specify how much of the requested change was applied, and it offers no call
+ *       that reads this setting back, so a caller must treat the setting as being in an
+ *       unknown state.
  *
  * @returns The status of the operation.
  * @retval WIFI_HAL_SUCCESS The setting was applied.
- * @retval WIFI_HAL_ERROR   `apIndex` is out of range, or the vendor layer could not
- *                          apply the change. The caller should validate the index and
- *                          read the radio's operating parameters back rather than
- *                          retrying blindly.
+ * @retval WIFI_HAL_ERROR   The call failed. This interface does not enumerate the
+ *                          conditions that lead to this code. The caller should validate
+ *                          the index and read the radio's operating parameters back rather
+ *                          than retrying blindly.
  *
  * @warning Because the setting is radio-wide, applying it through one Access Point
  *          index affects every other Access Point hosted on the same radio.
@@ -1104,18 +1409,20 @@ INT wifi_setRadioObssCoexistenceEnable(INT apIndex, BOOL enable);
  *                        infer a bound from a failure.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
- *      in `docs/pages/halSpec.md`. A call made beforehand fails with `WIFI_HAL_ERROR`
- *      and changes nothing.
- * @post On success the radio fragments at the requested size. On failure the setting is
- *       unchanged.
+ *      in `docs/pages/halSpec.md`. This interface does not specify the outcome of a call
+ *      made beforehand: neither the status code nor the effect of the call is
+ *      established, so a caller must not rely on either.
+ * @post On success the radio fragments at the requested size. On failure this interface
+ *       does not specify how much of the requested change was applied, and it offers no
+ *       call that reads this setting back, so a caller must treat the setting as being in
+ *       an unknown state.
  *
  * @returns The status of the operation.
  * @retval WIFI_HAL_SUCCESS The threshold was applied.
- * @retval WIFI_HAL_ERROR   `radioIndex` is out of range, the vendor layer rejected
- *                          `threshold`, or it could not apply the change. The caller
- *                          should read the value back through
- *                          `wifi_getRadioOperatingParameters()` rather than retrying
- *                          with the same argument.
+ * @retval WIFI_HAL_ERROR   The call failed. This interface does not enumerate the
+ *                          conditions that lead to this code. The caller should read the
+ *                          value back through `wifi_getRadioOperatingParameters()` rather
+ *                          than retrying with the same argument.
  *
  * @note This function must not suspend and must not invoke any blocking system calls;
  *       see `Blocking calls` in `docs/pages/halSpec.md`.
@@ -1136,15 +1443,18 @@ INT wifi_setRadioFragmentationThreshold(INT radioIndex, UINT threshold);
  * @param[in] STBC_Enable  `TRUE` to enable STBC, `FALSE` to disable it.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
- *      in `docs/pages/halSpec.md`. A call made beforehand fails with `WIFI_HAL_ERROR`
- *      and changes nothing.
- * @post On success the radio holds the requested setting. On failure it is unchanged.
+ *      in `docs/pages/halSpec.md`. This interface does not specify the outcome of a call
+ *      made beforehand: neither the status code nor the effect of the call is
+ *      established, so a caller must not rely on either.
+ * @post On success the radio holds the requested setting. On failure this interface does
+ *       not specify how much of the requested change was applied, and it offers no call
+ *       that reads this setting back, so a caller must treat the setting as being in an
+ *       unknown state.
  *
  * @returns The status of the operation.
  * @retval WIFI_HAL_SUCCESS The setting was applied.
- * @retval WIFI_HAL_ERROR   `radioIndex` is out of range, the radio does not support
- *                          STBC, or the vendor layer could not apply the change. The
- *                          caller should read
+ * @retval WIFI_HAL_ERROR   The call failed. This interface does not enumerate the
+ *                          conditions that lead to this code. The caller should read
  *                          `wifi_radio_operationParam_t::stbcEnable` back rather than
  *                          retrying blindly.
  *
@@ -1168,19 +1478,23 @@ INT wifi_setRadioSTBCEnable(INT radioIndex, BOOL STBC_Enable);
  *                        `MAX_NUM_RADIOS`.
  * @param[out] output_bool  Caller-allocated `BOOL` that receives `TRUE` when A-MSDU
  *                          aggregation is enabled and `FALSE` when it is not. The caller
- *                          allocates and releases it; the `HAL` writes into it and
- *                          retains no reference to it after returning.
+ *                          allocates and releases it, and the `HAL` writes into it during
+ *                          the call. Whether the implementation retains the pointer
+ *                          beyond the call is not specified by this interface, so the
+ *                          caller should keep the variable allocated and unmoved while
+ *                          the `HAL` remains initialised.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
- *      in `docs/pages/halSpec.md`. A call made beforehand fails with `WIFI_HAL_ERROR`
- *      and writes nothing to the output.
+ *      in `docs/pages/halSpec.md`. This interface does not specify the outcome of a call
+ *      made beforehand: neither the status code nor the effect of the call is
+ *      established, so a caller must not rely on either.
  * @post On success the output holds the setting; on failure it is left unspecified.
  *
  * @returns The status of the operation.
  * @retval WIFI_HAL_SUCCESS The setting was retrieved.
- * @retval WIFI_HAL_ERROR   `radioIndex` is out of range, `output_bool` is NULL, or the
- *                          vendor layer could not supply the value. The caller should
- *                          validate its arguments and treat the setting as unknown.
+ * @retval WIFI_HAL_ERROR   The call failed. This interface does not enumerate the
+ *                          conditions that lead to this code. The caller should validate
+ *                          its arguments and treat the setting as unknown.
  *
  * @note This function must not suspend and must not invoke any blocking system calls;
  *       see `Blocking calls` in `docs/pages/halSpec.md`.
@@ -1201,16 +1515,19 @@ INT wifi_getRadioAMSDUEnable(INT radioIndex, BOOL *output_bool);
  * @param[in] amsduEnable  `TRUE` to enable aggregation, `FALSE` to disable it.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
- *      in `docs/pages/halSpec.md`. A call made beforehand fails with `WIFI_HAL_ERROR`
- *      and changes nothing.
- * @post On success the radio holds the requested setting. On failure it is unchanged.
+ *      in `docs/pages/halSpec.md`. This interface does not specify the outcome of a call
+ *      made beforehand: neither the status code nor the effect of the call is
+ *      established, so a caller must not rely on either.
+ * @post On success the radio holds the requested setting. On failure this interface does
+ *       not specify how much of the requested change was applied, so a caller should read
+ *       the affected state back rather than assume the previous one survived.
  *
  * @returns The status of the operation.
  * @retval WIFI_HAL_SUCCESS The setting was applied.
- * @retval WIFI_HAL_ERROR   `radioIndex` is out of range, or the vendor layer could not
- *                          apply the change. The caller should read the setting back
- *                          with `wifi_getRadioAMSDUEnable()` rather than retrying
- *                          blindly.
+ * @retval WIFI_HAL_ERROR   The call failed. This interface does not enumerate the
+ *                          conditions that lead to this code. The caller should read the
+ *                          setting back with `wifi_getRadioAMSDUEnable()` rather than
+ *                          retrying blindly.
  *
  * @note This is the radio-wide switch. To vary aggregation per WMM traffic identifier,
  *       set `wifi_radio_operationParam_t::amsduTid` through
@@ -1233,19 +1550,23 @@ INT wifi_setRadioAMSDUEnable(INT radioIndex, BOOL amsduEnable);
  *                        `MAX_NUM_RADIOS`.
  * @param[out] uptime     Caller-allocated `ULONG` that receives the elapsed time in
  *                        seconds since the radio started. The caller allocates and
- *                        releases it; the `HAL` writes into it and retains no reference
- *                        to it after returning.
+ *                        releases it, and the `HAL` writes into it during the call.
+ *                        Whether the implementation retains the pointer beyond the call
+ *                        is not specified by this interface, so the caller should keep
+ *                        the variable allocated and unmoved while the `HAL` remains
+ *                        initialised.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
- *      in `docs/pages/halSpec.md`. A call made beforehand fails with `WIFI_HAL_ERROR`
- *      and writes nothing to the output.
+ *      in `docs/pages/halSpec.md`. This interface does not specify the outcome of a call
+ *      made beforehand: neither the status code nor the effect of the call is
+ *      established, so a caller must not rely on either.
  * @post On success the output holds the uptime in seconds; on failure it is left
  *       unspecified.
  *
  * @returns The status of the operation.
  * @retval WIFI_HAL_SUCCESS The uptime was retrieved.
- * @retval WIFI_HAL_ERROR   `radioIndex` is out of range, `uptime` is NULL, or the vendor
- *                          layer could not supply the value. The caller should validate
+ * @retval WIFI_HAL_ERROR   The call failed. This interface does not enumerate the
+ *                          conditions that lead to this code. The caller should validate
  *                          its arguments and treat the uptime as unavailable.
  *
  * @note This interface does not state what the value reads while the radio is down, so
@@ -1270,21 +1591,25 @@ INT wifi_getRadioUpTime(INT radioIndex, ULONG *uptime);
  *                        `MAX_NUM_RADIOS`.
  * @param[out] output_bool  Caller-allocated `BOOL` that receives `TRUE` when the radio
  *                          supports RDG and `FALSE` when it does not. The caller
- *                          allocates and releases it; the `HAL` writes into it and
- *                          retains no reference to it after returning.
+ *                          allocates and releases it, and the `HAL` writes into it during
+ *                          the call. Whether the implementation retains the pointer
+ *                          beyond the call is not specified by this interface, so the
+ *                          caller should keep the variable allocated and unmoved while
+ *                          the `HAL` remains initialised.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
- *      in `docs/pages/halSpec.md`. A call made beforehand fails with `WIFI_HAL_ERROR`
- *      and writes nothing to the output.
+ *      in `docs/pages/halSpec.md`. This interface does not specify the outcome of a call
+ *      made beforehand: neither the status code nor the effect of the call is
+ *      established, so a caller must not rely on either.
  * @post On success the output holds the capability; on failure it is left unspecified,
  *       so a caller must not read it as "unsupported".
  *
  * @returns The status of the operation.
  * @retval WIFI_HAL_SUCCESS The capability was retrieved.
- * @retval WIFI_HAL_ERROR   `radioIndex` is out of range, `output_bool` is NULL, or the
- *                          vendor layer could not supply the value. The caller should
- *                          validate its arguments; a failure is not evidence that RDG
- *                          is unsupported.
+ * @retval WIFI_HAL_ERROR   The call failed. This interface does not enumerate the
+ *                          conditions that lead to this code. The caller should validate
+ *                          its arguments; a failure is not evidence that RDG is
+ *                          unsupported.
  *
  * @note This interface exposes no setter for RDG, so the capability cannot be turned on
  *       or off through this header.
@@ -1306,19 +1631,23 @@ INT wifi_getRadioReverseDirectionGrantSupported(INT radioIndex, BOOL *output_boo
  *                        `MAX_NUM_RADIOS`.
  * @param[out] output_bool  Caller-allocated `BOOL` that receives `TRUE` when automatic
  *                          block ACK is enabled and `FALSE` when it is not. The caller
- *                          allocates and releases it; the `HAL` writes into it and
- *                          retains no reference to it after returning.
+ *                          allocates and releases it, and the `HAL` writes into it during
+ *                          the call. Whether the implementation retains the pointer
+ *                          beyond the call is not specified by this interface, so the
+ *                          caller should keep the variable allocated and unmoved while
+ *                          the `HAL` remains initialised.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
- *      in `docs/pages/halSpec.md`. A call made beforehand fails with `WIFI_HAL_ERROR`
- *      and writes nothing to the output.
+ *      in `docs/pages/halSpec.md`. This interface does not specify the outcome of a call
+ *      made beforehand: neither the status code nor the effect of the call is
+ *      established, so a caller must not rely on either.
  * @post On success the output holds the setting; on failure it is left unspecified.
  *
  * @returns The status of the operation.
  * @retval WIFI_HAL_SUCCESS The setting was retrieved.
- * @retval WIFI_HAL_ERROR   `radioIndex` is out of range, `output_bool` is NULL, or the
- *                          vendor layer could not supply the value. The caller should
- *                          validate its arguments and treat the setting as unknown.
+ * @retval WIFI_HAL_ERROR   The call failed. This interface does not enumerate the
+ *                          conditions that lead to this code. The caller should validate
+ *                          its arguments and treat the setting as unknown.
  *
  * @note This function must not suspend and must not invoke any blocking system calls;
  *       see `Blocking calls` in `docs/pages/halSpec.md`.
@@ -1339,16 +1668,19 @@ INT wifi_getRadioAutoBlockAckEnable(INT radioIndex, BOOL *output_bool);
  * @param[in] enable      `TRUE` to enable automatic block ACK, `FALSE` to disable it.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
- *      in `docs/pages/halSpec.md`. A call made beforehand fails with `WIFI_HAL_ERROR`
- *      and changes nothing.
- * @post On success the radio holds the requested setting. On failure it is unchanged.
+ *      in `docs/pages/halSpec.md`. This interface does not specify the outcome of a call
+ *      made beforehand: neither the status code nor the effect of the call is
+ *      established, so a caller must not rely on either.
+ * @post On success the radio holds the requested setting. On failure this interface does
+ *       not specify how much of the requested change was applied, so a caller should read
+ *       the affected state back rather than assume the previous one survived.
  *
  * @returns The status of the operation.
  * @retval WIFI_HAL_SUCCESS The setting was applied.
- * @retval WIFI_HAL_ERROR   `radioIndex` is out of range, or the vendor layer could not
- *                          apply the change. The caller should read the setting back
- *                          with `wifi_getRadioAutoBlockAckEnable()` rather than retrying
- *                          blindly.
+ * @retval WIFI_HAL_ERROR   The call failed. This interface does not enumerate the
+ *                          conditions that lead to this code. The caller should read the
+ *                          setting back with `wifi_getRadioAutoBlockAckEnable()` rather
+ *                          than retrying blindly.
  *
  * @note This interface does not state whether the change affects block-ACK sessions
  *       already established, so a caller must not assume existing sessions are torn
@@ -1372,19 +1704,23 @@ INT wifi_setRadioAutoBlockAckEnable(INT radioIndex, BOOL enable);
  *                        `MAX_NUM_RADIOS`.
  * @param[out] output_bool  Caller-allocated `BOOL` that receives `TRUE` when IGMP
  *                          snooping is enabled and `FALSE` when it is not. The caller
- *                          allocates and releases it; the `HAL` writes into it and
- *                          retains no reference to it after returning.
+ *                          allocates and releases it, and the `HAL` writes into it during
+ *                          the call. Whether the implementation retains the pointer
+ *                          beyond the call is not specified by this interface, so the
+ *                          caller should keep the variable allocated and unmoved while
+ *                          the `HAL` remains initialised.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
- *      in `docs/pages/halSpec.md`. A call made beforehand fails with `WIFI_HAL_ERROR`
- *      and writes nothing to the output.
+ *      in `docs/pages/halSpec.md`. This interface does not specify the outcome of a call
+ *      made beforehand: neither the status code nor the effect of the call is
+ *      established, so a caller must not rely on either.
  * @post On success the output holds the setting; on failure it is left unspecified.
  *
  * @returns The status of the operation.
  * @retval WIFI_HAL_SUCCESS The setting was retrieved.
- * @retval WIFI_HAL_ERROR   `radioIndex` is out of range, `output_bool` is NULL, or the
- *                          vendor layer could not supply the value. The caller should
- *                          validate its arguments and treat the setting as unknown.
+ * @retval WIFI_HAL_ERROR   The call failed. This interface does not enumerate the
+ *                          conditions that lead to this code. The caller should validate
+ *                          its arguments and treat the setting as unknown.
  *
  * @note This function must not suspend and must not invoke any blocking system calls;
  *       see `Blocking calls` in `docs/pages/halSpec.md`.
@@ -1406,16 +1742,19 @@ INT wifi_getRadioIGMPSnoopingEnable(INT radioIndex, BOOL *output_bool);
  * @param[in] enable      `TRUE` to enable IGMP snooping, `FALSE` to disable it.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
- *      in `docs/pages/halSpec.md`. A call made beforehand fails with `WIFI_HAL_ERROR`
- *      and changes nothing.
- * @post On success the radio holds the requested setting. On failure it is unchanged.
+ *      in `docs/pages/halSpec.md`. This interface does not specify the outcome of a call
+ *      made beforehand: neither the status code nor the effect of the call is
+ *      established, so a caller must not rely on either.
+ * @post On success the radio holds the requested setting. On failure this interface does
+ *       not specify how much of the requested change was applied, so a caller should read
+ *       the affected state back rather than assume the previous one survived.
  *
  * @returns The status of the operation.
  * @retval WIFI_HAL_SUCCESS The setting was applied.
- * @retval WIFI_HAL_ERROR   `radioIndex` is out of range, or the vendor layer could not
- *                          apply the change. The caller should read the setting back
- *                          with `wifi_getRadioIGMPSnoopingEnable()` rather than retrying
- *                          blindly.
+ * @retval WIFI_HAL_ERROR   The call failed. This interface does not enumerate the
+ *                          conditions that lead to this code. The caller should read the
+ *                          setting back with `wifi_getRadioIGMPSnoopingEnable()` rather
+ *                          than retrying blindly.
  *
  * @note This interface does not state whether group memberships already learnt are
  *       discarded when snooping is disabled and relearnt when it is re-enabled.
@@ -1443,18 +1782,18 @@ INT wifi_setRadioIGMPSnoopingEnable(INT radioIndex, BOOL enable);
  *                        checks DFS channels ahead of needing them.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
- *      in `docs/pages/halSpec.md`. A call made beforehand fails with `WIFI_HAL_ERROR`
- *      and changes nothing.
+ *      in `docs/pages/halSpec.md`. This interface does not specify the outcome of a call
+ *      made beforehand: neither the status code nor the effect of the call is
+ *      established, so a caller must not rely on either.
  * @post On success the radio holds both requested settings. On failure this interface
  *       does not state whether one of the two was applied, so a caller should read them
  *       back with `wifi_getZeroDFSState()`.
  *
  * @returns The status of the operation.
  * @retval WIFI_HAL_SUCCESS Both settings were applied.
- * @retval WIFI_HAL_ERROR   `radioIndex` is out of range, the radio or regulatory domain
- *                          does not permit the request, or the vendor layer could not
- *                          apply it. The caller should read the state back rather than
- *                          retrying with the same arguments.
+ * @retval WIFI_HAL_ERROR   The call failed. This interface does not enumerate the
+ *                          conditions that lead to this code. The caller should read the
+ *                          state back rather than retrying with the same arguments.
  *
  * @warning `precac` is meaningful only in the EU regulatory domain. This interface does
  *          not state whether requesting it elsewhere is rejected or silently ignored, so
@@ -1483,23 +1822,26 @@ INT wifi_setZeroDFSState(UINT radioIndex, BOOL enable, BOOL precac);
  *                        `MAX_NUM_RADIOS`.
  * @param[out] enable     Caller-allocated `BOOL` that receives `TRUE` when Zero-wait DFS
  *                        is enabled and `FALSE` when it is not. The caller allocates and
- *                        releases it; the `HAL` writes into it and retains no reference
- *                        to it after returning.
+ *                        releases it, and the `HAL` writes into it during the call.
+ *                        Whether the implementation retains the pointer beyond the call
+ *                        is not specified by this interface, so the caller should keep
+ *                        the variable allocated and unmoved while the `HAL` remains
+ *                        initialised.
  * @param[out] precac     Caller-allocated `BOOL` that receives the pre-CAC setting, on
  *                        the same ownership terms as `enable`.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
- *      in `docs/pages/halSpec.md`. A call made beforehand fails with `WIFI_HAL_ERROR`
- *      and writes nothing to either output.
+ *      in `docs/pages/halSpec.md`. This interface does not specify the outcome of a call
+ *      made beforehand: neither the status code nor the effect of the call is
+ *      established, so a caller must not rely on either.
  * @post On success both outputs hold their current setting; on failure both are left
  *       unspecified, so a caller must not read either unless the call succeeded.
  *
  * @returns The status of the operation.
  * @retval WIFI_HAL_SUCCESS Both settings were retrieved.
- * @retval WIFI_HAL_ERROR   `radioIndex` is out of range, either output pointer is NULL,
- *                          or the vendor layer could not supply the values. The caller
- *                          should validate its arguments and treat both settings as
- *                          unknown.
+ * @retval WIFI_HAL_ERROR   The call failed. This interface does not enumerate the
+ *                          conditions that lead to this code. The caller should validate
+ *                          its arguments and treat both settings as unknown.
  *
  * @note `precac` is meaningful only in the EU regulatory domain; elsewhere its value
  *       carries no operational meaning.
@@ -1527,18 +1869,19 @@ INT wifi_getZeroDFSState(UINT radioIndex, BOOL *enable, BOOL *precac);
  *                         `wifi_hal_generic.h`.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
- *      in `docs/pages/halSpec.md`. A call made beforehand fails with `WIFI_HAL_ERROR`
- *      and changes nothing.
- * @post On success the radio uses the requested type. On failure the setting is
- *       unchanged.
+ *      in `docs/pages/halSpec.md`. This interface does not specify the outcome of a call
+ *      made beforehand: neither the status code nor the effect of the call is
+ *      established, so a caller must not rely on either.
+ * @post On success the radio uses the requested type. On failure this interface does not
+ *       specify how much of the requested change was applied, so a caller should read the
+ *       affected state back rather than assume the previous one survived.
  *
  * @returns The status of the operation.
  * @retval WIFI_HAL_SUCCESS The type was applied.
- * @retval WIFI_HAL_ERROR   `radio_index` is out of range, `mu_type` is not a declared
- *                          enumerator, the radio does not support 802.11ax, or the
- *                          vendor layer could not apply the change. The caller should
- *                          confirm the radio's variant through
- *                          `wifi_getRadioOperatingParameters()` before retrying.
+ * @retval WIFI_HAL_ERROR   The call failed. This interface does not enumerate the
+ *                          conditions that lead to this code. The caller should confirm the
+ *                          radio's variant through `wifi_getRadioOperatingParameters()`
+ *                          before retrying.
  *
  * @note This function must not suspend and must not invoke any blocking system calls;
  *       see `Blocking calls` in `docs/pages/halSpec.md`.
@@ -1555,21 +1898,25 @@ INT wifi_setDownlinkMuType(INT radio_index, wifi_dl_mu_type_t mu_type);
  * @param[in] radio_index  Index of the Wi-Fi radio, in the range `RADIO_INDEX_1` to
  *                         `MAX_NUM_RADIOS`.
  * @param[out] mu_type     Caller-allocated `wifi_dl_mu_type_t` that receives the
- *                         configured downlink multiplexing type. The caller allocates
- *                         and releases it; the `HAL` writes into it and retains no
- *                         reference to it after returning.
+ *                         configured downlink multiplexing type. The caller allocates and
+ *                         releases it, and the `HAL` writes into it during the call.
+ *                         Whether the implementation retains the pointer beyond the call
+ *                         is not specified by this interface, so the caller should keep
+ *                         the variable allocated and unmoved while the `HAL` remains
+ *                         initialised.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
- *      in `docs/pages/halSpec.md`. A call made beforehand fails with `WIFI_HAL_ERROR`
- *      and writes nothing to the output.
+ *      in `docs/pages/halSpec.md`. This interface does not specify the outcome of a call
+ *      made beforehand: neither the status code nor the effect of the call is
+ *      established, so a caller must not rely on either.
  * @post On success the output holds a declared `wifi_dl_mu_type_t` enumerator; on
  *       failure it is left unspecified.
  *
  * @returns The status of the operation.
  * @retval WIFI_HAL_SUCCESS The type was retrieved.
- * @retval WIFI_HAL_ERROR   `radio_index` is out of range, `mu_type` is NULL, or the
- *                          vendor layer could not supply the value. The caller should
- *                          validate its arguments and treat the type as unknown.
+ * @retval WIFI_HAL_ERROR   The call failed. This interface does not enumerate the
+ *                          conditions that lead to this code. The caller should validate
+ *                          its arguments and treat the type as unknown.
  *
  * @note This function must not suspend and must not invoke any blocking system calls;
  *       see `Blocking calls` in `docs/pages/halSpec.md`.
@@ -1592,18 +1939,19 @@ INT wifi_getDownlinkMuType(INT radio_index, wifi_dl_mu_type_t *mu_type);
  *                         `wifi_hal_generic.h`.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
- *      in `docs/pages/halSpec.md`. A call made beforehand fails with `WIFI_HAL_ERROR`
- *      and changes nothing.
- * @post On success the radio uses the requested type. On failure the setting is
- *       unchanged.
+ *      in `docs/pages/halSpec.md`. This interface does not specify the outcome of a call
+ *      made beforehand: neither the status code nor the effect of the call is
+ *      established, so a caller must not rely on either.
+ * @post On success the radio uses the requested type. On failure this interface does not
+ *       specify how much of the requested change was applied, so a caller should read the
+ *       affected state back rather than assume the previous one survived.
  *
  * @returns The status of the operation.
  * @retval WIFI_HAL_SUCCESS The type was applied.
- * @retval WIFI_HAL_ERROR   `radio_index` is out of range, `mu_type` is not a declared
- *                          enumerator, the radio does not support 802.11ax, or the
- *                          vendor layer could not apply the change. The caller should
- *                          read the value back with `wifi_getUplinkMuType()` rather than
- *                          retrying with the same argument.
+ * @retval WIFI_HAL_ERROR   The call failed. This interface does not enumerate the
+ *                          conditions that lead to this code. The caller should read the
+ *                          value back with `wifi_getUplinkMuType()` rather than retrying
+ *                          with the same argument.
  *
  * @note This function must not suspend and must not invoke any blocking system calls;
  *       see `Blocking calls` in `docs/pages/halSpec.md`.
@@ -1621,20 +1969,24 @@ INT wifi_setUplinkMuType(INT radio_index, wifi_ul_mu_type_t mu_type);
  *                         `MAX_NUM_RADIOS`.
  * @param[out] mu_type     Caller-allocated `wifi_ul_mu_type_t` that receives the
  *                         configured uplink multiplexing type. The caller allocates and
- *                         releases it; the `HAL` writes into it and retains no reference
- *                         to it after returning.
+ *                         releases it, and the `HAL` writes into it during the call.
+ *                         Whether the implementation retains the pointer beyond the call
+ *                         is not specified by this interface, so the caller should keep
+ *                         the variable allocated and unmoved while the `HAL` remains
+ *                         initialised.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
- *      in `docs/pages/halSpec.md`. A call made beforehand fails with `WIFI_HAL_ERROR`
- *      and writes nothing to the output.
+ *      in `docs/pages/halSpec.md`. This interface does not specify the outcome of a call
+ *      made beforehand: neither the status code nor the effect of the call is
+ *      established, so a caller must not rely on either.
  * @post On success the output holds a declared `wifi_ul_mu_type_t` enumerator; on
  *       failure it is left unspecified.
  *
  * @returns The status of the operation.
  * @retval WIFI_HAL_SUCCESS The type was retrieved.
- * @retval WIFI_HAL_ERROR   `radio_index` is out of range, `mu_type` is NULL, or the
- *                          vendor layer could not supply the value. The caller should
- *                          validate its arguments and treat the type as unknown.
+ * @retval WIFI_HAL_ERROR   The call failed. This interface does not enumerate the
+ *                          conditions that lead to this code. The caller should validate
+ *                          its arguments and treat the type as unknown.
  *
  * @note This function must not suspend and must not invoke any blocking system calls;
  *       see `Blocking calls` in `docs/pages/halSpec.md`.
@@ -1659,18 +2011,20 @@ INT wifi_getUplinkMuType(INT radio_index, wifi_ul_mu_type_t *mu_type);
  *                            interface.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
- *      in `docs/pages/halSpec.md`. A call made beforehand fails with `WIFI_HAL_ERROR`
- *      and changes nothing.
- * @post On success the radio transmits with the requested interval. On failure the
- *       setting is unchanged.
+ *      in `docs/pages/halSpec.md`. This interface does not specify the outcome of a call
+ *      made beforehand: neither the status code nor the effect of the call is
+ *      established, so a caller must not rely on either.
+ * @post On success the radio transmits with the requested interval. On failure this
+ *       interface does not specify how much of the requested change was applied, so a
+ *       caller should read the affected state back rather than assume the previous one
+ *       survived.
  *
  * @returns The status of the operation.
  * @retval WIFI_HAL_SUCCESS The interval was applied.
- * @retval WIFI_HAL_ERROR   `radio_index` is out of range, the radio does not support the
- *                          requested interval, or the vendor layer could not apply the
- *                          change. The caller should read the value back with
- *                          `wifi_getGuardInterval()` rather than retrying with the same
- *                          argument.
+ * @retval WIFI_HAL_ERROR   The call failed. This interface does not enumerate the
+ *                          conditions that lead to this code. The caller should read the
+ *                          value back with `wifi_getGuardInterval()` rather than retrying
+ *                          with the same argument.
  *
  * @note This function must not suspend and must not invoke any blocking system calls;
  *       see `Blocking calls` in `docs/pages/halSpec.md`.
@@ -1690,22 +2044,25 @@ INT wifi_setGuardInterval(INT radio_index, wifi_guard_interval_t guard_interval)
  * @param[in] radio_index     Index of the Wi-Fi radio, in the range `RADIO_INDEX_1` to
  *                            `MAX_NUM_RADIOS`.
  * @param[out] guard_interval  Caller-allocated `wifi_guard_interval_t` that receives the
- *                             configured interval. The caller allocates and releases it;
- *                             the `HAL` writes into it and retains no reference to it
- *                             after returning.
+ *                             configured interval. The caller allocates and releases it,
+ *                             and the `HAL` writes into it during the call. Whether the
+ *                             implementation retains the pointer beyond the call is not
+ *                             specified by this interface, so the caller should keep the
+ *                             variable allocated and unmoved while the `HAL` remains
+ *                             initialised.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
- *      in `docs/pages/halSpec.md`. A call made beforehand fails with `WIFI_HAL_ERROR`
- *      and writes nothing to the output.
+ *      in `docs/pages/halSpec.md`. This interface does not specify the outcome of a call
+ *      made beforehand: neither the status code nor the effect of the call is
+ *      established, so a caller must not rely on either.
  * @post On success the output holds a declared `wifi_guard_interval_t` value; on failure
  *       it is left unspecified.
  *
  * @returns The status of the operation.
  * @retval WIFI_HAL_SUCCESS The interval was retrieved.
- * @retval WIFI_HAL_ERROR   `radio_index` is out of range, `guard_interval` is NULL, or
- *                          the vendor layer could not supply the value. The caller
- *                          should validate its arguments and treat the interval as
- *                          unknown.
+ * @retval WIFI_HAL_ERROR   The call failed. This interface does not enumerate the
+ *                          conditions that lead to this code. The caller should validate
+ *                          its arguments and treat the interval as unknown.
  *
  * @note This function must not suspend and must not invoke any blocking system calls;
  *       see `Blocking calls` in `docs/pages/halSpec.md`.
@@ -1730,17 +2087,19 @@ INT wifi_getGuardInterval(INT radio_index, wifi_guard_interval_t *guard_interval
  *                         state the accepted range beyond the `UCHAR` type.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
- *      in `docs/pages/halSpec.md`. A call made beforehand fails with `WIFI_HAL_ERROR`
- *      and changes nothing.
- * @post On success the radio advertises the requested colour. On failure the advertised
- *       colour is unchanged.
+ *      in `docs/pages/halSpec.md`. This interface does not specify the outcome of a call
+ *      made beforehand: neither the status code nor the effect of the call is
+ *      established, so a caller must not rely on either.
+ * @post On success the radio advertises the requested colour. On failure this interface
+ *       does not specify how much of the requested change was applied, so a caller should
+ *       read the affected state back rather than assume the previous one survived.
  *
  * @returns The status of the operation.
  * @retval WIFI_HAL_SUCCESS The colour was applied.
- * @retval WIFI_HAL_ERROR   `radio_index` is out of range, the vendor layer rejected
- *                          `color`, or it could not apply the change. The caller should
- *                          pick a value from `wifi_getAvailableBSSColor()` rather than
- *                          retrying with the same argument.
+ * @retval WIFI_HAL_ERROR   The call failed. This interface does not enumerate the
+ *                          conditions that lead to this code. The caller should pick a
+ *                          value from `wifi_getAvailableBSSColor()` rather than retrying
+ *                          with the same argument.
  *
  * @note Changing the colour is visible to associated clients, which must relearn it from
  *       the beacon.
@@ -1759,19 +2118,23 @@ INT wifi_setBSSColor(INT radio_index, UCHAR color);
  * @param[in] radio_index  Index of the Wi-Fi radio, in the range `RADIO_INDEX_1` to
  *                         `MAX_NUM_RADIOS`.
  * @param[out] color       Caller-allocated `UCHAR` that receives the advertised colour.
- *                         The caller allocates and releases it; the `HAL` writes into it
- *                         and retains no reference to it after returning.
+ *                         The caller allocates and releases it, and the `HAL` writes into
+ *                         it during the call. Whether the implementation retains the
+ *                         pointer beyond the call is not specified by this interface, so
+ *                         the caller should keep the variable allocated and unmoved while
+ *                         the `HAL` remains initialised.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
- *      in `docs/pages/halSpec.md`. A call made beforehand fails with `WIFI_HAL_ERROR`
- *      and writes nothing to the output.
+ *      in `docs/pages/halSpec.md`. This interface does not specify the outcome of a call
+ *      made beforehand: neither the status code nor the effect of the call is
+ *      established, so a caller must not rely on either.
  * @post On success the output holds the advertised colour; on failure it is left
  *       unspecified.
  *
  * @returns The status of the operation.
  * @retval WIFI_HAL_SUCCESS The colour was retrieved.
- * @retval WIFI_HAL_ERROR   `radio_index` is out of range, `color` is NULL, or the vendor
- *                          layer could not supply the value. The caller should validate
+ * @retval WIFI_HAL_ERROR   The call failed. This interface does not enumerate the
+ *                          conditions that lead to this code. The caller should validate
  *                          its arguments and treat the colour as unknown.
  *
  * @note This function must not suspend and must not invoke any blocking system calls;
@@ -1795,26 +2158,33 @@ INT wifi_getBSSColor(INT radio_index, UCHAR *color);
  *                              no more than this many entries.
  * @param[out] colorList        Caller-allocated array of at least `maxNumberColors`
  *                              `UCHAR` elements that receives the available colours. The
- *                              caller allocates and releases it; the `HAL` writes into it
- *                              and retains no reference to it after returning. Only the
- *                              first `*numColorReturned` elements are written.
+ *                              caller allocates and releases it, and the `HAL` writes
+ *                              into it during the call. Whether the implementation
+ *                              retains the pointer beyond the call is not specified by
+ *                              this interface, so the caller should keep the array
+ *                              allocated and unmoved while the `HAL` remains initialised.
+ *                              This interface does not state whether the implementation
+ *                              writes to elements beyond the reported count, so a caller
+ *                              must neither read them nor rely on their previous contents
+ *                              surviving.
  * @param[out] numColorReturned  Caller-allocated `INT` that receives how many entries of
  *                               `colorList` were written, which never exceeds
  *                               `maxNumberColors`.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
- *      in `docs/pages/halSpec.md`. A call made beforehand fails with `WIFI_HAL_ERROR`
- *      and writes nothing to either output.
- * @post On success `*numColorReturned` gives the number of valid entries and the rest of
- *       the array is untouched. On failure both outputs are left unspecified, so a
- *       caller must not read `*numColorReturned`.
+ *      in `docs/pages/halSpec.md`. This interface does not specify the outcome of a call
+ *      made beforehand: neither the status code nor the effect of the call is
+ *      established, so a caller must not rely on either.
+ * @post On success `*numColorReturned` gives the number of valid entries at the front of
+ *       the array; this interface does not state what, if anything, was written beyond
+ *       that count. On failure both outputs are left unspecified, so a caller must not
+ *       read `*numColorReturned`.
  *
  * @returns The status of the operation.
  * @retval WIFI_HAL_SUCCESS The list was retrieved.
- * @retval WIFI_HAL_ERROR   `radio_index` is out of range, `maxNumberColors` is not
- *                          positive, either output pointer is NULL, or the vendor layer
- *                          could not supply the list. The caller should validate its
- *                          arguments and treat the available set as unknown rather than
+ * @retval WIFI_HAL_ERROR   The call failed. This interface does not enumerate the
+ *                          conditions that lead to this code. The caller should validate
+ *                          its arguments and treat the available set as unknown rather than
  *                          empty.
  *
  * @warning `maxNumberColors` is the caller's own promise about the array it passed. If it
@@ -1848,21 +2218,24 @@ INT wifi_getAvailableBSSColor(INT radio_index, INT maxNumberColors, UCHAR* color
  *                         per category.
  * @param[out] edca        Caller-allocated `wifi_edca_t` that receives the AIFS number,
  *                         the minimum and maximum contention window and the timer. The
- *                         caller allocates and releases it; the `HAL` writes into it and
- *                         retains no reference to it after returning.
+ *                         caller allocates and releases it, and the `HAL` writes into it
+ *                         during the call. Whether the implementation retains the pointer
+ *                         beyond the call is not specified by this interface, so the
+ *                         caller should keep the structure allocated and unmoved while
+ *                         the `HAL` remains initialised.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
- *      in `docs/pages/halSpec.md`. A call made beforehand fails with `WIFI_HAL_ERROR`
- *      and writes nothing to the output.
+ *      in `docs/pages/halSpec.md`. This interface does not specify the outcome of a call
+ *      made beforehand: neither the status code nor the effect of the call is
+ *      established, so a caller must not rely on either.
  * @post On success every member of `edca` holds the value in force for `ac`; on failure
  *       the structure is left unspecified.
  *
  * @returns The status of the operation.
  * @retval WIFI_HAL_SUCCESS The parameters were retrieved.
- * @retval WIFI_HAL_ERROR   `radio_index` is out of range, `ac` is not a declared
- *                          enumerator, `edca` is NULL, or the vendor layer could not
- *                          supply the values. The caller should validate its arguments
- *                          and treat the parameters as unknown.
+ * @retval WIFI_HAL_ERROR   The call failed. This interface does not enumerate the
+ *                          conditions that lead to this code. The caller should validate
+ *                          its arguments and treat the parameters as unknown.
  *
  * @note This interface exposes no setter for MU EDCA, so these parameters are read-only
  *       through this header.
@@ -1885,17 +2258,21 @@ INT wifi_getMuEdca(INT radio_index, wifi_access_category_t ac, wifi_edca_t *edca
  *                         this header.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
- *      in `docs/pages/halSpec.md`. A call made beforehand fails with `WIFI_HAL_ERROR`
- *      and changes nothing.
- * @post On success the radio requires the requested acknowledgement type. On failure the
- *       setting is unchanged.
+ *      in `docs/pages/halSpec.md`. This interface does not specify the outcome of a call
+ *      made beforehand: neither the status code nor the effect of the call is
+ *      established, so a caller must not rely on either.
+ * @post On success the radio requires the requested acknowledgement type. On failure this
+ *       interface does not specify how much of the requested change was applied, and it
+ *       offers no call that reads this setting back, so a caller must treat the setting as
+ *       being in an unknown state.
  *
  * @returns The status of the operation.
  * @retval WIFI_HAL_SUCCESS The type was applied.
- * @retval WIFI_HAL_ERROR   `radio_index` is out of range, `ack_type` is not a declared
- *                          enumerator, or the vendor layer could not apply the change.
- *                          The caller should pass a declared enumerator and treat a
- *                          repeated failure as unsupported.
+ * @retval WIFI_HAL_ERROR   The call failed. This interface does not enumerate the
+ *                          conditions that lead to this code. The caller should pass a
+ *                          declared enumerator of `wifi_ack_type_t` and must not read a
+ *                          repeated failure as proof that the mode is unsupported, since
+ *                          this interface does not report that separately.
  *
  * @note This interface exposes no getter for this setting, so a caller cannot read back
  *       what it applied.
@@ -1915,21 +2292,24 @@ INT wifi_setDownlinkDataAckType(INT radio_index, wifi_dl_data_ack_type_t ack_typ
  * @param[in] radio_index  Index of the Wi-Fi radio, in the range `RADIO_INDEX_1` to
  *                         `MAX_NUM_RADIOS`.
  * @param[out] params      Caller-allocated `wifi_80211ax_params_t` that receives the
- *                         default parameter set. The caller allocates and releases it;
- *                         the `HAL` writes into it and retains no reference to it after
- *                         returning. The structure is declared in `wifi_hal_generic.h`.
+ *                         default parameter set. The caller allocates and releases it,
+ *                         and the `HAL` writes into it during the call. Whether the
+ *                         implementation retains the pointer beyond the call is not
+ *                         specified by this interface, so the caller should keep the
+ *                         structure allocated and unmoved while the `HAL` remains
+ *                         initialised. The structure is declared in `wifi_hal_generic.h`.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
- *      in `docs/pages/halSpec.md`. A call made beforehand fails with `WIFI_HAL_ERROR`
- *      and writes nothing to the output.
+ *      in `docs/pages/halSpec.md`. This interface does not specify the outcome of a call
+ *      made beforehand: neither the status code nor the effect of the call is
+ *      established, so a caller must not rely on either.
  * @post On success the structure holds the defaults; on failure it is left unspecified.
  *
  * @returns The status of the operation.
  * @retval WIFI_HAL_SUCCESS The defaults were retrieved.
- * @retval WIFI_HAL_ERROR   `radio_index` is out of range, `params` is NULL, the radio
- *                          does not support 802.11ax, or the vendor layer could not
- *                          supply the values. The caller should validate its arguments
- *                          and treat the defaults as unavailable.
+ * @retval WIFI_HAL_ERROR   The call failed. This interface does not enumerate the
+ *                          conditions that lead to this code. The caller should validate
+ *                          its arguments and treat the defaults as unavailable.
  *
  * @note These are defaults, not the values in force. Read the current settings with the
  *       corresponding getters above.
@@ -1956,32 +2336,34 @@ INT wifi_get80211axDefaultParameters(INT radio_index, wifi_80211ax_params_t *par
  *                             `MAX_NUM_RADIOS`.
  * @param[in] operationParam   Caller-allocated, caller-owned
  *                             `wifi_radio_operationParam_t` holding the configuration to
- *                             apply. The `HAL` reads it and retains no reference to it
- *                             after returning, so a caller may pass a stack object
- *                             safely. Every member is significant, so a caller changing
+ *                             apply. The `HAL` reads it during the call. Whether the
+ *                             implementation retains the pointer beyond the call is not
+ *                             specified by this interface, so a caller should keep the
+ *                             structure allocated and unmoved while the `HAL` remains
+ *                             initialised rather than assuming a lifetime that ends with
+ *                             the call. Every member is significant, so a caller changing
  *                             one field should read the current set with
  *                             `wifi_getRadioOperatingParameters()` and modify that rather
- *                             than passing a partly populated structure. `channelSecondary`
- *                             holds `MAXNUMSECONDARYCHANNELS` entries and
- *                             `numSecondaryChannels` how many are valid;
+ *                             than passing a partly populated structure.
+ *                             `channelSecondary` holds `MAXNUMSECONDARYCHANNELS` entries
+ *                             and `numSecondaryChannels` how many are valid;
  *                             `operatingClasses` holds `MAXNUMOPERCLASSESPERBAND` entries
  *                             and `numOperatingClasses` how many are valid.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
- *      in `docs/pages/halSpec.md`. A call made beforehand fails with `WIFI_HAL_ERROR`
- *      and changes nothing.
+ *      in `docs/pages/halSpec.md`. This interface does not specify the outcome of a call
+ *      made beforehand: neither the status code nor the effect of the call is
+ *      established, so a caller must not rely on either.
  * @post On success the radio operates with the supplied parameters. On failure this
  *       interface does not state whether part of the set was applied, so a caller should
  *       read the parameters back rather than assume the radio is unchanged.
  *
  * @returns The status of the operation.
  * @retval WIFI_HAL_SUCCESS The configuration was applied.
- * @retval WIFI_HAL_ERROR   `index` is out of range, `operationParam` is NULL, the
- *                          requested combination is not permitted by the radio or the
- *                          regulatory domain, or the vendor layer could not apply it. The
- *                          caller should read the parameters back to establish the
- *                          resulting state before retrying, rather than resending the
- *                          same structure.
+ * @retval WIFI_HAL_ERROR   The call failed. This interface does not enumerate the
+ *                          conditions that lead to this code. The caller should read the
+ *                          parameters back to establish the resulting state before
+ *                          retrying, rather than resending the same structure.
  *
  * @warning Changing the channel takes the radio off the air briefly and disassociates
  *          clients that do not follow the channel switch, so this is not a call to make
@@ -2010,23 +2392,26 @@ INT wifi_setRadioOperatingParameters(wifi_radio_index_t index, wifi_radio_operat
  *                             `MAX_NUM_RADIOS`.
  * @param[out] operationParam  Caller-allocated `wifi_radio_operationParam_t` that
  *                             receives the configuration. The caller allocates and
- *                             releases it; the `HAL` writes into it and retains no
- *                             reference to it after returning. Read `numSecondaryChannels`
- *                             and `numOperatingClasses` to learn how many entries of
+ *                             releases it, and the `HAL` writes into it during the call.
+ *                             Whether the implementation retains the pointer beyond the
+ *                             call is not specified by this interface, so the caller
+ *                             should keep the structure allocated and unmoved while the
+ *                             `HAL` remains initialised. Read `numSecondaryChannels` and
+ *                             `numOperatingClasses` to learn how many entries of
  *                             `channelSecondary` and `operatingClasses` are valid.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
- *      in `docs/pages/halSpec.md`. A call made beforehand fails with `WIFI_HAL_ERROR`
- *      and writes nothing to the output.
+ *      in `docs/pages/halSpec.md`. This interface does not specify the outcome of a call
+ *      made beforehand: neither the status code nor the effect of the call is
+ *      established, so a caller must not rely on either.
  * @post On success the structure holds the configuration in force; on failure it is left
  *       unspecified, so a caller must not use it as the basis for a subsequent set.
  *
  * @returns The status of the operation.
  * @retval WIFI_HAL_SUCCESS The configuration was retrieved.
- * @retval WIFI_HAL_ERROR   `index` is out of range, `operationParam` is NULL, or the
- *                          vendor layer could not supply the values. The caller should
- *                          validate its arguments and must not apply a structure it
- *                          failed to read.
+ * @retval WIFI_HAL_ERROR   The call failed. This interface does not enumerate the
+ *                          conditions that lead to this code. The caller should validate
+ *                          its arguments and must not apply a structure it failed to read.
  *
  * @note The structure reports what the radio is doing, which can differ from what was
  *       requested - for example where `wifi_setRadioObssCoexistenceEnable()` has narrowed
@@ -2043,45 +2428,66 @@ INT wifi_getRadioOperatingParameters(wifi_radio_index_t index, wifi_radio_operat
  * @brief Reads the BSSs a radio found on a channel.
  *
  * This is how a caller learns what else is on the air - the input to channel selection
- * and to neighbour reporting. The results are returned through a `HAL`-allocated array,
- * so the ownership rule below is an exception to the general one in `Memory Model` in
- * `docs/pages/halSpec.md`, which that topic expressly permits an API to state.
+ * and to neighbour reporting. The results arrive through an array the `HAL` sets a
+ * caller-supplied pointer to, and the ownership of that array is the one part of this
+ * call's contract the interface does not settle; the `bss` parameter below states exactly
+ * what is and is not established.
  *
  * @param[in] index     Index of the Wi-Fi radio, in the range `RADIO_INDEX_1` to
  *                      `MAX_NUM_RADIOS`.
  * @param[in] channel   Caller-allocated, caller-owned `wifi_channel_t` naming the channel
- *                      number and band to report on. The `HAL` reads it and retains no
- *                      reference to it after returning.
- * @param[out] bss      Pointer to a pointer to an array of `wifi_bss_info_t` structures.
- *                      The array is allocated by the HAL layer and should be freed by the
- *                      caller. The caller passes the address of its own pointer variable,
- *                      which the `HAL` sets to the allocated array.
+ *                      number and band to report on. The `HAL` reads it during the call,
+ *                      and whether the implementation retains the pointer beyond the call
+ *                      is not specified by this interface, so the caller should keep the
+ *                      structure allocated and unmoved while the `HAL` remains
+ *                      initialised.
+ * @param[out] bss      Address of the caller's own `wifi_bss_info_t *` variable. On
+ *                      success the `HAL` sets it to an array of `*num_bss` structures the
+ *                      `HAL` produced. Who releases that array is not established by this
+ *                      interface: `Memory Model` in `docs/pages/halSpec.md` leaves memory
+ *                      the `HAL` creates with the `HAL` unless a function documents an
+ *                      exception, and it names three functions - `wifi_findNetworks()`,
+ *                      `wifi_getNeighboringWiFiStatus()` and
+ *                      `wifi_getApAssociatedDeviceDiagnosticResult3()` - as the only ones
+ *                      that do so; this call is not among them. A caller must therefore
+ *                      treat the array as `HAL`-owned: read it, copy whatever it needs to
+ *                      keep, and neither release it nor rely on it staying valid, since
+ *                      this interface states no lifetime for it and names no release
+ *                      function. A caller should set its pointer variable to NULL before
+ *                      the call, which is what lets it tell an array this call produced
+ *                      from whatever the variable held before.
  * @param[out] num_bss  Caller-allocated `UINT` that receives the number of elements in
- *                      the array `*bss` points at.
+ *                      the array `*bss` points at. Read it only after a success return.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
- *      in `docs/pages/halSpec.md`. A call made beforehand fails with `WIFI_HAL_ERROR`
- *      and allocates nothing.
- * @post On success `*bss` points at an array of `*num_bss` elements that the caller must
- *       free. On failure this interface does not state whether `*bss` was written, so a
- *       caller must initialise its pointer to NULL beforehand and free it only when it is
- *       non-NULL.
+ *      in `docs/pages/halSpec.md`. This interface does not specify the outcome of a call
+ *      made beforehand: neither the status code nor whether anything is allocated is
+ *      established, so a caller must not rely on either.
+ * @post On success `*bss` points at an array of `*num_bss` elements the caller may read.
+ *       On failure this interface establishes nothing about `*bss`: neither its value, nor
+ *       whether it was written at all, nor whether any allocation took place, so a caller
+ *       must not read it and must not release it - a non-NULL value there need not be a
+ *       pointer this call produced.
  *
  * @returns The status of the operation.
- * @retval WIFI_HAL_SUCCESS The results were retrieved and the array was allocated.
- * @retval WIFI_HAL_ERROR   `index` is out of range, any pointer argument is NULL, the
- *                          allocation failed, or the vendor layer could not supply the
- *                          results. The caller should validate its arguments and treat
- *                          the scan as having produced nothing; it must not read
- *                          `*num_bss`.
+ * @retval WIFI_HAL_SUCCESS The results were retrieved and, where there was at least one
+ *                          `BSS` to report, `*bss` was set.
+ * @retval WIFI_HAL_ERROR   The call failed. This interface does not enumerate the
+ *                          conditions that lead to this code. The caller should validate
+ *                          its arguments, treat the scan as having produced nothing, and
+ *                          read neither `*bss` nor `*num_bss`.
  *
- * @warning The caller owns the array after a successful call and leaks it if it does not
- *          free it. A repeated caller must free the previous array before the next call
- *          overwrites its pointer.
+ * @warning Do not release `*bss`. Nothing in this interface transfers the array to the
+ *          caller, so freeing it releases memory the caller does not own, and freeing it
+ *          after a failure return frees memory this call may never have produced. The
+ *          consequence is a real gap rather than caller error: because the interface
+ *          neither hands the array over nor names a release path, a caller has no
+ *          sanctioned way to reclaim it and should copy what it needs and move on.
  *
  * @note A result of zero BSSs is a successful outcome, not an error. This interface does
- *       not state whether `*bss` is allocated at all in that case, so a caller should
- *       free it only when it is non-NULL.
+ *       not state whether `*bss` is set at all in that case, so a caller should test the
+ *       pointer as well as the count before reading - which is what initialising the
+ *       pointer to NULL beforehand makes safe to do.
  * @note This call reports results that are already available; it does not itself wait for
  *       a scan to complete, and must not suspend or invoke any blocking system calls -
  *       see `Blocking calls` in `docs/pages/halSpec.md`. For notification when fresh
@@ -2093,6 +2499,13 @@ INT wifi_getRadioOperatingParameters(wifi_radio_index_t index, wifi_radio_operat
  */
 INT wifi_getScanResults(wifi_radio_index_t index, wifi_channel_t *channel, wifi_bss_info_t **bss, UINT *num_bss);
 
+/** @} */  //END OF GROUP WIFI_HAL_APIS
+
+/**
+ * @addtogroup WIFI_HAL_TYPES
+ * @{
+ */
+
 /**
  * @brief Handler type the `HAL` invokes when fresh scan results become available.
  *
@@ -2103,16 +2516,30 @@ INT wifi_getScanResults(wifi_radio_index_t index, wifi_channel_t *channel, wifi_
  *
  * @param[in] index     Index of the Wi-Fi radio the results belong to, in the range
  *                      `RADIO_INDEX_1` to `MAX_NUM_RADIOS`.
- * @param[out] bss      Pointer to a pointer to an array of `wifi_bss_info_t` structures.
- *                      The array is allocated by the HAL layer, in the same shape
- *                      `wifi_getScanResults()` uses. Per `Asynchronous Notification Model`
- *                      in `docs/pages/halSpec.md` the handler must copy anything it needs
- *                      to keep rather than retain the pointer beyond the call.
- * @param[out] num_bss  Pointer to the number of elements in the array `*bss` points at.
+ * @param[in] bss       Results delivered to the handler by the `HAL`, not something the
+ *                      handler produces: the address of a `wifi_bss_info_t *` the `HAL`
+ *                      has already set to an array it produced, in the same shape
+ *                      `wifi_getScanResults()` uses. The handler does not own the array.
+ *                      It must copy whatever it needs to keep before returning, per
+ *                      `Asynchronous Notification Model` in `docs/pages/halSpec.md`, and
+ *                      must not retain either pointer, release the array, or modify its
+ *                      contents. This interface does not state how long the array remains
+ *                      valid once the handler returns, so a handler must assume it does
+ *                      not.
+ * @param[in] num_bss   Element count delivered alongside `bss`: the address of a `UINT`
+ *                      the `HAL` has already set to the number of elements in the array
+ *                      `*bss` points at. The handler reads it to bound its traversal and
+ *                      must not write through it; the storage belongs to the `HAL` and its
+ *                      validity after the handler returns is not specified by this
+ *                      interface.
  *
  * @returns The handler's own outcome, reported back to the `HAL`.
  * @retval WIFI_HAL_SUCCESS  The handler accepted and processed the results.
  *
+ * @execution callback
+ * @note This interface does not state whether or how the `HAL` acts on a failure the
+ *       handler returns, so a handler must not use the return value to steer the
+ *       `HAL`.
  * @note This interface does not specify how the `HAL` interprets any other returned
  *       value, so an implementer should return `WIFI_HAL_SUCCESS` on successful handling
  *       and must not rely on a non-success return causing the `HAL` to retry, re-deliver
@@ -2130,20 +2557,31 @@ INT wifi_getScanResults(wifi_radio_index_t index, wifi_channel_t *channel, wifi_
  */
 typedef INT ( * wifi_scanResults_callback)(wifi_radio_index_t index, wifi_bss_info_t **bss, UINT *num_bss);
 
+/** @} */  //END OF GROUP WIFI_HAL_TYPES
+
+/**
+ * @addtogroup WIFI_HAL_APIS
+ * @{
+ */
+
 /**
  * @brief Installs the caller's handler for scan-result notifications.
  *
  * After registration the `HAL` reports each set of fresh scan results through the
- * supplied handler, which spares a caller from polling `wifi_getScanResults()`. The most
- * recently registered handler replaces any previous one. This is one of the asynchronous
- * registration functions listed under `Asynchronous Notification Model` in
- * `docs/pages/halSpec.md`.
+ * supplied handler, which spares a caller from polling `wifi_getScanResults()`. This
+ * interface does not state whether registering a second handler replaces the first,
+ * adds to it or is rejected, so a caller must not depend on any of those outcomes.
+ * This is one of the asynchronous registration functions listed under `Asynchronous
+ * Notification Model` in `docs/pages/halSpec.md`.
  *
  * @param[in] callback_proc  Handler to install, of type `wifi_scanResults_callback`. The
- *                           `HAL` retains this function pointer and invokes it until it
- *                           is replaced, so the function must remain callable for that
- *                           whole period. The effect of passing NULL is not specified by
- *                           this interface.
+ *                           `HAL` keeps this function pointer after the call returns,
+ *                           since it invokes the handler later, so the function must
+ *                           remain callable for as long as scan results are wanted.
+ *                           This interface declares no call that removes a handler and
+ *                           states no end to a registration, so it does not establish
+ *                           when the `HAL` stops using the pointer. The effect of
+ *                           passing NULL is not specified by this interface.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
  *      in `docs/pages/halSpec.md`. The effect of registering beforehand is not specified
@@ -2151,7 +2589,10 @@ typedef INT ( * wifi_scanResults_callback)(wifi_radio_index_t index, wifi_bss_in
  * @post The handler is installed and is invoked on each subsequent set of scan results.
  *
  * @execution callback
- * @sideeffect None
+ * @sideeffect Installs `callback_proc` as the handler the `HAL` invokes when fresh
+ *             scan results become available, and keeps that function pointer after
+ *             this call returns. This interface states no other effect; in particular
+ *             it does not state that registering starts a scan.
  *
  * @note The registration call itself is synchronous and returns nothing; delivery of
  *       `wifi_scanResults_callback` is asynchronous.
@@ -2178,24 +2619,27 @@ void wifi_scanResults_callback_register(wifi_scanResults_callback callback_proc)
  *                            `MAX_NUM_RADIOS`.
  * @param[out] output_struct   Caller-allocated `wifi_radioTemperature_t` whose
  *                             `radio_Temperature` member receives the chipset
- *                             temperature. The caller allocates and releases it; the
- *                             `HAL` writes into it and retains no reference to it after
- *                             returning.
+ *                             temperature. The caller allocates and releases it, and the
+ *                             `HAL` writes into it during the call. Whether the
+ *                             implementation retains the pointer beyond the call is not
+ *                             specified by this interface, so the caller should keep the
+ *                             structure allocated and unmoved while the `HAL` remains
+ *                             initialised.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
- *      in `docs/pages/halSpec.md`. A call made beforehand fails with `WIFI_HAL_ERROR`
- *      and writes nothing to the output.
+ *      in `docs/pages/halSpec.md`. This interface does not specify the outcome of a call
+ *      made beforehand: neither the status code nor the effect of the call is
+ *      established, so a caller must not rely on either.
  * @post On success the structure holds a temperature reading; on failure it is left
  *       unspecified, so a caller must not read it as zero degrees.
  *
  * @returns The status of the operation. The temperature itself is returned through
  *          `output_struct`, not through the return value.
  * @retval WIFI_HAL_SUCCESS The temperature was retrieved.
- * @retval WIFI_HAL_ERROR   `radioIndex` is out of range, `output_struct` is NULL, the
- *                          platform exposes no temperature sensor for this radio, or the
- *                          vendor layer could not read it. The caller should validate its
- *                          arguments and treat the temperature as unavailable rather than
- *                          as a safe value.
+ * @retval WIFI_HAL_ERROR   The call failed. This interface does not enumerate the
+ *                          conditions that lead to this code. The caller should validate
+ *                          its arguments and treat the temperature as unavailable rather
+ *                          than as a safe value.
  *
  * @note The member is unsigned and this interface states no unit or scale for it, so a
  *       caller should not assume degrees Celsius, and should compare successive readings
