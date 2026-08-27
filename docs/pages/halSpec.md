@@ -295,7 +295,7 @@ The vendor should endeavour to:-
 
 **Keeping this document true:** every topic here names the file its content was derived from - a header for an interface fact, the repository's changelog and its tags for `Version History`, `docs/generate_docs.sh` for the generated-site version string. Any change to one of those files obliges a review of the topics that cite it. That makes staleness detectable from a diff rather than from a review-by date, and in particular renaming or removing a declared function invalidates `API Surface` and the `Sequence Diagram` immediately.
 
-**Who reviews it:** the repository's contribution guide gives the route - raise an issue, then open a pull request at `https://github.com/rdkcentral/rdkb-halif-wifi/compare`, which the repository's maintainers review before merging. This repository carries no `CODEOWNERS` entry and names no maintainer team, so there is no more specific addressee to record than that route.
+**Who reviews it:** the repository's contribution guide gives the route - raise an issue, then open a [pull request against this repository](https://github.com/rdkcentral/rdkb-halif-wifi/compare), which the repository's maintainers review before merging. This repository carries no `CODEOWNERS` entry and names no maintainer team, so there is no more specific addressee to record than that route.
 
 ### Licensing
 
