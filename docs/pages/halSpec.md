@@ -6,8 +6,8 @@ This table records revisions of *this document*. It is not the version of the in
 
 | Date | Comment | Version |
 | --- | --- | --- |
-| 08/16/22 | Initial Release | 0.1.0 |
-| 08/24/26 | Brought to the canonical `HAL` specification topic set. Every declared `API` is now named, the four version identities are separated, and the interface's own return codes, public types and status enumerations are documented. | 0.2.0 |
+| 2022-08-16 | Initial Release | 0.1.0 |
+| 2026-08-24 | Brought to the canonical `HAL` specification topic set. Every declared `API` is now named, the four version identities are separated, and the interface's own return codes, public types and status enumerations are documented. | 0.2.0 |
 
 Four version identities exist around this interface, and a reader who conflates them will draw the wrong conclusion about how mature it is:
 
@@ -70,6 +70,10 @@ flowchart TD;
 ```
 
 The vendor step in that flowchart stands for a layering this interface deliberately does not constrain: an implementation may reach the driver through the optional `hostapd`, `nl80211` and `cfg80211` path, which spans user space and the kernel, or through a proprietary `IOCTL` interface. Which route a vendor takes is not observable through the declarations documented here, so a caller must not depend on either; `Optional Components` below states what the interface does say about the choice.
+
+**On the architecture raster this repository carries.** `docs/pages/images/WifiHALDiagram.PNG` was audited against the interface for this revision and its reference is retained, because it carries exactly what the flowchart above abstracts: the vendor layering *below* the HAL boundary, drawn as an explicit optional region that spans user space and the kernel, beside a direct `IOCTL` and proprietary route, over the driver and the SOC hardware. Only one element of it is established by the declarations - `hostapd`, by the five functions `Optional Components` lists - so the rest is read as an illustration of one vendor arrangement and not as contract: `nl80211`, `cfg80211` and the `IOCTL` route are named by no declaration in any documented header, and the raster's own header label `hal.h` and its `Comcast` attribution predate this repository, whose umbrella header is `wifi_hal.h` under `rdkcentral` and whose documented headers contain no occurrence of `Comcast` at all. The raster is re-audited against the interface whenever this topic changes.
+
+![WiFi HAL DIAGRAM](images/WifiHALDiagram.PNG)
 
 ## Optional Components
 
