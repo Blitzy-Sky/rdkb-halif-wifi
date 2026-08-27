@@ -55,7 +55,7 @@ typedef struct
  * The `HAL` fills an instance of this structure in `wifi_getStationStats()`, where the
  * caller allocates the storage and keeps ownership of it, and passes a pointer to
  * `HAL`-owned storage to a registered `wifi_staConnectionStatus_callback` handler; see
- * `Memory Model` in `docs/pages/halSpec.md`. Every member is written by the `HAL` and
+ * `Memory Model` in the HAL specification. Every member is written by the `HAL` and
  * read by the caller.
  *
  * @see wifi_getStationStats
@@ -107,14 +107,14 @@ typedef struct
  * @param[in] bss      Pointer to a `wifi_bss_info_t` structure containing information
  *                     about the BSS to connect to. One `BSS` is passed, not an array. The
  *                     caller allocates and owns the storage, per `Memory Model` in
- *                     `docs/pages/halSpec.md`; the `HAL` reads it during the call, and
+ *                     the HAL specification; the `HAL` reads it during the call, and
  *                     whether the implementation retains the pointer afterwards is not
  *                     specified by this interface, so the caller should keep the
  *                     structure allocated and unmoved while the `HAL` remains
  *                     initialised.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
- *      in `docs/pages/halSpec.md`. A call made beforehand does not meet the runtime
+ *      in the HAL specification. A call made beforehand does not meet the runtime
  *      requirements and, per `Component Runtime Execution Requirements`, likely results
  *      in undefined behaviour.
  * @post On success the `HAL` has accepted the connect request for `ap_index`. This
@@ -137,10 +137,10 @@ typedef struct
  *       values as the `WIFI_HAL_SUCCESS` and `WIFI_HAL_ERROR` codes the rest of this
  *       interface uses for the same two outcomes. The two codes above are the whole
  *       return-code contract of this call, per `Internal Error Handling` in
- *       `docs/pages/halSpec.md`.
- * @note This call does not block, per `Blocking calls` in `docs/pages/halSpec.md`.
+ *       the HAL specification.
+ * @note This call does not block, per `Blocking calls` in the HAL specification.
  * @note The `HAL` is expected to be thread safe, per `Threading Model` in
- *       `docs/pages/halSpec.md`.
+ *       the HAL specification.
  *
  * @see wifi_findNetworks
  * @see wifi_disconnect
@@ -161,7 +161,7 @@ INT wifi_connect(INT ap_index, wifi_bss_info_t *bss);
  *                     not established by this interface.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
- *      in `docs/pages/halSpec.md`. A call made beforehand does not meet the runtime
+ *      in the HAL specification. A call made beforehand does not meet the runtime
  *      requirements and, per `Component Runtime Execution Requirements`, likely results
  *      in undefined behaviour.
  * @post On success the `HAL` has accepted the disconnect request for `ap_index`. This
@@ -180,9 +180,9 @@ INT wifi_connect(INT ap_index, wifi_bss_info_t *bss);
  *                    should read the connection state with `wifi_getStationStats()` rather
  *                    than inferring it from this code.
  *
- * @note This call does not block, per `Blocking calls` in `docs/pages/halSpec.md`.
+ * @note This call does not block, per `Blocking calls` in the HAL specification.
  * @note The `HAL` is expected to be thread safe, per `Threading Model` in
- *       `docs/pages/halSpec.md`.
+ *       the HAL specification.
  *
  * @see wifi_connect
  * @see wifi_getStationStats
@@ -203,14 +203,14 @@ INT wifi_disconnect(INT ap_index);
  *                      is not established by this interface.
  * @param[out] cap      Pointer to a caller-allocated `wifi_sta_capability_t`. The caller
  *                      allocates and owns the storage, per `Memory Model` in
- *                      `docs/pages/halSpec.md`; the `HAL` writes no member through it,
+ *                      the HAL specification; the `HAL` writes no member through it,
  *                      because the structure defines none. Whether the implementation
  *                      retains the pointer beyond the call is not specified by this
  *                      interface, so the caller should keep the structure allocated and
  *                      unmoved while the `HAL` remains initialised.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
- *      in `docs/pages/halSpec.md`. A call made beforehand does not meet the runtime
+ *      in the HAL specification. A call made beforehand does not meet the runtime
  *      requirements and, per `Component Runtime Execution Requirements`, likely results
  *      in undefined behaviour.
  * @post On success the `HAL` has accepted the request for `ap_index`; `cap` holds no
@@ -223,9 +223,9 @@ INT wifi_disconnect(INT ap_index);
  *                    failure that persists across retries; because no data crosses the
  *                    interface here, there is nothing further for the caller to recover.
  *
- * @note This call does not block, per `Blocking calls` in `docs/pages/halSpec.md`.
+ * @note This call does not block, per `Blocking calls` in the HAL specification.
  * @note The `HAL` is expected to be thread safe, per `Threading Model` in
- *       `docs/pages/halSpec.md`.
+ *       the HAL specification.
  *
  * @see wifi_sta_capability_t
  * @see wifi_getStationStats
@@ -253,7 +253,7 @@ INT wifi_getStationCapability(INT ap_index, wifi_sta_capability_t *cap);
  * @param[out] bss      Pointer to a pointer to an array of `wifi_bss_info_t`
  *                      structures. The array is allocated by the HAL layer and
  *                      should be freed by the caller. That is an explicit exception to
- *                      `Memory Model` in `docs/pages/halSpec.md`, under which memory the
+ *                      `Memory Model` in the HAL specification, under which memory the
  *                      `HAL` creates stays `HAL`-owned, and the exception applies only to
  *                      this array. On success the array holds `*num_bss` elements. This
  *                      interface does not name the function the `HAL` allocated it with,
@@ -268,7 +268,7 @@ INT wifi_getStationCapability(INT ap_index, wifi_sta_capability_t *cap);
  *                      treat both as undefined and must not release `*bss`.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
- *      in `docs/pages/halSpec.md`. A call made beforehand does not meet the runtime
+ *      in the HAL specification. A call made beforehand does not meet the runtime
  *      requirements and, per `Component Runtime Execution Requirements`, likely results
  *      in undefined behaviour.
  * @post On success `*bss` points to an array of `*num_bss` `wifi_bss_info_t` structures
@@ -287,12 +287,12 @@ INT wifi_getStationCapability(INT ap_index, wifi_sta_capability_t *cap);
  * @warning The `HAL` allocates a fresh array on each successful call and nothing in this
  *          interface releases a previous one, so a caller that scans repeatedly must free
  *          every array it is given.
- * @note This call does not block, per `Blocking calls` in `docs/pages/halSpec.md`. The
+ * @note This call does not block, per `Blocking calls` in the HAL specification. The
  *       interface does not state how a scan that takes longer than the call is completed,
  *       so a caller must not assume the returned list reflects a scan performed inside
  *       this call rather than a cached one.
  * @note The `HAL` is expected to be thread safe, per `Threading Model` in
- *       `docs/pages/halSpec.md`.
+ *       the HAL specification.
  *
  * @see wifi_connect
  * @see wifi_bss_info_t
@@ -313,7 +313,7 @@ INT wifi_findNetworks(INT ap_index, wifi_channel_t *channel, wifi_bss_info_t **b
  *                     not established by this interface.
  * @param[out] sta      Pointer to a `wifi_station_stats_t` structure to store the
  *                      station statistics. The caller allocates and owns the storage, per
- *                      `Memory Model` in `docs/pages/halSpec.md`; the `HAL` writes the
+ *                      `Memory Model` in the HAL specification; the `HAL` writes the
  *                      members during the call. Whether the implementation retains the
  *                      pointer beyond the call is not specified by this interface, so the
  *                      caller should keep the structure allocated and unmoved while the
@@ -321,7 +321,7 @@ INT wifi_findNetworks(INT ap_index, wifi_channel_t *channel, wifi_bss_info_t **b
  *                      array.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
- *      in `docs/pages/halSpec.md`. A call made beforehand does not meet the runtime
+ *      in the HAL specification. A call made beforehand does not meet the runtime
  *      requirements and, per `Component Runtime Execution Requirements`, likely results
  *      in undefined behaviour.
  * @post On success every member of `*sta` has been written, and `sta->connect_status`
@@ -334,9 +334,9 @@ INT wifi_findNetworks(INT ap_index, wifi_channel_t *channel, wifi_bss_info_t **b
  *                    lead to this code. The caller should validate its arguments and treat
  *                    the connection state as unknown rather than as disconnected.
  *
- * @note This call does not block, per `Blocking calls` in `docs/pages/halSpec.md`.
+ * @note This call does not block, per `Blocking calls` in the HAL specification.
  * @note The `HAL` is expected to be thread safe, per `Threading Model` in
- *       `docs/pages/halSpec.md`.
+ *       the HAL specification.
  *
  * @see wifi_station_stats_t
  * @see wifi_staConnectionStatus_callback_register
@@ -362,7 +362,7 @@ INT wifi_getStationStats(INT ap_index, wifi_station_stats_t *sta);
  *                     about the BSS. The `HAL` owns this storage and it is valid only for
  *                     the duration of the call; the client is responsible for creating a
  *                     copy of the data it needs afterwards, per `Asynchronous
- *                     Notification Model` in `docs/pages/halSpec.md`.
+ *                     Notification Model` in the HAL specification.
  * @param[in] sta      Pointer to a `wifi_station_stats_t` structure containing the
  *                     station statistics. Owned by the `HAL` and valid only for the
  *                     duration of the call, on the same terms as `bss_dev`; its
@@ -376,10 +376,10 @@ INT wifi_getStationStats(INT ap_index, wifi_station_stats_t *sta);
  *       handler must not rely on the notification being retried or re-delivered.
  * @note The handler must not suspend and must not invoke any blocking system calls; it
  *       should do no more than pass the event to a driver event handler task, per
- *       `Blocking calls` in `docs/pages/halSpec.md`.
+ *       `Blocking calls` in the HAL specification.
  * @note The `HAL` is expected to be thread safe and may enter the handler on a `HAL`
  *       thread, so the handler must serialise its own access to caller state; see
- *       `Threading Model` in `docs/pages/halSpec.md`.
+ *       `Threading Model` in the HAL specification.
  *
  * @see wifi_staConnectionStatus_callback_register
  * @see wifi_station_stats_t
@@ -397,7 +397,7 @@ typedef INT ( * wifi_staConnectionStatus_callback)(INT apIndex, wifi_bss_info_t 
  * After registration the `HAL` reports each connection-status change of a client `VAP`
  * through the supplied handler, so a caller can observe a `VAP` becoming connected or
  * disconnected, or its target `AP` not being found, without polling
- * `wifi_getStationStats()`. `docs/pages/halSpec.md` names this function under
+ * `wifi_getStationStats()`. the HAL specification names this function under
  * `Asynchronous Notification Model` as the registration point for client connection
  * status.
  *
@@ -412,7 +412,7 @@ typedef INT ( * wifi_staConnectionStatus_callback)(INT apIndex, wifi_bss_info_t 
  *                          specified by this interface.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
- *      in `docs/pages/halSpec.md`. The effect of registering beforehand is not specified
+ *      in the HAL specification. The effect of registering beforehand is not specified
  *      by this interface.
  * @post The handler is installed and is invoked on each subsequent connection-status
  *       change of a client `VAP`.
@@ -429,13 +429,13 @@ typedef INT ( * wifi_staConnectionStatus_callback)(INT apIndex, wifi_bss_info_t 
  *       registration replaces an earlier one, adds to it or is rejected, so a caller
  *       should register once and must not assume a handler can be removed.
  * @note This function must not suspend and must not invoke any blocking system calls; see
- *       `Blocking calls` in `docs/pages/halSpec.md`. The same holds for the handler.
+ *       `Blocking calls` in the HAL specification. The same holds for the handler.
  * @note The `HAL` is expected to be thread safe, per `Threading Model` in
- *       `docs/pages/halSpec.md`.
+ *       the HAL specification.
  * @warning The `wifi_bss_info_t` and `wifi_station_stats_t` data reaching the handler is
  *          owned by the `HAL` and is valid only for the duration of that call; the client
  *          must copy whatever it needs afterwards, per `Asynchronous Notification Model`
- *          in `docs/pages/halSpec.md`.
+ *          in the HAL specification.
  *
  * @see wifi_staConnectionStatus_callback
  * @see wifi_getStationStats

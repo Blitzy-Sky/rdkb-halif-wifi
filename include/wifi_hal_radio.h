@@ -496,7 +496,7 @@ typedef enum
  *                         `HAL` remains initialised.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
- *      in `docs/pages/halSpec.md`. This interface does not specify the outcome of a call
+ *      in the HAL specification. This interface does not specify the outcome of a call
  *      made beforehand: neither the status code nor the effect of the call is
  *      established, so a caller must not rely on either.
  * @post On success the output holds the count; on failure the output is left
@@ -510,9 +510,9 @@ typedef enum
  *                          logged and the count treated as unavailable.
  *
  * @note This function must not suspend and must not invoke any blocking system calls;
- *       see `Blocking calls` in `docs/pages/halSpec.md`.
+ *       see `Blocking calls` in the HAL specification.
  * @note The `HAL` is expected to be thread safe, per `Threading Model` in
- *       `docs/pages/halSpec.md`.
+ *       the HAL specification.
  */
 INT wifi_getRadioResetCount(INT radioIndex, ULONG *output_int);
 
@@ -525,7 +525,7 @@ INT wifi_getRadioResetCount(INT radioIndex, ULONG *output_int);
  * subset of radios - use `wifi_factoryResetRadio()` for that.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
- *      in `docs/pages/halSpec.md`. This interface does not specify the outcome of a call
+ *      in the HAL specification. This interface does not specify the outcome of a call
  *      made beforehand: neither the status code nor the effect of the call is
  *      established, so a caller must not rely on either.
  * @post On success every radio holds its factory default parameters. On failure this
@@ -543,9 +543,9 @@ INT wifi_getRadioResetCount(INT radioIndex, ULONG *output_int);
  *          bandwidth and transmit power. It is not a diagnostic call.
  *
  * @note This function must not suspend and must not invoke any blocking system calls;
- *       see `Blocking calls` in `docs/pages/halSpec.md`.
+ *       see `Blocking calls` in the HAL specification.
  * @note The `HAL` is expected to be thread safe, per `Threading Model` in
- *       `docs/pages/halSpec.md`.
+ *       the HAL specification.
  * @see wifi_factoryResetRadio
  */
 INT wifi_factoryResetRadios();
@@ -561,7 +561,7 @@ INT wifi_factoryResetRadios();
  *                        used elsewhere in this header; the two are the same type.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
- *      in `docs/pages/halSpec.md`. This interface does not specify the outcome of a call
+ *      in the HAL specification. This interface does not specify the outcome of a call
  *      made beforehand: neither the status code nor the effect of the call is
  *      established, so a caller must not rely on either.
  * @post On success the radio holds its factory default parameters. On failure the
@@ -576,9 +576,9 @@ INT wifi_factoryResetRadios();
  * @warning This discards every setting a caller has applied to this radio.
  *
  * @note This function must not suspend and must not invoke any blocking system calls;
- *       see `Blocking calls` in `docs/pages/halSpec.md`.
+ *       see `Blocking calls` in the HAL specification.
  * @note The `HAL` is expected to be thread safe, per `Threading Model` in
- *       `docs/pages/halSpec.md`.
+ *       the HAL specification.
  * @see wifi_factoryResetRadios
  */
 INT wifi_factoryResetRadio(int radioIndex);
@@ -601,7 +601,7 @@ INT wifi_factoryResetRadio(int radioIndex);
  *                          initialised.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
- *      in `docs/pages/halSpec.md`. This interface does not specify the outcome of a call
+ *      in the HAL specification. This interface does not specify the outcome of a call
  *      made beforehand: neither the status code nor the effect of the call is
  *      established, so a caller must not rely on either.
  * @post On success the output holds the administrative state; on failure it is left
@@ -615,9 +615,9 @@ INT wifi_factoryResetRadio(int radioIndex);
  *                          assuming a default.
  *
  * @note This function must not suspend and must not invoke any blocking system calls;
- *       see `Blocking calls` in `docs/pages/halSpec.md`.
+ *       see `Blocking calls` in the HAL specification.
  * @note The `HAL` is expected to be thread safe, per `Threading Model` in
- *       `docs/pages/halSpec.md`.
+ *       the HAL specification.
  * @see wifi_setRadioEnable
  * @see wifi_getRadioStatus
  */
@@ -628,7 +628,7 @@ INT wifi_getRadioEnable(INT radioIndex, BOOL *output_bool);
  *
  * Disabling a radio takes every Access Point hosted on it off the air, so this is the
  * widest-reaching radio control in this header. This interface does not state whether
- * the change survives a reboot; `Persistence Model` in `docs/pages/halSpec.md` places
+ * the change survives a reboot; `Persistence Model` in the HAL specification places
  * configuration persistence with the upper layer.
  *
  * @param[in] radioIndex  Index of the Wi-Fi radio, in the range `RADIO_INDEX_1` to
@@ -636,7 +636,7 @@ INT wifi_getRadioEnable(INT radioIndex, BOOL *output_bool);
  * @param[in] enable      `TRUE` to enable the radio, `FALSE` to disable it.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
- *      in `docs/pages/halSpec.md`. This interface does not specify the outcome of a call
+ *      in the HAL specification. This interface does not specify the outcome of a call
  *      made beforehand: neither the status code nor the effect of the call is
  *      established, so a caller must not rely on either.
  * @post On success the radio holds the requested administrative state. On failure this
@@ -654,9 +654,9 @@ INT wifi_getRadioEnable(INT radioIndex, BOOL *output_bool);
  * @note Enabling a radio does not by itself make it operational; poll
  *       `wifi_getRadioStatus()` for that.
  * @note This function must not suspend and must not invoke any blocking system calls;
- *       see `Blocking calls` in `docs/pages/halSpec.md`.
+ *       see `Blocking calls` in the HAL specification.
  * @note The `HAL` is expected to be thread safe, per `Threading Model` in
- *       `docs/pages/halSpec.md`.
+ *       the HAL specification.
  * @see wifi_getRadioEnable
  */
 INT wifi_setRadioEnable(INT radioIndex, BOOL enable);
@@ -680,7 +680,7 @@ INT wifi_setRadioEnable(INT radioIndex, BOOL enable);
  *                          the `HAL` remains initialised.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
- *      in `docs/pages/halSpec.md`. This interface does not specify the outcome of a call
+ *      in the HAL specification. This interface does not specify the outcome of a call
  *      made beforehand: neither the status code nor the effect of the call is
  *      established, so a caller must not rely on either.
  * @post On success the output holds the operational state; on failure it is left
@@ -696,9 +696,9 @@ INT wifi_setRadioEnable(INT radioIndex, BOOL enable);
  * @note This interface specifies no transition model for the operational state, so a
  *       caller waiting for a radio to come up must poll rather than expect an event.
  * @note This function must not suspend and must not invoke any blocking system calls;
- *       see `Blocking calls` in `docs/pages/halSpec.md`.
+ *       see `Blocking calls` in the HAL specification.
  * @note The `HAL` is expected to be thread safe, per `Threading Model` in
- *       `docs/pages/halSpec.md`.
+ *       the HAL specification.
  * @see wifi_getRadioEnable
  */
 INT wifi_getRadioStatus(INT radioIndex, BOOL *output_bool);
@@ -724,7 +724,7 @@ INT wifi_getRadioStatus(INT radioIndex, BOOL *output_bool);
  *                            lifetime that ends with the call.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
- *      in `docs/pages/halSpec.md`. This interface does not specify the outcome of a call
+ *      in the HAL specification. This interface does not specify the outcome of a call
  *      made beforehand: neither the status code nor the effect of the call is
  *      established, so a caller must not rely on either.
  * @post On success the buffer holds the interface name, on the representation terms
@@ -743,9 +743,9 @@ INT wifi_getRadioStatus(INT radioIndex, BOOL *output_bool);
  *          detect a buffer that is too small.
  *
  * @note This function must not suspend and must not invoke any blocking system calls;
- *       see `Blocking calls` in `docs/pages/halSpec.md`.
+ *       see `Blocking calls` in the HAL specification.
  * @note The `HAL` is expected to be thread safe, per `Threading Model` in
- *       `docs/pages/halSpec.md`.
+ *       the HAL specification.
  */
 INT wifi_getRadioIfName(INT radioIndex, CHAR *output_string);
 
@@ -770,7 +770,7 @@ INT wifi_getRadioIfName(INT radioIndex, CHAR *output_string);
  *                           the first `num_channels` are written.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
- *      in `docs/pages/halSpec.md`. This interface does not specify the outcome of a call
+ *      in the HAL specification. This interface does not specify the outcome of a call
  *      made beforehand: neither the status code nor the effect of the call is
  *      established, so a caller must not rely on either.
  * @post On success `num_channels` gives the number of valid entries; on failure the
@@ -785,9 +785,9 @@ INT wifi_getRadioIfName(INT radioIndex, CHAR *output_string);
  * @note This declaration is compiled only when `WIFI_HAL_VERSION_3_PHASE2` is defined,
  *       so a caller must guard its use with the same macro.
  * @note This function must not suspend and must not invoke any blocking system calls;
- *       see `Blocking calls` in `docs/pages/halSpec.md`.
+ *       see `Blocking calls` in the HAL specification.
  * @note The `HAL` is expected to be thread safe, per `Threading Model` in
- *       `docs/pages/halSpec.md`.
+ *       the HAL specification.
  * @see wifi_getRadioOperatingParameters
  */
 INT wifi_getRadioChannelsInUse(wifi_radio_index_t radioIndex, wifi_channels_list_t* channel_list);
@@ -812,7 +812,7 @@ INT wifi_getRadioChannelsInUse(wifi_radio_index_t radioIndex, wifi_channels_list
  *                          initialised.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
- *      in `docs/pages/halSpec.md`. This interface does not specify the outcome of a call
+ *      in the HAL specification. This interface does not specify the outcome of a call
  *      made beforehand: neither the status code nor the effect of the call is
  *      established, so a caller must not rely on either.
  * @post On success the output holds the DFS setting; on failure it is left unspecified.
@@ -824,9 +824,9 @@ INT wifi_getRadioChannelsInUse(wifi_radio_index_t radioIndex, wifi_channels_list
  *                          its arguments and treat the setting as unknown.
  *
  * @note This function must not suspend and must not invoke any blocking system calls;
- *       see `Blocking calls` in `docs/pages/halSpec.md`.
+ *       see `Blocking calls` in the HAL specification.
  * @note The `HAL` is expected to be thread safe, per `Threading Model` in
- *       `docs/pages/halSpec.md`.
+ *       the HAL specification.
  * @see wifi_setRadioDfsEnable
  * @see wifi_getRadioDfsAtBootUpEnable
  */
@@ -850,7 +850,7 @@ INT wifi_getRadioDfsEnable(INT radioIndex, BOOL *output_bool);
  *                        treated, so a caller should pass one of the two names.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
- *      in `docs/pages/halSpec.md`. This interface does not specify the outcome of a call
+ *      in the HAL specification. This interface does not specify the outcome of a call
  *      made beforehand: neither the status code nor the effect of the call is
  *      established, so a caller must not rely on either.
  * @post On success the radio holds the requested DFS setting. On failure this interface
@@ -869,13 +869,13 @@ INT wifi_getRadioDfsEnable(INT radioIndex, BOOL *output_bool);
  *          a caller should read the operating parameters back afterwards.
  *
  * @note This function must not suspend and must not invoke any blocking system calls;
- *       see `Blocking calls` in `docs/pages/halSpec.md`.
+ *       see `Blocking calls` in the HAL specification.
  * @note The `HAL` is expected to be thread safe, per `Threading Model` in
- *       `docs/pages/halSpec.md`.
+ *       the HAL specification.
  * @note The declaration above is the contract, and its second parameter is named
  *       `enabled`. `wifi_hal_emu.h` declares the same function with the same parameter
  *       types under the name `enable`; that header is an emulation surface and no header
- *       includes it, as the scope note in `docs/pages/halSpec.md` records. A reader of the
+ *       includes it, as the scope note in the HAL specification records. A reader of the
  *       generated documentation sees the two blocks presented as one entry, under whichever
  *       of the two parameter names the generator encountered first, so the name in that
  *       prototype is not necessarily the one this declaration uses.
@@ -900,7 +900,7 @@ INT wifi_setRadioDfsEnable(INT radioIndex, BOOL enabled);
  *                        initialised.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
- *      in `docs/pages/halSpec.md`. This interface does not specify the outcome of a call
+ *      in the HAL specification. This interface does not specify the outcome of a call
  *      made beforehand: neither the status code nor the effect of the call is
  *      established, so a caller must not rely on either.
  * @post On success the output holds the boot-time setting; on failure it is left
@@ -913,9 +913,9 @@ INT wifi_setRadioDfsEnable(INT radioIndex, BOOL enabled);
  *                          its arguments and treat the setting as unknown.
  *
  * @note This function must not suspend and must not invoke any blocking system calls;
- *       see `Blocking calls` in `docs/pages/halSpec.md`.
+ *       see `Blocking calls` in the HAL specification.
  * @note The `HAL` is expected to be thread safe, per `Threading Model` in
- *       `docs/pages/halSpec.md`.
+ *       the HAL specification.
  * @see wifi_setRadioDfsAtBootUpEnable
  * @see wifi_getRadioDfsEnable
  */
@@ -932,7 +932,7 @@ INT wifi_getRadioDfsAtBootUpEnable(INT radioIndex, BOOL *enable);
  * @param[in] enable      `TRUE` to enable DFS at the next boot, `FALSE` to disable it.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
- *      in `docs/pages/halSpec.md`. This interface does not specify the outcome of a call
+ *      in the HAL specification. This interface does not specify the outcome of a call
  *      made beforehand: neither the status code nor the effect of the call is
  *      established, so a caller must not rely on either.
  * @post On success the boot-time setting holds the requested value. On failure this
@@ -948,12 +948,12 @@ INT wifi_getRadioDfsAtBootUpEnable(INT radioIndex, BOOL *enable);
  *                          retrying blindly.
  *
  * @note Storage of this setting across a reboot is the implementation's
- *       responsibility; `Persistence Model` in `docs/pages/halSpec.md` places general
+ *       responsibility; `Persistence Model` in the HAL specification places general
  *       configuration persistence with the upper layer.
  * @note This function must not suspend and must not invoke any blocking system calls;
- *       see `Blocking calls` in `docs/pages/halSpec.md`.
+ *       see `Blocking calls` in the HAL specification.
  * @note The `HAL` is expected to be thread safe, per `Threading Model` in
- *       `docs/pages/halSpec.md`.
+ *       the HAL specification.
  * @see wifi_getRadioDfsAtBootUpEnable
  */
 INT wifi_setRadioDfsAtBootUpEnable(INT radioIndex, BOOL enable);
@@ -976,7 +976,7 @@ INT wifi_setRadioDfsAtBootUpEnable(INT radioIndex, BOOL enable);
  *                         remains initialised.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
- *      in `docs/pages/halSpec.md`. This interface does not specify the outcome of a call
+ *      in the HAL specification. This interface does not specify the outcome of a call
  *      made beforehand: neither the status code nor the effect of the call is
  *      established, so a caller must not rely on either.
  * @post On success the output holds the configured index; on failure it is left
@@ -989,9 +989,9 @@ INT wifi_setRadioDfsAtBootUpEnable(INT radioIndex, BOOL enable);
  *                          its arguments and treat the index as unknown.
  *
  * @note This function must not suspend and must not invoke any blocking system calls;
- *       see `Blocking calls` in `docs/pages/halSpec.md`.
+ *       see `Blocking calls` in the HAL specification.
  * @note The `HAL` is expected to be thread safe, per `Threading Model` in
- *       `docs/pages/halSpec.md`.
+ *       the HAL specification.
  * @see wifi_setRadioMCS
  */
 INT wifi_getRadioMCS(INT radioIndex, INT *output_INT);
@@ -1011,7 +1011,7 @@ INT wifi_getRadioMCS(INT radioIndex, INT *output_INT);
  *                        failure.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
- *      in `docs/pages/halSpec.md`. This interface does not specify the outcome of a call
+ *      in the HAL specification. This interface does not specify the outcome of a call
  *      made beforehand: neither the status code nor the effect of the call is
  *      established, so a caller must not rely on either.
  * @post On success the radio transmits using the requested index. On failure this interface
@@ -1026,9 +1026,9 @@ INT wifi_getRadioMCS(INT radioIndex, INT *output_INT);
  *                          the same argument.
  *
  * @note This function must not suspend and must not invoke any blocking system calls;
- *       see `Blocking calls` in `docs/pages/halSpec.md`.
+ *       see `Blocking calls` in the HAL specification.
  * @note The `HAL` is expected to be thread safe, per `Threading Model` in
- *       `docs/pages/halSpec.md`.
+ *       the HAL specification.
  * @see wifi_getRadioMCS
  */
 INT wifi_setRadioMCS(INT radioIndex, INT MCS);
@@ -1051,7 +1051,7 @@ INT wifi_setRadioMCS(INT radioIndex, INT MCS);
  *                           and unmoved while the `HAL` remains initialised.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
- *      in `docs/pages/halSpec.md`. This interface does not specify the outcome of a call
+ *      in the HAL specification. This interface does not specify the outcome of a call
  *      made beforehand: neither the status code nor the effect of the call is
  *      established, so a caller must not rely on either.
  * @post On success the output holds the power in dBm; on failure it is left unspecified.
@@ -1066,9 +1066,9 @@ INT wifi_setRadioMCS(INT radioIndex, INT MCS);
  * @note The parameter is unsigned, so this interface cannot express a negative dBm
  *       value through it.
  * @note This function must not suspend and must not invoke any blocking system calls;
- *       see `Blocking calls` in `docs/pages/halSpec.md`.
+ *       see `Blocking calls` in the HAL specification.
  * @note The `HAL` is expected to be thread safe, per `Threading Model` in
- *       `docs/pages/halSpec.md`.
+ *       the HAL specification.
  * @see wifi_getRadioPercentageTransmitPower
  */
 INT wifi_getRadioTransmitPower(INT radioIndex, ULONG *output_ulong);
@@ -1090,7 +1090,7 @@ INT wifi_getRadioTransmitPower(INT radioIndex, ULONG *output_ulong);
  *                           while the `HAL` remains initialised.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
- *      in `docs/pages/halSpec.md`. This interface does not specify the outcome of a call
+ *      in the HAL specification. This interface does not specify the outcome of a call
  *      made beforehand: neither the status code nor the effect of the call is
  *      established, so a caller must not rely on either.
  * @post On success the output holds the percentage; on failure it is left unspecified.
@@ -1102,9 +1102,9 @@ INT wifi_getRadioTransmitPower(INT radioIndex, ULONG *output_ulong);
  *                          its arguments and treat the setting as unknown.
  *
  * @note This function must not suspend and must not invoke any blocking system calls;
- *       see `Blocking calls` in `docs/pages/halSpec.md`.
+ *       see `Blocking calls` in the HAL specification.
  * @note The `HAL` is expected to be thread safe, per `Threading Model` in
- *       `docs/pages/halSpec.md`.
+ *       the HAL specification.
  * @see wifi_setRadioTransmitPower
  * @see wifi_getRadioTransmitPower
  */
@@ -1124,7 +1124,7 @@ INT wifi_getRadioPercentageTransmitPower(INT radioIndex, ULONG *output_ulong);
  *                           documents the same quantity, giving 75 and 100 as examples.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
- *      in `docs/pages/halSpec.md`. This interface does not specify the outcome of a call
+ *      in the HAL specification. This interface does not specify the outcome of a call
  *      made beforehand: neither the status code nor the effect of the call is
  *      established, so a caller must not rely on either.
  * @post On success the radio transmits at the requested percentage. On failure this
@@ -1143,9 +1143,9 @@ INT wifi_getRadioPercentageTransmitPower(INT radioIndex, ULONG *output_ulong);
  *          clients at the edge of the cell.
  *
  * @note This function must not suspend and must not invoke any blocking system calls;
- *       see `Blocking calls` in `docs/pages/halSpec.md`.
+ *       see `Blocking calls` in the HAL specification.
  * @note The `HAL` is expected to be thread safe, per `Threading Model` in
- *       `docs/pages/halSpec.md`.
+ *       the HAL specification.
  * @see wifi_getRadioPercentageTransmitPower
  */
 INT wifi_setRadioTransmitPower(INT radioIndex, ULONG TransmitPower);
@@ -1166,7 +1166,7 @@ INT wifi_setRadioTransmitPower(INT radioIndex, ULONG TransmitPower);
  *                        unmoved while the `HAL` remains initialised.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
- *      in `docs/pages/halSpec.md`. This interface does not specify the outcome of a call
+ *      in the HAL specification. This interface does not specify the outcome of a call
  *      made beforehand: neither the status code nor the effect of the call is
  *      established, so a caller must not rely on either.
  * @post On success the output holds the supported range; on failure it is left
@@ -1184,9 +1184,9 @@ INT wifi_setRadioTransmitPower(INT radioIndex, ULONG TransmitPower);
  *       a bound for `wifi_setRadioCarrierSenseThresholdInUse()` from it without
  *       vendor-specific knowledge.
  * @note This function must not suspend and must not invoke any blocking system calls;
- *       see `Blocking calls` in `docs/pages/halSpec.md`.
+ *       see `Blocking calls` in the HAL specification.
  * @note The `HAL` is expected to be thread safe, per `Threading Model` in
- *       `docs/pages/halSpec.md`.
+ *       the HAL specification.
  * @see wifi_getRadioCarrierSenseThresholdInUse
  */
 INT wifi_getRadioCarrierSenseThresholdRange(INT radioIndex, INT *output);
@@ -1210,7 +1210,7 @@ INT wifi_getRadioCarrierSenseThresholdRange(INT radioIndex, INT *output);
  *                        threshold is normally negative.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
- *      in `docs/pages/halSpec.md`. This interface does not specify the outcome of a call
+ *      in the HAL specification. This interface does not specify the outcome of a call
  *      made beforehand: neither the status code nor the effect of the call is
  *      established, so a caller must not rely on either.
  * @post On success the output holds the threshold in use; on failure it is left
@@ -1223,9 +1223,9 @@ INT wifi_getRadioCarrierSenseThresholdRange(INT radioIndex, INT *output);
  *                          its arguments and treat the threshold as unknown.
  *
  * @note This function must not suspend and must not invoke any blocking system calls;
- *       see `Blocking calls` in `docs/pages/halSpec.md`.
+ *       see `Blocking calls` in the HAL specification.
  * @note The `HAL` is expected to be thread safe, per `Threading Model` in
- *       `docs/pages/halSpec.md`.
+ *       the HAL specification.
  * @see wifi_setRadioCarrierSenseThresholdInUse
  */
 INT wifi_getRadioCarrierSenseThresholdInUse(INT radioIndex, INT *output);
@@ -1244,7 +1244,7 @@ INT wifi_getRadioCarrierSenseThresholdInUse(INT radioIndex, INT *output);
  *                        for which this interface states no fixed bound.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
- *      in `docs/pages/halSpec.md`. This interface does not specify the outcome of a call
+ *      in the HAL specification. This interface does not specify the outcome of a call
  *      made beforehand: neither the status code nor the effect of the call is
  *      established, so a caller must not rely on either.
  * @post On success the radio uses the requested threshold. On failure this interface does
@@ -1262,9 +1262,9 @@ INT wifi_getRadioCarrierSenseThresholdInUse(INT radioIndex, INT *output);
  *          neighbouring transmissions, which degrades both networks.
  *
  * @note This function must not suspend and must not invoke any blocking system calls;
- *       see `Blocking calls` in `docs/pages/halSpec.md`.
+ *       see `Blocking calls` in the HAL specification.
  * @note The `HAL` is expected to be thread safe, per `Threading Model` in
- *       `docs/pages/halSpec.md`.
+ *       the HAL specification.
  * @see wifi_getRadioCarrierSenseThresholdInUse
  * @see wifi_getRadioCarrierSenseThresholdRange
  */
@@ -1281,7 +1281,7 @@ INT wifi_setRadioCarrierSenseThresholdInUse(INT radioIndex, INT threshold);
  *                        `MAX_NUM_RADIOS`.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
- *      in `docs/pages/halSpec.md`. This interface does not specify the outcome of a call
+ *      in the HAL specification. This interface does not specify the outcome of a call
  *      made beforehand: neither the status code nor the effect of the call is
  *      established, so a caller must not rely on either.
  * @post On success the staged settings are active in the hardware. On failure this
@@ -1300,9 +1300,9 @@ INT wifi_setRadioCarrierSenseThresholdInUse(INT radioIndex, INT threshold);
  *       `wifi_setRadioOperatingParameters()`, which takes the whole parameter set at
  *       once.
  * @note This function must not suspend and must not invoke any blocking system calls;
- *       see `Blocking calls` in `docs/pages/halSpec.md`.
+ *       see `Blocking calls` in the HAL specification.
  * @note The `HAL` is expected to be thread safe, per `Threading Model` in
- *       `docs/pages/halSpec.md`.
+ *       the HAL specification.
  * @see wifi_setRadioOperatingParameters
  */
 INT wifi_applyRadioSettings(INT radioIndex);
@@ -1319,7 +1319,7 @@ INT wifi_applyRadioSettings(INT radioIndex);
  * @param[in] enable      `TRUE` to enable CTS protection, `FALSE` to disable it.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
- *      in `docs/pages/halSpec.md`. This interface does not specify the outcome of a call
+ *      in the HAL specification. This interface does not specify the outcome of a call
  *      made beforehand: neither the status code nor the effect of the call is
  *      established, so a caller must not rely on either.
  * @post On success the radio holds the requested setting. On failure this interface does
@@ -1337,16 +1337,16 @@ INT wifi_applyRadioSettings(INT radioIndex);
  * @sideeffect On success, changes the radio's CTS protection behaviour, which affects
  *             every station associated with that radio. This interface states no
  *             other effect, and does not state whether the change survives a restart;
- *             see `Persistence Model` in `docs/pages/halSpec.md`.
+ *             see `Persistence Model` in the HAL specification.
  *
  * @note This block states its outcome as `RETURN_OK`/`RETURN_ERR` where its neighbours
  *       use `WIFI_HAL_SUCCESS`/`WIFI_HAL_ERROR`. The two pairs are numerically identical
  *       aliases defined in `wifi_hal_generic.h`, and the spelling is retained here
  *       because it is this API's own documented contract.
  * @note This function must not suspend and must not invoke any blocking system calls;
- *       see `Blocking calls` in `docs/pages/halSpec.md`.
+ *       see `Blocking calls` in the HAL specification.
  * @note The `HAL` is expected to be thread safe, per `Threading Model` in
- *       `docs/pages/halSpec.md`.
+ *       the HAL specification.
  * @see wifi_setRadioObssCoexistenceEnable
  */
 INT wifi_setRadioCtsProtectionEnable(INT radioIndex, BOOL enable);
@@ -1365,7 +1365,7 @@ INT wifi_setRadioCtsProtectionEnable(INT radioIndex, BOOL enable);
  * @param[in] enable   `TRUE` to enable OBSS coexistence, `FALSE` to disable it.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
- *      in `docs/pages/halSpec.md`. This interface does not specify the outcome of a call
+ *      in the HAL specification. This interface does not specify the outcome of a call
  *      made beforehand: neither the status code nor the effect of the call is
  *      established, so a caller must not rely on either.
  * @post On success the radio holds the requested setting. On failure this interface does
@@ -1387,9 +1387,9 @@ INT wifi_setRadioCtsProtectionEnable(INT radioIndex, BOOL enable);
  *       caller comparing `wifi_getRadioOperatingParameters()` against what it set
  *       should expect a difference.
  * @note This function must not suspend and must not invoke any blocking system calls;
- *       see `Blocking calls` in `docs/pages/halSpec.md`.
+ *       see `Blocking calls` in the HAL specification.
  * @note The `HAL` is expected to be thread safe, per `Threading Model` in
- *       `docs/pages/halSpec.md`.
+ *       the HAL specification.
  * @see wifi_setRadioCtsProtectionEnable
  */
 INT wifi_setRadioObssCoexistenceEnable(INT apIndex, BOOL enable);
@@ -1409,7 +1409,7 @@ INT wifi_setRadioObssCoexistenceEnable(INT apIndex, BOOL enable);
  *                        infer a bound from a failure.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
- *      in `docs/pages/halSpec.md`. This interface does not specify the outcome of a call
+ *      in the HAL specification. This interface does not specify the outcome of a call
  *      made beforehand: neither the status code nor the effect of the call is
  *      established, so a caller must not rely on either.
  * @post On success the radio fragments at the requested size. On failure this interface
@@ -1425,9 +1425,9 @@ INT wifi_setRadioObssCoexistenceEnable(INT apIndex, BOOL enable);
  *                          than retrying with the same argument.
  *
  * @note This function must not suspend and must not invoke any blocking system calls;
- *       see `Blocking calls` in `docs/pages/halSpec.md`.
+ *       see `Blocking calls` in the HAL specification.
  * @note The `HAL` is expected to be thread safe, per `Threading Model` in
- *       `docs/pages/halSpec.md`.
+ *       the HAL specification.
  */
 INT wifi_setRadioFragmentationThreshold(INT radioIndex, UINT threshold);
 
@@ -1443,7 +1443,7 @@ INT wifi_setRadioFragmentationThreshold(INT radioIndex, UINT threshold);
  * @param[in] STBC_Enable  `TRUE` to enable STBC, `FALSE` to disable it.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
- *      in `docs/pages/halSpec.md`. This interface does not specify the outcome of a call
+ *      in the HAL specification. This interface does not specify the outcome of a call
  *      made beforehand: neither the status code nor the effect of the call is
  *      established, so a caller must not rely on either.
  * @post On success the radio holds the requested setting. On failure this interface does
@@ -1462,9 +1462,9 @@ INT wifi_setRadioFragmentationThreshold(INT radioIndex, UINT threshold);
  *       distinguish an unsupported radio from a transient failure by the return value
  *       alone.
  * @note This function must not suspend and must not invoke any blocking system calls;
- *       see `Blocking calls` in `docs/pages/halSpec.md`.
+ *       see `Blocking calls` in the HAL specification.
  * @note The `HAL` is expected to be thread safe, per `Threading Model` in
- *       `docs/pages/halSpec.md`.
+ *       the HAL specification.
  */
 INT wifi_setRadioSTBCEnable(INT radioIndex, BOOL STBC_Enable);
 
@@ -1485,7 +1485,7 @@ INT wifi_setRadioSTBCEnable(INT radioIndex, BOOL STBC_Enable);
  *                          the `HAL` remains initialised.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
- *      in `docs/pages/halSpec.md`. This interface does not specify the outcome of a call
+ *      in the HAL specification. This interface does not specify the outcome of a call
  *      made beforehand: neither the status code nor the effect of the call is
  *      established, so a caller must not rely on either.
  * @post On success the output holds the setting; on failure it is left unspecified.
@@ -1497,9 +1497,9 @@ INT wifi_setRadioSTBCEnable(INT radioIndex, BOOL STBC_Enable);
  *                          its arguments and treat the setting as unknown.
  *
  * @note This function must not suspend and must not invoke any blocking system calls;
- *       see `Blocking calls` in `docs/pages/halSpec.md`.
+ *       see `Blocking calls` in the HAL specification.
  * @note The `HAL` is expected to be thread safe, per `Threading Model` in
- *       `docs/pages/halSpec.md`.
+ *       the HAL specification.
  * @see wifi_setRadioAMSDUEnable
  */
 INT wifi_getRadioAMSDUEnable(INT radioIndex, BOOL *output_bool);
@@ -1515,7 +1515,7 @@ INT wifi_getRadioAMSDUEnable(INT radioIndex, BOOL *output_bool);
  * @param[in] amsduEnable  `TRUE` to enable aggregation, `FALSE` to disable it.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
- *      in `docs/pages/halSpec.md`. This interface does not specify the outcome of a call
+ *      in the HAL specification. This interface does not specify the outcome of a call
  *      made beforehand: neither the status code nor the effect of the call is
  *      established, so a caller must not rely on either.
  * @post On success the radio holds the requested setting. On failure this interface does
@@ -1533,9 +1533,9 @@ INT wifi_getRadioAMSDUEnable(INT radioIndex, BOOL *output_bool);
  *       set `wifi_radio_operationParam_t::amsduTid` through
  *       `wifi_setRadioOperatingParameters()`; that array holds `MAX_AMSDU_TID` entries.
  * @note This function must not suspend and must not invoke any blocking system calls;
- *       see `Blocking calls` in `docs/pages/halSpec.md`.
+ *       see `Blocking calls` in the HAL specification.
  * @note The `HAL` is expected to be thread safe, per `Threading Model` in
- *       `docs/pages/halSpec.md`.
+ *       the HAL specification.
  * @see wifi_getRadioAMSDUEnable
  */
 INT wifi_setRadioAMSDUEnable(INT radioIndex, BOOL amsduEnable);
@@ -1557,7 +1557,7 @@ INT wifi_setRadioAMSDUEnable(INT radioIndex, BOOL amsduEnable);
  *                        initialised.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
- *      in `docs/pages/halSpec.md`. This interface does not specify the outcome of a call
+ *      in the HAL specification. This interface does not specify the outcome of a call
  *      made beforehand: neither the status code nor the effect of the call is
  *      established, so a caller must not rely on either.
  * @post On success the output holds the uptime in seconds; on failure it is left
@@ -1573,9 +1573,9 @@ INT wifi_setRadioAMSDUEnable(INT radioIndex, BOOL amsduEnable);
  *       a caller should confirm the radio is operational with `wifi_getRadioStatus()`
  *       before interpreting it.
  * @note This function must not suspend and must not invoke any blocking system calls;
- *       see `Blocking calls` in `docs/pages/halSpec.md`.
+ *       see `Blocking calls` in the HAL specification.
  * @note The `HAL` is expected to be thread safe, per `Threading Model` in
- *       `docs/pages/halSpec.md`.
+ *       the HAL specification.
  * @see wifi_getRadioResetCount
  */
 INT wifi_getRadioUpTime(INT radioIndex, ULONG *uptime);
@@ -1598,7 +1598,7 @@ INT wifi_getRadioUpTime(INT radioIndex, ULONG *uptime);
  *                          the `HAL` remains initialised.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
- *      in `docs/pages/halSpec.md`. This interface does not specify the outcome of a call
+ *      in the HAL specification. This interface does not specify the outcome of a call
  *      made beforehand: neither the status code nor the effect of the call is
  *      established, so a caller must not rely on either.
  * @post On success the output holds the capability; on failure it is left unspecified,
@@ -1614,9 +1614,9 @@ INT wifi_getRadioUpTime(INT radioIndex, ULONG *uptime);
  * @note This interface exposes no setter for RDG, so the capability cannot be turned on
  *       or off through this header.
  * @note This function must not suspend and must not invoke any blocking system calls;
- *       see `Blocking calls` in `docs/pages/halSpec.md`.
+ *       see `Blocking calls` in the HAL specification.
  * @note The `HAL` is expected to be thread safe, per `Threading Model` in
- *       `docs/pages/halSpec.md`.
+ *       the HAL specification.
  */
 INT wifi_getRadioReverseDirectionGrantSupported(INT radioIndex, BOOL *output_bool);
 
@@ -1638,7 +1638,7 @@ INT wifi_getRadioReverseDirectionGrantSupported(INT radioIndex, BOOL *output_boo
  *                          the `HAL` remains initialised.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
- *      in `docs/pages/halSpec.md`. This interface does not specify the outcome of a call
+ *      in the HAL specification. This interface does not specify the outcome of a call
  *      made beforehand: neither the status code nor the effect of the call is
  *      established, so a caller must not rely on either.
  * @post On success the output holds the setting; on failure it is left unspecified.
@@ -1650,9 +1650,9 @@ INT wifi_getRadioReverseDirectionGrantSupported(INT radioIndex, BOOL *output_boo
  *                          its arguments and treat the setting as unknown.
  *
  * @note This function must not suspend and must not invoke any blocking system calls;
- *       see `Blocking calls` in `docs/pages/halSpec.md`.
+ *       see `Blocking calls` in the HAL specification.
  * @note The `HAL` is expected to be thread safe, per `Threading Model` in
- *       `docs/pages/halSpec.md`.
+ *       the HAL specification.
  * @see wifi_setRadioAutoBlockAckEnable
  */
 INT wifi_getRadioAutoBlockAckEnable(INT radioIndex, BOOL *output_bool);
@@ -1668,7 +1668,7 @@ INT wifi_getRadioAutoBlockAckEnable(INT radioIndex, BOOL *output_bool);
  * @param[in] enable      `TRUE` to enable automatic block ACK, `FALSE` to disable it.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
- *      in `docs/pages/halSpec.md`. This interface does not specify the outcome of a call
+ *      in the HAL specification. This interface does not specify the outcome of a call
  *      made beforehand: neither the status code nor the effect of the call is
  *      established, so a caller must not rely on either.
  * @post On success the radio holds the requested setting. On failure this interface does
@@ -1686,9 +1686,9 @@ INT wifi_getRadioAutoBlockAckEnable(INT radioIndex, BOOL *output_bool);
  *       already established, so a caller must not assume existing sessions are torn
  *       down.
  * @note This function must not suspend and must not invoke any blocking system calls;
- *       see `Blocking calls` in `docs/pages/halSpec.md`.
+ *       see `Blocking calls` in the HAL specification.
  * @note The `HAL` is expected to be thread safe, per `Threading Model` in
- *       `docs/pages/halSpec.md`.
+ *       the HAL specification.
  * @see wifi_getRadioAutoBlockAckEnable
  */
 INT wifi_setRadioAutoBlockAckEnable(INT radioIndex, BOOL enable);
@@ -1711,7 +1711,7 @@ INT wifi_setRadioAutoBlockAckEnable(INT radioIndex, BOOL enable);
  *                          the `HAL` remains initialised.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
- *      in `docs/pages/halSpec.md`. This interface does not specify the outcome of a call
+ *      in the HAL specification. This interface does not specify the outcome of a call
  *      made beforehand: neither the status code nor the effect of the call is
  *      established, so a caller must not rely on either.
  * @post On success the output holds the setting; on failure it is left unspecified.
@@ -1723,9 +1723,9 @@ INT wifi_setRadioAutoBlockAckEnable(INT radioIndex, BOOL enable);
  *                          its arguments and treat the setting as unknown.
  *
  * @note This function must not suspend and must not invoke any blocking system calls;
- *       see `Blocking calls` in `docs/pages/halSpec.md`.
+ *       see `Blocking calls` in the HAL specification.
  * @note The `HAL` is expected to be thread safe, per `Threading Model` in
- *       `docs/pages/halSpec.md`.
+ *       the HAL specification.
  * @see wifi_setRadioIGMPSnoopingEnable
  */
 INT wifi_getRadioIGMPSnoopingEnable(INT radioIndex, BOOL *output_bool);
@@ -1742,7 +1742,7 @@ INT wifi_getRadioIGMPSnoopingEnable(INT radioIndex, BOOL *output_bool);
  * @param[in] enable      `TRUE` to enable IGMP snooping, `FALSE` to disable it.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
- *      in `docs/pages/halSpec.md`. This interface does not specify the outcome of a call
+ *      in the HAL specification. This interface does not specify the outcome of a call
  *      made beforehand: neither the status code nor the effect of the call is
  *      established, so a caller must not rely on either.
  * @post On success the radio holds the requested setting. On failure this interface does
@@ -1759,9 +1759,9 @@ INT wifi_getRadioIGMPSnoopingEnable(INT radioIndex, BOOL *output_bool);
  * @note This interface does not state whether group memberships already learnt are
  *       discarded when snooping is disabled and relearnt when it is re-enabled.
  * @note This function must not suspend and must not invoke any blocking system calls;
- *       see `Blocking calls` in `docs/pages/halSpec.md`.
+ *       see `Blocking calls` in the HAL specification.
  * @note The `HAL` is expected to be thread safe, per `Threading Model` in
- *       `docs/pages/halSpec.md`.
+ *       the HAL specification.
  * @see wifi_getRadioIGMPSnoopingEnable
  */
 INT wifi_setRadioIGMPSnoopingEnable(INT radioIndex, BOOL enable);
@@ -1782,7 +1782,7 @@ INT wifi_setRadioIGMPSnoopingEnable(INT radioIndex, BOOL enable);
  *                        checks DFS channels ahead of needing them.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
- *      in `docs/pages/halSpec.md`. This interface does not specify the outcome of a call
+ *      in the HAL specification. This interface does not specify the outcome of a call
  *      made beforehand: neither the status code nor the effect of the call is
  *      established, so a caller must not rely on either.
  * @post On success the radio holds both requested settings. On failure this interface
@@ -1803,10 +1803,10 @@ INT wifi_setRadioIGMPSnoopingEnable(INT radioIndex, BOOL enable);
  *       it is not available on every platform. This interface exposes no capability
  *       query for it.
  * @note This function must not suspend and must not invoke any blocking system calls;
- *       see `Blocking calls` in `docs/pages/halSpec.md`. In particular, enabling
+ *       see `Blocking calls` in the HAL specification. In particular, enabling
  *       Zero-wait DFS starts a channel availability check - it does not wait for one.
  * @note The `HAL` is expected to be thread safe, per `Threading Model` in
- *       `docs/pages/halSpec.md`.
+ *       the HAL specification.
  * @see wifi_getZeroDFSState
  * @see wifi_setRadioDfsEnable
  */
@@ -1831,7 +1831,7 @@ INT wifi_setZeroDFSState(UINT radioIndex, BOOL enable, BOOL precac);
  *                        the same ownership terms as `enable`.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
- *      in `docs/pages/halSpec.md`. This interface does not specify the outcome of a call
+ *      in the HAL specification. This interface does not specify the outcome of a call
  *      made beforehand: neither the status code nor the effect of the call is
  *      established, so a caller must not rely on either.
  * @post On success both outputs hold their current setting; on failure both are left
@@ -1846,9 +1846,9 @@ INT wifi_setZeroDFSState(UINT radioIndex, BOOL enable, BOOL precac);
  * @note `precac` is meaningful only in the EU regulatory domain; elsewhere its value
  *       carries no operational meaning.
  * @note This function must not suspend and must not invoke any blocking system calls;
- *       see `Blocking calls` in `docs/pages/halSpec.md`.
+ *       see `Blocking calls` in the HAL specification.
  * @note The `HAL` is expected to be thread safe, per `Threading Model` in
- *       `docs/pages/halSpec.md`.
+ *       the HAL specification.
  * @see wifi_setZeroDFSState
  */
 INT wifi_getZeroDFSState(UINT radioIndex, BOOL *enable, BOOL *precac);
@@ -1869,7 +1869,7 @@ INT wifi_getZeroDFSState(UINT radioIndex, BOOL *enable, BOOL *precac);
  *                         `wifi_hal_generic.h`.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
- *      in `docs/pages/halSpec.md`. This interface does not specify the outcome of a call
+ *      in the HAL specification. This interface does not specify the outcome of a call
  *      made beforehand: neither the status code nor the effect of the call is
  *      established, so a caller must not rely on either.
  * @post On success the radio uses the requested type. On failure this interface does not
@@ -1884,9 +1884,9 @@ INT wifi_getZeroDFSState(UINT radioIndex, BOOL *enable, BOOL *precac);
  *                          before retrying.
  *
  * @note This function must not suspend and must not invoke any blocking system calls;
- *       see `Blocking calls` in `docs/pages/halSpec.md`.
+ *       see `Blocking calls` in the HAL specification.
  * @note The `HAL` is expected to be thread safe, per `Threading Model` in
- *       `docs/pages/halSpec.md`.
+ *       the HAL specification.
  * @see wifi_getDownlinkMuType
  * @see wifi_setUplinkMuType
  */
@@ -1906,7 +1906,7 @@ INT wifi_setDownlinkMuType(INT radio_index, wifi_dl_mu_type_t mu_type);
  *                         initialised.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
- *      in `docs/pages/halSpec.md`. This interface does not specify the outcome of a call
+ *      in the HAL specification. This interface does not specify the outcome of a call
  *      made beforehand: neither the status code nor the effect of the call is
  *      established, so a caller must not rely on either.
  * @post On success the output holds a declared `wifi_dl_mu_type_t` enumerator; on
@@ -1919,9 +1919,9 @@ INT wifi_setDownlinkMuType(INT radio_index, wifi_dl_mu_type_t mu_type);
  *                          its arguments and treat the type as unknown.
  *
  * @note This function must not suspend and must not invoke any blocking system calls;
- *       see `Blocking calls` in `docs/pages/halSpec.md`.
+ *       see `Blocking calls` in the HAL specification.
  * @note The `HAL` is expected to be thread safe, per `Threading Model` in
- *       `docs/pages/halSpec.md`.
+ *       the HAL specification.
  * @see wifi_setDownlinkMuType
  */
 INT wifi_getDownlinkMuType(INT radio_index, wifi_dl_mu_type_t *mu_type);
@@ -1939,7 +1939,7 @@ INT wifi_getDownlinkMuType(INT radio_index, wifi_dl_mu_type_t *mu_type);
  *                         `wifi_hal_generic.h`.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
- *      in `docs/pages/halSpec.md`. This interface does not specify the outcome of a call
+ *      in the HAL specification. This interface does not specify the outcome of a call
  *      made beforehand: neither the status code nor the effect of the call is
  *      established, so a caller must not rely on either.
  * @post On success the radio uses the requested type. On failure this interface does not
@@ -1954,9 +1954,9 @@ INT wifi_getDownlinkMuType(INT radio_index, wifi_dl_mu_type_t *mu_type);
  *                          with the same argument.
  *
  * @note This function must not suspend and must not invoke any blocking system calls;
- *       see `Blocking calls` in `docs/pages/halSpec.md`.
+ *       see `Blocking calls` in the HAL specification.
  * @note The `HAL` is expected to be thread safe, per `Threading Model` in
- *       `docs/pages/halSpec.md`.
+ *       the HAL specification.
  * @see wifi_getUplinkMuType
  * @see wifi_setDownlinkMuType
  */
@@ -1976,7 +1976,7 @@ INT wifi_setUplinkMuType(INT radio_index, wifi_ul_mu_type_t mu_type);
  *                         initialised.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
- *      in `docs/pages/halSpec.md`. This interface does not specify the outcome of a call
+ *      in the HAL specification. This interface does not specify the outcome of a call
  *      made beforehand: neither the status code nor the effect of the call is
  *      established, so a caller must not rely on either.
  * @post On success the output holds a declared `wifi_ul_mu_type_t` enumerator; on
@@ -1989,9 +1989,9 @@ INT wifi_setUplinkMuType(INT radio_index, wifi_ul_mu_type_t mu_type);
  *                          its arguments and treat the type as unknown.
  *
  * @note This function must not suspend and must not invoke any blocking system calls;
- *       see `Blocking calls` in `docs/pages/halSpec.md`.
+ *       see `Blocking calls` in the HAL specification.
  * @note The `HAL` is expected to be thread safe, per `Threading Model` in
- *       `docs/pages/halSpec.md`.
+ *       the HAL specification.
  * @see wifi_setUplinkMuType
  */
 INT wifi_getUplinkMuType(INT radio_index, wifi_ul_mu_type_t *mu_type);
@@ -2011,7 +2011,7 @@ INT wifi_getUplinkMuType(INT radio_index, wifi_ul_mu_type_t *mu_type);
  *                            interface.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
- *      in `docs/pages/halSpec.md`. This interface does not specify the outcome of a call
+ *      in the HAL specification. This interface does not specify the outcome of a call
  *      made beforehand: neither the status code nor the effect of the call is
  *      established, so a caller must not rely on either.
  * @post On success the radio transmits with the requested interval. On failure this
@@ -2027,9 +2027,9 @@ INT wifi_getUplinkMuType(INT radio_index, wifi_ul_mu_type_t *mu_type);
  *                          with the same argument.
  *
  * @note This function must not suspend and must not invoke any blocking system calls;
- *       see `Blocking calls` in `docs/pages/halSpec.md`.
+ *       see `Blocking calls` in the HAL specification.
  * @note The `HAL` is expected to be thread safe, per `Threading Model` in
- *       `docs/pages/halSpec.md`.
+ *       the HAL specification.
  * @see wifi_getGuardInterval
  */
 INT wifi_setGuardInterval(INT radio_index, wifi_guard_interval_t guard_interval);
@@ -2052,7 +2052,7 @@ INT wifi_setGuardInterval(INT radio_index, wifi_guard_interval_t guard_interval)
  *                             initialised.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
- *      in `docs/pages/halSpec.md`. This interface does not specify the outcome of a call
+ *      in the HAL specification. This interface does not specify the outcome of a call
  *      made beforehand: neither the status code nor the effect of the call is
  *      established, so a caller must not rely on either.
  * @post On success the output holds a declared `wifi_guard_interval_t` value; on failure
@@ -2065,9 +2065,9 @@ INT wifi_setGuardInterval(INT radio_index, wifi_guard_interval_t guard_interval)
  *                          its arguments and treat the interval as unknown.
  *
  * @note This function must not suspend and must not invoke any blocking system calls;
- *       see `Blocking calls` in `docs/pages/halSpec.md`.
+ *       see `Blocking calls` in the HAL specification.
  * @note The `HAL` is expected to be thread safe, per `Threading Model` in
- *       `docs/pages/halSpec.md`.
+ *       the HAL specification.
  * @see wifi_setGuardInterval
  */
 INT wifi_getGuardInterval(INT radio_index, wifi_guard_interval_t *guard_interval);
@@ -2087,7 +2087,7 @@ INT wifi_getGuardInterval(INT radio_index, wifi_guard_interval_t *guard_interval
  *                         state the accepted range beyond the `UCHAR` type.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
- *      in `docs/pages/halSpec.md`. This interface does not specify the outcome of a call
+ *      in the HAL specification. This interface does not specify the outcome of a call
  *      made beforehand: neither the status code nor the effect of the call is
  *      established, so a caller must not rely on either.
  * @post On success the radio advertises the requested colour. On failure this interface
@@ -2104,9 +2104,9 @@ INT wifi_getGuardInterval(INT radio_index, wifi_guard_interval_t *guard_interval
  * @note Changing the colour is visible to associated clients, which must relearn it from
  *       the beacon.
  * @note This function must not suspend and must not invoke any blocking system calls;
- *       see `Blocking calls` in `docs/pages/halSpec.md`.
+ *       see `Blocking calls` in the HAL specification.
  * @note The `HAL` is expected to be thread safe, per `Threading Model` in
- *       `docs/pages/halSpec.md`.
+ *       the HAL specification.
  * @see wifi_getBSSColor
  * @see wifi_getAvailableBSSColor
  */
@@ -2125,7 +2125,7 @@ INT wifi_setBSSColor(INT radio_index, UCHAR color);
  *                         the `HAL` remains initialised.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
- *      in `docs/pages/halSpec.md`. This interface does not specify the outcome of a call
+ *      in the HAL specification. This interface does not specify the outcome of a call
  *      made beforehand: neither the status code nor the effect of the call is
  *      established, so a caller must not rely on either.
  * @post On success the output holds the advertised colour; on failure it is left
@@ -2138,9 +2138,9 @@ INT wifi_setBSSColor(INT radio_index, UCHAR color);
  *                          its arguments and treat the colour as unknown.
  *
  * @note This function must not suspend and must not invoke any blocking system calls;
- *       see `Blocking calls` in `docs/pages/halSpec.md`.
+ *       see `Blocking calls` in the HAL specification.
  * @note The `HAL` is expected to be thread safe, per `Threading Model` in
- *       `docs/pages/halSpec.md`.
+ *       the HAL specification.
  * @see wifi_setBSSColor
  */
 INT wifi_getBSSColor(INT radio_index, UCHAR *color);
@@ -2172,7 +2172,7 @@ INT wifi_getBSSColor(INT radio_index, UCHAR *color);
  *                               `maxNumberColors`.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
- *      in `docs/pages/halSpec.md`. This interface does not specify the outcome of a call
+ *      in the HAL specification. This interface does not specify the outcome of a call
  *      made beforehand: neither the status code nor the effect of the call is
  *      established, so a caller must not rely on either.
  * @post On success `*numColorReturned` gives the number of valid entries at the front of
@@ -2196,9 +2196,9 @@ INT wifi_getBSSColor(INT radio_index, UCHAR *color);
  *       caller that needs the complete set should size the array for the full 802.11ax
  *       colour space rather than relying on either behaviour.
  * @note This function must not suspend and must not invoke any blocking system calls;
- *       see `Blocking calls` in `docs/pages/halSpec.md`.
+ *       see `Blocking calls` in the HAL specification.
  * @note The `HAL` is expected to be thread safe, per `Threading Model` in
- *       `docs/pages/halSpec.md`.
+ *       the HAL specification.
  * @see wifi_setBSSColor
  */
 INT wifi_getAvailableBSSColor(INT radio_index, INT maxNumberColors, UCHAR* colorList, INT *numColorReturned);
@@ -2225,7 +2225,7 @@ INT wifi_getAvailableBSSColor(INT radio_index, INT maxNumberColors, UCHAR* color
  *                         the `HAL` remains initialised.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
- *      in `docs/pages/halSpec.md`. This interface does not specify the outcome of a call
+ *      in the HAL specification. This interface does not specify the outcome of a call
  *      made beforehand: neither the status code nor the effect of the call is
  *      established, so a caller must not rely on either.
  * @post On success every member of `edca` holds the value in force for `ac`; on failure
@@ -2240,9 +2240,9 @@ INT wifi_getAvailableBSSColor(INT radio_index, INT maxNumberColors, UCHAR* color
  * @note This interface exposes no setter for MU EDCA, so these parameters are read-only
  *       through this header.
  * @note This function must not suspend and must not invoke any blocking system calls;
- *       see `Blocking calls` in `docs/pages/halSpec.md`.
+ *       see `Blocking calls` in the HAL specification.
  * @note The `HAL` is expected to be thread safe, per `Threading Model` in
- *       `docs/pages/halSpec.md`.
+ *       the HAL specification.
  */
 INT wifi_getMuEdca(INT radio_index, wifi_access_category_t ac, wifi_edca_t *edca);
 
@@ -2258,7 +2258,7 @@ INT wifi_getMuEdca(INT radio_index, wifi_access_category_t ac, wifi_edca_t *edca
  *                         this header.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
- *      in `docs/pages/halSpec.md`. This interface does not specify the outcome of a call
+ *      in the HAL specification. This interface does not specify the outcome of a call
  *      made beforehand: neither the status code nor the effect of the call is
  *      established, so a caller must not rely on either.
  * @post On success the radio requires the requested acknowledgement type. On failure this
@@ -2277,9 +2277,9 @@ INT wifi_getMuEdca(INT radio_index, wifi_access_category_t ac, wifi_edca_t *edca
  * @note This interface exposes no getter for this setting, so a caller cannot read back
  *       what it applied.
  * @note This function must not suspend and must not invoke any blocking system calls;
- *       see `Blocking calls` in `docs/pages/halSpec.md`.
+ *       see `Blocking calls` in the HAL specification.
  * @note The `HAL` is expected to be thread safe, per `Threading Model` in
- *       `docs/pages/halSpec.md`.
+ *       the HAL specification.
  */
 INT wifi_setDownlinkDataAckType(INT radio_index, wifi_dl_data_ack_type_t ack_type);
 
@@ -2300,7 +2300,7 @@ INT wifi_setDownlinkDataAckType(INT radio_index, wifi_dl_data_ack_type_t ack_typ
  *                         initialised. The structure is declared in `wifi_hal_generic.h`.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
- *      in `docs/pages/halSpec.md`. This interface does not specify the outcome of a call
+ *      in the HAL specification. This interface does not specify the outcome of a call
  *      made beforehand: neither the status code nor the effect of the call is
  *      established, so a caller must not rely on either.
  * @post On success the structure holds the defaults; on failure it is left unspecified.
@@ -2314,9 +2314,9 @@ INT wifi_setDownlinkDataAckType(INT radio_index, wifi_dl_data_ack_type_t ack_typ
  * @note These are defaults, not the values in force. Read the current settings with the
  *       corresponding getters above.
  * @note This function must not suspend and must not invoke any blocking system calls;
- *       see `Blocking calls` in `docs/pages/halSpec.md`.
+ *       see `Blocking calls` in the HAL specification.
  * @note The `HAL` is expected to be thread safe, per `Threading Model` in
- *       `docs/pages/halSpec.md`.
+ *       the HAL specification.
  */
 INT wifi_get80211axDefaultParameters(INT radio_index, wifi_80211ax_params_t *params);
 
@@ -2329,7 +2329,7 @@ INT wifi_get80211axDefaultParameters(INT radio_index, wifi_80211ax_params_t *par
  * 802.11 variant, country code, regulatory domain, DTIM and beacon timing, rates,
  * thresholds and the operating-class list all travel together. Applying them as one set
  * avoids the intermediate states a sequence of individual setters would pass through,
- * which is why the sequence diagram in `docs/pages/halSpec.md` uses this call to bring a
+ * which is why the sequence diagram in the HAL specification uses this call to bring a
  * radio up.
  *
  * @param[in] index            Index of the Wi-Fi radio, in the range `RADIO_INDEX_1` to
@@ -2351,7 +2351,7 @@ INT wifi_get80211axDefaultParameters(INT radio_index, wifi_80211ax_params_t *par
  *                             and `numOperatingClasses` how many are valid.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
- *      in `docs/pages/halSpec.md`. This interface does not specify the outcome of a call
+ *      in the HAL specification. This interface does not specify the outcome of a call
  *      made beforehand: neither the status code nor the effect of the call is
  *      established, so a caller must not rely on either.
  * @post On success the radio operates with the supplied parameters. On failure this
@@ -2373,9 +2373,9 @@ INT wifi_get80211axDefaultParameters(INT radio_index, wifi_80211ax_params_t *par
  *       supported, `wifi_setZeroDFSState()`. This call does not wait for a channel
  *       availability check to finish; poll `wifi_getRadioStatus()` for that.
  * @note This function must not suspend and must not invoke any blocking system calls;
- *       see `Blocking calls` in `docs/pages/halSpec.md`.
+ *       see `Blocking calls` in the HAL specification.
  * @note The `HAL` is expected to be thread safe, per `Threading Model` in
- *       `docs/pages/halSpec.md`.
+ *       the HAL specification.
  * @see wifi_getRadioOperatingParameters
  * @see wifi_applyRadioSettings
  */
@@ -2401,7 +2401,7 @@ INT wifi_setRadioOperatingParameters(wifi_radio_index_t index, wifi_radio_operat
  *                             `channelSecondary` and `operatingClasses` are valid.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
- *      in `docs/pages/halSpec.md`. This interface does not specify the outcome of a call
+ *      in the HAL specification. This interface does not specify the outcome of a call
  *      made beforehand: neither the status code nor the effect of the call is
  *      established, so a caller must not rely on either.
  * @post On success the structure holds the configuration in force; on failure it is left
@@ -2417,9 +2417,9 @@ INT wifi_setRadioOperatingParameters(wifi_radio_index_t index, wifi_radio_operat
  *       requested - for example where `wifi_setRadioObssCoexistenceEnable()` has narrowed
  *       the channel width.
  * @note This function must not suspend and must not invoke any blocking system calls;
- *       see `Blocking calls` in `docs/pages/halSpec.md`.
+ *       see `Blocking calls` in the HAL specification.
  * @note The `HAL` is expected to be thread safe, per `Threading Model` in
- *       `docs/pages/halSpec.md`.
+ *       the HAL specification.
  * @see wifi_setRadioOperatingParameters
  */
 INT wifi_getRadioOperatingParameters(wifi_radio_index_t index, wifi_radio_operationParam_t *operationParam);
@@ -2444,7 +2444,7 @@ INT wifi_getRadioOperatingParameters(wifi_radio_index_t index, wifi_radio_operat
  * @param[out] bss      Address of the caller's own `wifi_bss_info_t *` variable. On
  *                      success the `HAL` sets it to an array of `*num_bss` structures the
  *                      `HAL` produced. Who releases that array is not established by this
- *                      interface: `Memory Model` in `docs/pages/halSpec.md` leaves memory
+ *                      interface: `Memory Model` in the HAL specification leaves memory
  *                      the `HAL` creates with the `HAL` unless a function documents an
  *                      exception, and it names three functions - `wifi_findNetworks()`,
  *                      `wifi_getNeighboringWiFiStatus()` and
@@ -2460,7 +2460,7 @@ INT wifi_getRadioOperatingParameters(wifi_radio_index_t index, wifi_radio_operat
  *                      the array `*bss` points at. Read it only after a success return.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
- *      in `docs/pages/halSpec.md`. This interface does not specify the outcome of a call
+ *      in the HAL specification. This interface does not specify the outcome of a call
  *      made beforehand: neither the status code nor whether anything is allocated is
  *      established, so a caller must not rely on either.
  * @post On success `*bss` points at an array of `*num_bss` elements the caller may read.
@@ -2490,10 +2490,10 @@ INT wifi_getRadioOperatingParameters(wifi_radio_index_t index, wifi_radio_operat
  *       pointer to NULL beforehand makes safe to do.
  * @note This call reports results that are already available; it does not itself wait for
  *       a scan to complete, and must not suspend or invoke any blocking system calls -
- *       see `Blocking calls` in `docs/pages/halSpec.md`. For notification when fresh
+ *       see `Blocking calls` in the HAL specification. For notification when fresh
  *       results arrive, register a handler with `wifi_scanResults_callback_register()`.
  * @note The `HAL` is expected to be thread safe, per `Threading Model` in
- *       `docs/pages/halSpec.md`.
+ *       the HAL specification.
  * @see wifi_scanResults_callback_register
  * @see wifi_scanResults_callback
  */
@@ -2521,7 +2521,7 @@ INT wifi_getScanResults(wifi_radio_index_t index, wifi_channel_t *channel, wifi_
  *                      has already set to an array it produced, in the same shape
  *                      `wifi_getScanResults()` uses. The handler does not own the array.
  *                      It must copy whatever it needs to keep before returning, per
- *                      `Asynchronous Notification Model` in `docs/pages/halSpec.md`, and
+ *                      `Asynchronous Notification Model` in the HAL specification, and
  *                      must not retain either pointer, release the array, or modify its
  *                      contents. This interface does not state how long the array remains
  *                      valid once the handler returns, so a handler must assume it does
@@ -2545,9 +2545,9 @@ INT wifi_getScanResults(wifi_radio_index_t index, wifi_channel_t *channel, wifi_
  *       and must not rely on a non-success return causing the `HAL` to retry, re-deliver
  *       or log. Report handling failures through the implementer's own logging instead.
  * @note The handler must not suspend and must not invoke any blocking system calls; see
- *       `Blocking calls` in `docs/pages/halSpec.md`. It should hand the results to its
+ *       `Blocking calls` in the HAL specification. It should hand the results to its
  *       own worker and return promptly.
- * @note `Threading Model` in `docs/pages/halSpec.md` states that the `HAL` is expected to
+ * @note `Threading Model` in the HAL specification states that the `HAL` is expected to
  *       be thread safe, but it does not state whether the `HAL` may invoke this handler
  *       from more than one thread at a time. An implementer should therefore make the
  *       handler thread safe rather than assume serialised delivery.
@@ -2572,7 +2572,7 @@ typedef INT ( * wifi_scanResults_callback)(wifi_radio_index_t index, wifi_bss_in
  * interface does not state whether registering a second handler replaces the first,
  * adds to it or is rejected, so a caller must not depend on any of those outcomes.
  * This is one of the asynchronous registration functions listed under `Asynchronous
- * Notification Model` in `docs/pages/halSpec.md`.
+ * Notification Model` in the HAL specification.
  *
  * @param[in] callback_proc  Handler to install, of type `wifi_scanResults_callback`. The
  *                           `HAL` keeps this function pointer after the call returns,
@@ -2584,7 +2584,7 @@ typedef INT ( * wifi_scanResults_callback)(wifi_radio_index_t index, wifi_bss_in
  *                           passing NULL is not specified by this interface.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
- *      in `docs/pages/halSpec.md`. The effect of registering beforehand is not specified
+ *      in the HAL specification. The effect of registering beforehand is not specified
  *      by this interface.
  * @post The handler is installed and is invoked on each subsequent set of scan results.
  *
@@ -2597,12 +2597,12 @@ typedef INT ( * wifi_scanResults_callback)(wifi_radio_index_t index, wifi_bss_in
  * @note The registration call itself is synchronous and returns nothing; delivery of
  *       `wifi_scanResults_callback` is asynchronous.
  * @note This function must not suspend and must not invoke any blocking system calls; see
- *       `Blocking calls` in `docs/pages/halSpec.md`. The same holds for the handler.
+ *       `Blocking calls` in the HAL specification. The same holds for the handler.
  * @note The `HAL` is expected to be thread safe, per `Threading Model` in
- *       `docs/pages/halSpec.md`.
+ *       the HAL specification.
  * @warning The scan-result array reaching the handler is allocated by the `HAL`. The
  *          client must copy what it needs during the call rather than retain the pointer,
- *          per `Asynchronous Notification Model` in `docs/pages/halSpec.md`.
+ *          per `Asynchronous Notification Model` in the HAL specification.
  *
  * @see wifi_scanResults_callback
  * @see wifi_getScanResults
@@ -2627,7 +2627,7 @@ void wifi_scanResults_callback_register(wifi_scanResults_callback callback_proc)
  *                             initialised.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
- *      in `docs/pages/halSpec.md`. This interface does not specify the outcome of a call
+ *      in the HAL specification. This interface does not specify the outcome of a call
  *      made beforehand: neither the status code nor the effect of the call is
  *      established, so a caller must not rely on either.
  * @post On success the structure holds a temperature reading; on failure it is left
@@ -2645,9 +2645,9 @@ void wifi_scanResults_callback_register(wifi_scanResults_callback callback_proc)
  *       caller should not assume degrees Celsius, and should compare successive readings
  *       rather than test one against an absolute threshold.
  * @note This function must not suspend and must not invoke any blocking system calls;
- *       see `Blocking calls` in `docs/pages/halSpec.md`.
+ *       see `Blocking calls` in the HAL specification.
  * @note The `HAL` is expected to be thread safe, per `Threading Model` in
- *       `docs/pages/halSpec.md`.
+ *       the HAL specification.
  */
 INT wifi_hal_getRadioTemperature(wifi_radio_index_t radioIndex, wifi_radioTemperature_t *output_struct);
 

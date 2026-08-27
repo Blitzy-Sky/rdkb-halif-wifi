@@ -129,7 +129,7 @@ extern "C"{
  * spelling while most of the surface uses the `WIFI_HAL_*` spelling - which is why a
  * `@retval` list on a declaration uses one spelling or the other rather than both. The
  * equivalence is what makes those lists interchangeable; see `Internal Error Handling` in
- * `docs/pages/halSpec.md`, which tabulates the whole vocabulary.
+ * the HAL specification, which tabulates the whole vocabulary.
  *
  * @note The definition is guarded, so a caller that already defines `RETURN_OK` keeps its
  *       own definition and this header does not override it. A caller that redefines it to
@@ -156,7 +156,7 @@ extern "C"{
  *       as `RETURN_OK`: the equivalence holds for the value `-1` and not for the name.
  * @note A caller must not read an out-parameter after a call that reported failure; on
  *       failure the contents are unspecified, per `Caller Responsibilities` under `Memory
- *       Model` in `docs/pages/halSpec.md`.
+ *       Model` in the HAL specification.
  *
  * @see WIFI_HAL_ERROR
  * @see RETURN_OK
@@ -170,10 +170,10 @@ extern "C"{
  * This is the `WIFI_HAL_*` spelling of the success code and is numerically identical to the
  * `RETURN_OK` alias above, so the two are interchangeable in a comparison. It is the only
  * status after which a caller may read the out-parameters a call was given, per `Caller
- * Responsibilities` under `Memory Model` in `docs/pages/halSpec.md`.
+ * Responsibilities` under `Memory Model` in the HAL specification.
  *
  * The six codes below are the failure vocabulary this interface defines. `Internal Error
- * Handling` in `docs/pages/halSpec.md` fixes that vocabulary once; it does not claim that
+ * Handling` in the HAL specification fixes that vocabulary once; it does not claim that
  * every function returns every code. Which codes a given function can actually return is a
  * per-function fact, stated in that function's own `@retval` list, and a caller should
  * treat a code outside that list as a fault in the implementation rather than as a
@@ -311,7 +311,7 @@ typedef char mac_addr_str_t[18]; /*!< Printable form of a MAC address, in 18 byt
  * identifies a `BSS` rather than a station. Being an array type, a `bssid_t` parameter of a
  * function adjusts to a pointer to its first element, so a callee sees the caller's storage
  * and not a copy: the caller allocates and owns the six octets. `Memory Model` in
- * `docs/pages/halSpec.md` establishes who owns that storage but not how long an
+ * the HAL specification establishes who owns that storage but not how long an
  * implementation may hold a pointer to it, so a caller should keep the six octets
  * allocated and unmoved while the `HAL` remains initialised rather than assuming a
  * lifetime that ends with the call. This is
@@ -1794,7 +1794,7 @@ typedef struct
 typedef enum
 {
     WIFI_EVENT_CHANNELS_CHANGED, /*!< The set of channels the radio occupies has changed. This interface does not state the new set with the event; a caller reads it back with `wifi_getRadioChannelsInUse()`. */
-    WIFI_EVENT_DFS_RADAR_DETECTED /*!< A radar signal was detected on a `DFS` channel. The channel becomes unusable for the regulatory non-occupancy period; see `State-Dependent Behavior` in `docs/pages/halSpec.md`. */
+    WIFI_EVENT_DFS_RADAR_DETECTED /*!< A radar signal was detected on a `DFS` channel. The channel becomes unusable for the regulatory non-occupancy period; see `State-Dependent Behavior` in the HAL specification. */
 } wifi_chan_eventType_t;
 
 /**
@@ -1804,7 +1804,7 @@ typedef enum
  * (`wifi_hal_sta.h`) and out of the connection status a station-mode notification carries.
  * They are reported values, not a state machine: this interface states no legal transition
  * between them and no ordering, so a caller must not treat a sequence of reads as a
- * transition trace. See `State Diagram` in `docs/pages/halSpec.md`, which records that the
+ * transition trace. See `State Diagram` in the HAL specification, which records that the
  * interface declares status enumerations rather than a state model.
  *
  * @see wifi_station_stats_t
@@ -2101,14 +2101,14 @@ typedef struct _wifi_associated_dev3
  * ciphers and countries - together with the index-to-interface-name maps, the per-radio
  * presence flags, the station limit, the device identity fields and whether band steering is
  * supported. Those are the values that decide which indices and which settings the rest of
- * the interface will accept, which is why `Method Sequencing` in `docs/pages/halSpec.md`
+ * the interface will accept, which is why `Method Sequencing` in the HAL specification
  * places this call before any configuration call, and why the constants this header declares
  * bound the surface rather than describe one platform.
  *
  * @param[out] cap  Pointer to a `wifi_hal_capability_t` structure to store the
  *                  HAL capabilities. One structure is written, not an array. The caller
  *                  allocates and owns the storage, per `Memory Model` in
- *                  `docs/pages/halSpec.md`. This interface does not specify whether the
+ *                  the HAL specification. This interface does not specify whether the
  *                  implementation retains the pointer beyond the call, so a caller must not
  *                  assume it may free or reuse the storage immediately on return: it should
  *                  keep the object allocated and unmoved while the `HAL` stays initialised,
@@ -2116,7 +2116,7 @@ typedef struct _wifi_associated_dev3
  *                  effect of passing `NULL` is not specified by this interface.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup` in
- *      `docs/pages/halSpec.md`. A call made beforehand does not meet the runtime
+ *      the HAL specification. A call made beforehand does not meet the runtime
  *      requirements and, per `Component Runtime Execution Requirements`, likely results in
  *      undefined behaviour; `State-Dependent Behavior` records that a function may report
  *      `WIFI_HAL_NOT_READY` or fail until initialization has completed.
@@ -2135,16 +2135,16 @@ typedef struct _wifi_associated_dev3
  *                          header allow.
  *
  * @note These are the only two codes this block documents. `Internal Error Handling` in
- *       `docs/pages/halSpec.md` fixes the wider vocabulary the interface uses, and
+ *       the HAL specification fixes the wider vocabulary the interface uses, and
  *       `WIFI_HAL_SUCCESS` is numerically identical to the `RETURN_OK` alias, so a caller may
  *       compare against either spelling.
  * @note `wifi_hal_capability_t` embeds one `wifi_radio_capabilities_t` per radio and is large
  *       for an automatic object; a caller on a constrained stack should allocate it
  *       elsewhere. It is a packed structure, so a caller must not take the address of a
  *       member and pass it where an aligned object is required.
- * @note This call does not block, per `Blocking calls` in `docs/pages/halSpec.md`.
+ * @note This call does not block, per `Blocking calls` in the HAL specification.
  * @note The `HAL` is expected to be thread safe, per `Threading Model` in
- *       `docs/pages/halSpec.md`.
+ *       the HAL specification.
  *
  * @see wifi_hal_capability_t
  * @see wifi_platform_property_t
@@ -2165,18 +2165,18 @@ INT wifi_getHalCapability(wifi_hal_capability_t *cap);
  * in `wifi_hal_radio.h` and `wifi_hal_ap.h`.
  *
  * What "factory state" contains is the implementation's own default set. `Persistence Model`
- * in `docs/pages/halSpec.md` places Wi-Fi configuration with the upper layer, so this call is
+ * in the HAL specification places Wi-Fi configuration with the upper layer, so this call is
  * not a way to recover a caller's configuration: a caller that wants a known configuration
  * afterwards reapplies it.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup` in
- *      `docs/pages/halSpec.md`. A call made beforehand does not meet the runtime requirements
+ *      the HAL specification. A call made beforehand does not meet the runtime requirements
  *      and, per `Component Runtime Execution Requirements`, likely results in undefined
  *      behaviour.
  * @post On success the implementation's Wi-Fi state is at its factory default and the
  *       initialization pre-condition applies again, so a caller re-initializes with
  *       `wifi_init()` before using the interface further; see `Object Lifecycles` and
- *       `Method Sequencing` in `docs/pages/halSpec.md`. On failure this interface does not
+ *       `Method Sequencing` in the HAL specification. On failure this interface does not
  *       state how much of the reset was carried out, so a caller must treat the subsystem's
  *       state as unknown rather than as unchanged, and re-establish it rather than continue.
  *
@@ -2187,11 +2187,11 @@ INT wifi_getHalCapability(wifi_hal_capability_t *cap);
  *                          is unspecified, the caller should re-initialize and read the
  *                          configuration back rather than retry blindly.
  *
- * @note This call does not block, per `Blocking calls` in `docs/pages/halSpec.md`. It is
+ * @note This call does not block, per `Blocking calls` in the HAL specification. It is
  *       therefore not a completion signal for the underlying work: a caller must not read a
  *       successful return as evidence that every radio has already been re-programmed.
  * @note The `HAL` is expected to be thread safe, per `Threading Model` in
- *       `docs/pages/halSpec.md`. A caller should still avoid issuing configuration calls
+ *       the HAL specification. A caller should still avoid issuing configuration calls
  *       concurrently with a teardown call, because this interface states no ordering between
  *       them and the resulting configuration would depend on which arrived first.
  *
@@ -2229,12 +2229,12 @@ INT wifi_factoryReset();
  *                       defined for any other value, so a caller should pass only those two.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup` in
- *      `docs/pages/halSpec.md`. A call made beforehand does not meet the runtime requirements
+ *      the HAL specification. A call made beforehand does not meet the runtime requirements
  *      and, per `Component Runtime Execution Requirements`, likely results in undefined
  *      behaviour.
  * @post On success the indicator for `radioIndex` reflects the requested state. This interface
  *       declares no call that reads the indicator back, so the requested state is not
- *       observable through it, and `Persistence Model` in `docs/pages/halSpec.md` leaves
+ *       observable through it, and `Persistence Model` in the HAL specification leaves
  *       whether the state survives a restart to the upper layer. On failure this interface
  *       does not state whether the indicator changed, so a caller that needs a known state
  *       should reissue the call rather than assume the previous state held.
@@ -2248,9 +2248,9 @@ INT wifi_factoryReset();
  *                          indicator being unavailable, since nothing else in the interface
  *                          depends on it.
  *
- * @note This call does not block, per `Blocking calls` in `docs/pages/halSpec.md`.
+ * @note This call does not block, per `Blocking calls` in the HAL specification.
  * @note The `HAL` is expected to be thread safe, per `Threading Model` in
- *       `docs/pages/halSpec.md`.
+ *       the HAL specification.
  *
  * @see wifi_getHalCapability
  * @see wifi_init
@@ -2261,7 +2261,7 @@ INT wifi_setLED(INT radioIndex, BOOL enable);
  * @brief Initializes all Wi-Fi radios and makes the rest of the interface usable.
  *
  * This is the lifecycle root of the whole Wi-Fi `HAL`. `Initialization and Startup` in
- * `docs/pages/halSpec.md` requires it to be called before any other function in the
+ * the HAL specification requires it to be called before any other function in the
  * interface, and every other declaration's `@pre` refers back to it: nothing else in the
  * interface - not a read, not a capability query, not a registration - is defined before this
  * call has completed successfully. `State-Dependent Behavior` records that this is the one
@@ -2300,13 +2300,13 @@ INT wifi_setLED(INT radioIndex, BOOL enable);
  *                          caller's own design decision, and a failure that persists should be
  *                          logged and treated as the Wi-Fi subsystem being unavailable.
  *
- * @note This call does not block, per `Blocking calls` in `docs/pages/halSpec.md`. A
+ * @note This call does not block, per `Blocking calls` in the HAL specification. A
  *       successful return is therefore not evidence that every radio has finished coming up,
  *       and this interface declares no completion notification for initialization; a caller
  *       that needs to observe readiness reads it back, for instance with
  *       `wifi_getRadioStatus()` in `wifi_hal_radio.h`.
  * @note The `HAL` is expected to be thread safe, per `Threading Model` in
- *       `docs/pages/halSpec.md`. That expectation does not extend to two concurrent
+ *       the HAL specification. That expectation does not extend to two concurrent
  *       `wifi_init()` calls, whose effect this interface does not state, and `Process Model`
  *       admits a single initialized instance - so a caller should initialize once, from one
  *       thread, before making the interface available to others.
@@ -2330,12 +2330,12 @@ INT wifi_init();
  *
  * It takes no index, so it applies to the whole subsystem; there is no per-radio or
  * per-Access-Point form of this call in the interface. `Module Responsibilities` under
- * `Memory Model` in `docs/pages/halSpec.md` binds the implementation to release the memory it
+ * `Memory Model` in the HAL specification binds the implementation to release the memory it
  * holds, so that nothing leaks across a reset or a re-initialization - which is the property
  * that makes reset-and-re-initialize a usable recovery path for a caller.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup` in
- *      `docs/pages/halSpec.md`. A call made beforehand does not meet the runtime requirements
+ *      the HAL specification. A call made beforehand does not meet the runtime requirements
  *      and, per `Component Runtime Execution Requirements`, likely results in undefined
  *      behaviour.
  * @post On success the subsystem's state, including the variables held for each Access Point,
@@ -2355,10 +2355,10 @@ INT wifi_init();
  *                          and read the configuration back or escalate, rather than
  *                          continue issuing configuration calls.
  *
- * @note This call does not block, per `Blocking calls` in `docs/pages/halSpec.md`, so a
+ * @note This call does not block, per `Blocking calls` in the HAL specification, so a
  *       successful return is not evidence that the subsystem has finished restarting.
  * @note The `HAL` is expected to be thread safe, per `Threading Model` in
- *       `docs/pages/halSpec.md`. A caller should still not issue configuration calls
+ *       the HAL specification. A caller should still not issue configuration calls
  *       concurrently with this one: the interface states no ordering between them, so the
  *       state that survives would depend on which arrived first.
  *
@@ -2379,11 +2379,11 @@ INT wifi_reset();
  *
  * A caller uses it when Wi-Fi must stop radiating while the process continues to run - during
  * a regulatory or maintenance action, for instance. `Object Lifecycles` in
- * `docs/pages/halSpec.md` nonetheless counts it as a teardown, so the initialization
+ * the HAL specification nonetheless counts it as a teardown, so the initialization
  * pre-condition applies again afterwards.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup` in
- *      `docs/pages/halSpec.md`. A call made beforehand does not meet the runtime requirements
+ *      the HAL specification. A call made beforehand does not meet the runtime requirements
  *      and, per `Component Runtime Execution Requirements`, likely results in undefined
  *      behaviour.
  * @post On success no radio in the subsystem is transmitting. This interface does not state
@@ -2403,10 +2403,10 @@ INT wifi_reset();
  *                          the radios must escalate rather than treat the failure as
  *                          leaving the previous state intact.
  *
- * @note This call does not block, per `Blocking calls` in `docs/pages/halSpec.md`, so a
+ * @note This call does not block, per `Blocking calls` in the HAL specification, so a
  *       successful return is not evidence that every radio has already ceased transmitting.
  * @note The `HAL` is expected to be thread safe, per `Threading Model` in
- *       `docs/pages/halSpec.md`. This interface states no ordering between this call and a
+ *       the HAL specification. This interface states no ordering between this call and a
  *       concurrent configuration or enable call, so a caller should not issue them together.
  *
  * @see wifi_init
@@ -2428,11 +2428,11 @@ INT wifi_down();
  * therefore cannot inspect, validate or remove them through this interface, and must not build
  * behaviour on their contents. The one path constant this header declares,
  * `RESTORE_CNFG_FILE_NAME`, is not stated to be one of these files: `Persistence Model` in
- * `docs/pages/halSpec.md` records that no function in this interface is stated to read or
+ * the HAL specification records that no function in this interface is stated to read or
  * write it.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup` in
- *      `docs/pages/halSpec.md`. A call made beforehand does not meet the runtime requirements
+ *      the HAL specification. A call made beforehand does not meet the runtime requirements
  *      and, per `Component Runtime Execution Requirements`, likely results in undefined
  *      behaviour.
  * @post On success the implementation's initial configuration files exist. This interface does
@@ -2451,10 +2451,10 @@ INT wifi_down();
  * @note This interface states nothing about the location, ownership or permissions of the
  *       files created, so a caller must not rely on them for any security property, and must
  *       not assume that the state it wants is protected because this call succeeded.
- * @note This call does not block, per `Blocking calls` in `docs/pages/halSpec.md`, so a
+ * @note This call does not block, per `Blocking calls` in the HAL specification, so a
  *       successful return is not evidence that every file has been written to storage.
  * @note The `HAL` is expected to be thread safe, per `Threading Model` in
- *       `docs/pages/halSpec.md`. This interface states no ordering between this call and a
+ *       the HAL specification. This interface states no ordering between this call and a
  *       concurrent configuration call that might write the same files.
  *
  * @see wifi_createHostApdConfig
@@ -2469,7 +2469,7 @@ INT wifi_createInitialConfigFiles();
  * variables are implementation-dependent and, in some implementations, are
  * used by `hostapd` when it is started. Together with `wifi_startHostApd()` and
  * `wifi_stopHostApd()` it is the caller's only interface to the optional `hostapd` path
- * described under `Optional Components` in `docs/pages/halSpec.md`; a vendor that reaches the
+ * described under `Optional Components` in the HAL specification; a vendor that reaches the
  * driver by a proprietary route still implements all three, because they are part of the
  * interface, so a successful return does not establish that `hostapd` is in use on the
  * platform. `wifi_getLibhostapd()` in `wifi_hal_ap.h` is the call that answers that question.
@@ -2493,7 +2493,7 @@ INT wifi_createInitialConfigFiles();
  *                         not use it to disable `WPS`.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup` in
- *      `docs/pages/halSpec.md`. A call made beforehand does not meet the runtime requirements
+ *      the HAL specification. A call made beforehand does not meet the runtime requirements
  *      and, per `Component Runtime Execution Requirements`, likely results in undefined
  *      behaviour.
  * @post On success the configuration variables for `apIndex` exist and are what a subsequent
@@ -2517,9 +2517,9 @@ INT wifi_createInitialConfigFiles();
  *          nothing about where they are held or who can read them, so a caller must not treat
  *          their creation as evidence that the material is protected, and must not log or
  *          trace their contents if it obtains them by another route.
- * @note This call does not block, per `Blocking calls` in `docs/pages/halSpec.md`.
+ * @note This call does not block, per `Blocking calls` in the HAL specification.
  * @note The `HAL` is expected to be thread safe, per `Threading Model` in
- *       `docs/pages/halSpec.md`. This interface states no ordering between this call and a
+ *       the HAL specification. This interface states no ordering between this call and a
  *       concurrent `wifi_startHostApd()`, so a caller should not issue them together.
  *
  * @see wifi_startHostApd
@@ -2540,12 +2540,12 @@ INT wifi_createHostApdConfig(INT apIndex, BOOL createWpsCfg);
  * per-Access-Point lifecycle from the absence of an index.
  *
  * The call belongs to the optional `hostapd` path described under `Optional Components` in
- * `docs/pages/halSpec.md`. Every implementation declares it, including one that drives the
+ * the HAL specification. Every implementation declares it, including one that drives the
  * driver by a proprietary route, so a successful return is not evidence that a `hostapd`
  * process exists on the platform.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup` in
- *      `docs/pages/halSpec.md`. A call made beforehand does not meet the runtime requirements
+ *      the HAL specification. A call made beforehand does not meet the runtime requirements
  *      and, per `Component Runtime Execution Requirements`, likely results in undefined
  *      behaviour. For the configuration to take effect, `wifi_createHostApdConfig()` should
  *      have been called for the Access Points concerned; this interface does not state what
@@ -2567,9 +2567,9 @@ INT wifi_createHostApdConfig(INT apIndex, BOOL createWpsCfg);
  *                          the `hostapd` path is unavailable on that platform, since this
  *                          interface does not report that separately.
  *
- * @note This call does not block, per `Blocking calls` in `docs/pages/halSpec.md`.
+ * @note This call does not block, per `Blocking calls` in the HAL specification.
  * @note The `HAL` is expected to be thread safe, per `Threading Model` in
- *       `docs/pages/halSpec.md`. This interface states no ordering between this call and a
+ *       the HAL specification. This interface states no ordering between this call and a
  *       concurrent `wifi_stopHostApd()`, so a caller should serialize the two itself.
  *
  * @see wifi_createHostApdConfig
@@ -2588,11 +2588,11 @@ INT wifi_startHostApd();
  * state what happens to the stations currently associated through it.
  *
  * The call belongs to the optional `hostapd` path described under `Optional Components` in
- * `docs/pages/halSpec.md`, and is declared by every implementation whether or not that path is
+ * the HAL specification, and is declared by every implementation whether or not that path is
  * the one in use.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup` in
- *      `docs/pages/halSpec.md`. A call made beforehand does not meet the runtime requirements
+ *      the HAL specification. A call made beforehand does not meet the runtime requirements
  *      and, per `Component Runtime Execution Requirements`, likely results in undefined
  *      behaviour. This interface does not state the effect of calling it when `hostapd` is not
  *      running, so a caller should not use it as a way to test whether it is.
@@ -2612,9 +2612,9 @@ INT wifi_startHostApd();
  *                          from the return code, and must not read a persistent failure as
  *                          proof of anything beyond this call not having succeeded.
  *
- * @note This call does not block, per `Blocking calls` in `docs/pages/halSpec.md`.
+ * @note This call does not block, per `Blocking calls` in the HAL specification.
  * @note The `HAL` is expected to be thread safe, per `Threading Model` in
- *       `docs/pages/halSpec.md`. This interface states no ordering between this call and a
+ *       the HAL specification. This interface states no ordering between this call and a
  *       concurrent `wifi_startHostApd()`, so a caller should serialize the two itself.
  *
  * @see wifi_startHostApd

@@ -34,7 +34,7 @@ extern "C"{
  * One instance carries the traffic counters and channel-condition metrics of a single
  * radio. The caller allocates the instance and passes its address to
  * `wifi_getRadioTrafficStats2()`, which fills every member; the caller keeps ownership
- * of the storage, per `Memory Model` in `docs/pages/halSpec.md`.
+ * of the storage, per `Memory Model` in the HAL specification.
  *
  * Two kinds of member sit side by side here and must be read differently. The `ULONG`
  * members are cumulative counts of bytes or packets. The `INT` metrics - activity factor,
@@ -99,7 +99,7 @@ typedef struct _wifi_radioTrafficStats2
  * One instance carries the traffic counters of a single SSID. The caller allocates the
  * instance and passes its address to `wifi_getSSIDTrafficStats2()`, which fills every
  * member; the caller keeps ownership of the storage, per `Memory Model` in
- * `docs/pages/halSpec.md`. Every member is a cumulative count of bytes or packets -
+ * the HAL specification. Every member is a cumulative count of bytes or packets -
  * unlike `wifi_radioTrafficStats2_t`, this structure carries no interval metric and no
  * `-1` sentinel.
  *
@@ -346,7 +346,7 @@ typedef struct _wifi_apRssi
  * Structure that holds the VAP telemetry information for one virtual Access Point. The
  * caller allocates an instance and passes its address to `wifi_getVAPTelemetry()`, which
  * fills it; the caller keeps ownership of the storage, per `Memory Model` in
- * `docs/pages/halSpec.md`.
+ * the HAL specification.
  *
  * @see wifi_getVAPTelemetry
  */
@@ -455,7 +455,7 @@ typedef struct {
  *                           reference to it after returning.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
- *      in `docs/pages/halSpec.md`. A call made beforehand does not meet the runtime
+ *      in the HAL specification. A call made beforehand does not meet the runtime
  *      requirements and, per `Component Runtime Execution Requirements`, likely results
  *      in undefined behaviour.
  * @post On success the members of `*output_struct` hold the radio's statistics. On
@@ -478,9 +478,9 @@ typedef struct {
  *       `wifi_hal_deprecated.h`, which this repository declares out of scope, so this is
  *       the form a caller should use.
  * @note This function must not suspend and must not invoke any blocking system calls;
- *       see `Blocking calls` in `docs/pages/halSpec.md`.
+ *       see `Blocking calls` in the HAL specification.
  * @note The `HAL` is expected to be thread safe, per `Threading Model` in
- *       `docs/pages/halSpec.md`.
+ *       the HAL specification.
  * @see wifi_radioTrafficStats2_t
  * @see wifi_getSSIDTrafficStats2
  * @see wifi_setRadioStatsEnable
@@ -509,7 +509,7 @@ INT wifi_getRadioTrafficStats2(INT radioIndex, wifi_radioTrafficStats2_t *output
  *                           reference to it after returning.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
- *      in `docs/pages/halSpec.md`. A call made beforehand does not meet the runtime
+ *      in the HAL specification. A call made beforehand does not meet the runtime
  *      requirements and, per `Component Runtime Execution Requirements`, likely results
  *      in undefined behaviour.
  * @post On success the members of `*output_struct` hold the SSID's counters. On failure
@@ -531,9 +531,9 @@ INT wifi_getRadioTrafficStats2(INT radioIndex, wifi_radioTrafficStats2_t *output
  *       `wifi_hal_deprecated.h`, marked deprecated there and out of scope for this
  *       repository, so this is the form a caller should use.
  * @note This function must not suspend and must not invoke any blocking system calls;
- *       see `Blocking calls` in `docs/pages/halSpec.md`.
+ *       see `Blocking calls` in the HAL specification.
  * @note The `HAL` is expected to be thread safe, per `Threading Model` in
- *       `docs/pages/halSpec.md`.
+ *       the HAL specification.
  * @see wifi_ssidTrafficStats2_t
  * @see wifi_getRadioTrafficStats2
  */
@@ -550,7 +550,7 @@ INT wifi_getSSIDTrafficStats2(INT ssidIndex, wifi_ssidTrafficStats2_t *output_st
  * channel selection and neighbour reporting.
  *
  * The results come back through a `HAL`-allocated array, which is an exception to the
- * general rule in `Memory Model` in `docs/pages/halSpec.md` that memory the `HAL` creates
+ * general rule in `Memory Model` in the HAL specification that memory the `HAL` creates
  * stays `HAL`-owned; that topic expressly permits an API to state such an exception, and
  * the ownership statement on `neighbor_ap_array` below is this call's.
  *
@@ -578,7 +578,7 @@ INT wifi_getSSIDTrafficStats2(INT ssidIndex, wifi_ssidTrafficStats2_t *output_st
  *                               must not free `*neighbor_ap_array`.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
- *      in `docs/pages/halSpec.md`. A call made beforehand does not meet the runtime
+ *      in the HAL specification. A call made beforehand does not meet the runtime
  *      requirements and, per `Component Runtime Execution Requirements`, likely results
  *      in undefined behaviour.
  * @post On success `*neighbor_ap_array` points at an array of `*output_array_size`
@@ -600,7 +600,7 @@ INT wifi_getSSIDTrafficStats2(INT ssidIndex, wifi_ssidTrafficStats2_t *output_st
  *          initialise its pointer to NULL beforehand, because a failed call leaves it
  *          unspecified.
  * @note This function must not suspend and must not invoke any blocking system calls;
- *       see `Blocking calls` in `docs/pages/halSpec.md`. A scan takes far longer than a
+ *       see `Blocking calls` in the HAL specification. A scan takes far longer than a
  *       non-blocking call may take, and this interface does not state how a scan started
  *       with `scan` set to `TRUE` completes, nor whether the array returned by that same
  *       call reflects the new scan or results already held. A caller must therefore not
@@ -608,7 +608,7 @@ INT wifi_getSSIDTrafficStats2(INT ssidIndex, wifi_ssidTrafficStats2_t *output_st
  *       `wifi_scanResults_callback_register()` in `wifi_hal_radio.h` is the notification
  *       mechanism this interface provides for fresh scan results.
  * @note The `HAL` is expected to be thread safe, per `Threading Model` in
- *       `docs/pages/halSpec.md`.
+ *       the HAL specification.
  * @note This declaration is only compiled when `WIFI_HAL_VERSION_3_PHASE2` is defined.
  *       Without that flag, a same-named call with no `scan` argument is declared in
  *       `wifi_hal_deprecated.h`, which this repository declares out of scope - so the
@@ -645,7 +645,7 @@ INT wifi_getNeighboringWiFiStatus(INT radioIndex, BOOL scan, wifi_neighbor_ap2_t
  *                               it rather than assume 0 to 100.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
- *      in `docs/pages/halSpec.md`. A call made beforehand does not meet the runtime
+ *      in the HAL specification. A call made beforehand does not meet the runtime
  *      requirements and, per `Component Runtime Execution Requirements`, likely results
  *      in undefined behaviour.
  * @post On success `*output_percentage` holds the utilization figure. On failure this
@@ -663,9 +663,9 @@ INT wifi_getNeighboringWiFiStatus(INT radioIndex, BOOL scan, wifi_neighbor_ap2_t
  *       readings taken in quick succession are not guaranteed to describe disjoint
  *       periods.
  * @note This function must not suspend and must not invoke any blocking system calls;
- *       see `Blocking calls` in `docs/pages/halSpec.md`.
+ *       see `Blocking calls` in the HAL specification.
  * @note The `HAL` is expected to be thread safe, per `Threading Model` in
- *       `docs/pages/halSpec.md`.
+ *       the HAL specification.
  * @see wifi_getRadioTrafficStats2
  */
 INT wifi_getRadioBandUtilization (INT radioIndex, INT *output_percentage);
@@ -680,7 +680,7 @@ INT wifi_getRadioBandUtilization (INT radioIndex, INT *output_percentage);
  * doing.
  *
  * The results come back through a `HAL`-allocated array, an exception to the general rule
- * in `Memory Model` in `docs/pages/halSpec.md` which that topic expressly permits an API
+ * in `Memory Model` in the HAL specification which that topic expressly permits an API
  * to state.
  *
  * This call has a second documented use, described with `wifi_associated_dev3_t` in
@@ -714,7 +714,7 @@ INT wifi_getRadioBandUtilization (INT radioIndex, INT *output_percentage);
  *                                   and must not free a `HAL`-allocated array.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
- *      in `docs/pages/halSpec.md`. A call made beforehand does not meet the runtime
+ *      in the HAL specification. A call made beforehand does not meet the runtime
  *      requirements and, per `Component Runtime Execution Requirements`, likely results
  *      in undefined behaviour.
  * @post On success `*associated_dev_array` holds `*output_array_size` records, one per
@@ -734,9 +734,9 @@ INT wifi_getRadioBandUtilization (INT radioIndex, INT *output_percentage);
  *          leaks unless it frees the array it holds before the next call overwrites its
  *          pointer.
  * @note This function must not suspend and must not invoke any blocking system calls;
- *       see `Blocking calls` in `docs/pages/halSpec.md`.
+ *       see `Blocking calls` in the HAL specification.
  * @note The `HAL` is expected to be thread safe, per `Threading Model` in
- *       `docs/pages/halSpec.md`.
+ *       the HAL specification.
  * @note The `3` suffix marks the third generation of this call, matching the
  *       `wifi_associated_dev3_t` record it fills. The first and second generations remain
  *       in `wifi_hal_deprecated.h`, which this repository declares out of scope, so this
@@ -773,7 +773,7 @@ INT wifi_getApAssociatedDeviceDiagnosticResult3(INT apIndex, wifi_associated_dev
  *                       so a caller must not assume it is either valid or NULL.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
- *      in `docs/pages/halSpec.md`. A call made beforehand does not meet the runtime
+ *      in the HAL specification. A call made beforehand does not meet the runtime
  *      requirements and, per `Component Runtime Execution Requirements`, likely results
  *      in undefined behaviour.
  * @post On success `*dev_conn` describes the named client. On failure this interface does
@@ -790,9 +790,9 @@ INT wifi_getApAssociatedDeviceDiagnosticResult3(INT apIndex, wifi_associated_dev
  *                          that conclusion.
  *
  * @note This function must not suspend and must not invoke any blocking system calls;
- *       see `Blocking calls` in `docs/pages/halSpec.md`.
+ *       see `Blocking calls` in the HAL specification.
  * @note The `HAL` is expected to be thread safe, per `Threading Model` in
- *       `docs/pages/halSpec.md`.
+ *       the HAL specification.
  * @note This declaration is only compiled when `WIFI_HAL_VERSION_3_PHASE2` is defined.
  *       Without that flag a same-named call taking `char *mac_addr` instead of
  *       `mac_address_t` is declared in `wifi_hal_deprecated.h`, which this repository
@@ -820,7 +820,7 @@ INT wifi_getApAssociatedClientDiagnosticResult(INT apIndex, mac_address_t mac_ad
  *                        `wifi_hal_generic.h`.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
- *      in `docs/pages/halSpec.md`. A call made beforehand does not meet the runtime
+ *      in the HAL specification. A call made beforehand does not meet the runtime
  *      requirements and, per `Component Runtime Execution Requirements`, likely results
  *      in undefined behaviour.
  * @post On success detailed per-client statistics collection holds the requested state for
@@ -848,10 +848,10 @@ INT wifi_getApAssociatedClientDiagnosticResult(INT apIndex, mac_address_t mac_ad
  *       while collection is disabled, so a caller must not assume that enabling this is a
  *       pre-condition of those calls or that their results are meaningless without it.
  * @note This function must not suspend and must not invoke any blocking system calls;
- *       see `Blocking calls` in `docs/pages/halSpec.md`. Since the change is applied
+ *       see `Blocking calls` in the HAL specification. Since the change is applied
  *       without blocking, this interface does not state when collection actually starts.
  * @note The `HAL` is expected to be thread safe, per `Threading Model` in
- *       `docs/pages/halSpec.md`.
+ *       the HAL specification.
  * @see wifi_getApAssociatedDeviceDiagnosticResult3
  * @see wifi_setRadioStatsEnable
  */
@@ -874,7 +874,7 @@ INT wifi_setClientDetailedStatisticsEnable(INT radioIndex, BOOL enable);
  *                           reference to it after returning.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
- *      in `docs/pages/halSpec.md`. A call made beforehand does not meet the runtime
+ *      in the HAL specification. A call made beforehand does not meet the runtime
  *      requirements and, per `Component Runtime Execution Requirements`, likely results
  *      in undefined behaviour.
  * @post On success `*output_enable` holds the current setting. On failure this interface
@@ -890,12 +890,12 @@ INT wifi_setClientDetailedStatisticsEnable(INT radioIndex, BOOL enable);
  *                          change another component's configuration.
  *
  * @note This interface does not state whether the setting persists across a restart;
- *       `Persistence Model` in `docs/pages/halSpec.md` places configuration persistence
+ *       `Persistence Model` in the HAL specification places configuration persistence
  *       with the upper layer.
  * @note This function must not suspend and must not invoke any blocking system calls;
- *       see `Blocking calls` in `docs/pages/halSpec.md`.
+ *       see `Blocking calls` in the HAL specification.
  * @note The `HAL` is expected to be thread safe, per `Threading Model` in
- *       `docs/pages/halSpec.md`.
+ *       the HAL specification.
  * @see wifi_setRadioStatsEnable
  */
 INT wifi_getRadioStatsEnable(INT radioIndex, BOOL *output_enable);
@@ -916,7 +916,7 @@ INT wifi_getRadioStatsEnable(INT radioIndex, BOOL *output_enable);
  *                        `wifi_hal_generic.h`.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
- *      in `docs/pages/halSpec.md`. A call made beforehand does not meet the runtime
+ *      in the HAL specification. A call made beforehand does not meet the runtime
  *      requirements and, per `Component Runtime Execution Requirements`, likely results
  *      in undefined behaviour.
  * @post On success radio statistics collection holds the requested state for the named
@@ -937,10 +937,10 @@ INT wifi_getRadioStatsEnable(INT radioIndex, BOOL *output_enable);
  *       the counters. A caller must therefore neither treat this call as a documented
  *       pre-condition of reading statistics, nor use it as a way to zero them.
  * @note This function must not suspend and must not invoke any blocking system calls;
- *       see `Blocking calls` in `docs/pages/halSpec.md`. Because the call returns without
+ *       see `Blocking calls` in the HAL specification. Because the call returns without
  *       blocking, this interface does not state when collection actually starts or stops.
  * @note The `HAL` is expected to be thread safe, per `Threading Model` in
- *       `docs/pages/halSpec.md`.
+ *       the HAL specification.
  * @see wifi_getRadioStatsEnable
  * @see wifi_getRadioTrafficStats2
  * @see wifi_setClientDetailedStatisticsEnable
@@ -970,7 +970,7 @@ INT wifi_setRadioStatsEnable(INT radioIndex, BOOL enable);
  *                       and unmoved while the `HAL` remains initialised.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
- *      in `docs/pages/halSpec.md`. A call made beforehand does not meet the runtime
+ *      in the HAL specification. A call made beforehand does not meet the runtime
  *      requirements and, per `Component Runtime Execution Requirements`, likely results
  *      in undefined behaviour.
  * @post On success `*telemetry` holds the VAP's telemetry. On failure this interface does
@@ -987,9 +987,9 @@ INT wifi_setRadioStatsEnable(INT radioIndex, BOOL enable);
  *       `UINT` wraps, so a caller should compare successive readings rather than treat one
  *       value as an absolute total.
  * @note This function must not suspend and must not invoke any blocking system calls;
- *       see `Blocking calls` in `docs/pages/halSpec.md`.
+ *       see `Blocking calls` in the HAL specification.
  * @note The `HAL` is expected to be thread safe, per `Threading Model` in
- *       `docs/pages/halSpec.md`.
+ *       the HAL specification.
  * @see wifi_VAPTelemetry_t
  * @see wifi_getSSIDTrafficStats2
  */
@@ -1024,7 +1024,7 @@ INT wifi_getVAPTelemetry(UINT apIndex, wifi_VAPTelemetry_t *telemetry);
 *                      carries the measurement.
 *
 * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
-*      in `docs/pages/halSpec.md`. A call made beforehand does not meet the runtime
+*      in the HAL specification. A call made beforehand does not meet the runtime
 *      requirements and, per `Component Runtime Execution Requirements`, likely results in
 *      undefined behaviour.
 * @pre `params` must point to valid memory and `sta_info` must point to valid writable
@@ -1047,12 +1047,12 @@ INT wifi_getVAPTelemetry(UINT apIndex, wifi_VAPTelemetry_t *telemetry);
 *                        the platform may not implement at all.
 *
 * @note This function must not suspend and must not invoke any blocking system calls;
-*       see `Blocking calls` in `docs/pages/halSpec.md`. Measuring an unassociated station
+*       see `Blocking calls` in the HAL specification. Measuring an unassociated station
 *       requires off-channel radio time, and this interface does not state how that is
 *       reconciled with returning immediately, nor whether a successful return means the
 *       measurement was just taken or was already held.
 * @note The `HAL` is expected to be thread safe, per `Threading Model` in
-*       `docs/pages/halSpec.md`.
+*       the HAL specification.
 * @see wifi_na_sta_req_params_t
 * @see wifi_na_sta_info_t
 * @see wifi_getApAssociatedClientDiagnosticResult

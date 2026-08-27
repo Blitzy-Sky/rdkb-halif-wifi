@@ -39,12 +39,12 @@ extern "C"{
  *
  * @param[out] enable Caller-supplied `BOOL` that receives `TRUE` when band
  *                    steering is enabled and `FALSE` when it is disabled. The
- *                    caller owns the storage (`docs/pages/halSpec.md`, Memory
+ *                    caller owns the storage (the HAL specification, Memory
  *                    Model); the result of passing `NULL` is not specified by
  *                    this interface.
  *
  * @pre `wifi_init()` must have completed successfully; see
- *      `Initialization and Startup` in `docs/pages/halSpec.md`. This interface
+ *      `Initialization and Startup` in the HAL specification. This interface
  *      does not specify the outcome of a call made beforehand: neither the
  *      status code nor the effect of the call is established, so a caller must
  *      not rely on either.
@@ -60,7 +60,7 @@ extern "C"{
  * @note This function must not suspend and must not invoke any blocking system
  *       calls, and the `HAL` is expected to be thread safe, so it may be
  *       called concurrently from separate caller threads
- *       (`docs/pages/halSpec.md`, Blocking calls and Threading Model).
+ *       (the HAL specification, Blocking calls and Threading Model).
  *
  * @see wifi_setBandSteeringEnable()
  */
@@ -78,7 +78,7 @@ INT wifi_getBandSteeringEnable(BOOL *enable);
  * @param[in] enable `TRUE` to enable band steering, `FALSE` to disable it.
  *
  * @pre `wifi_init()` must have completed successfully; see
- *      `Initialization and Startup` in `docs/pages/halSpec.md`. This interface
+ *      `Initialization and Startup` in the HAL specification. This interface
  *      does not specify the outcome of a call made beforehand: neither the
  *      status code nor the effect of the call is established, so a caller must
  *      not rely on either.
@@ -93,10 +93,10 @@ INT wifi_getBandSteeringEnable(BOOL *enable);
  * @note This function must not suspend and must not invoke any blocking system
  *       calls, and the `HAL` is expected to be thread safe, so it may be
  *       called concurrently from separate caller threads
- *       (`docs/pages/halSpec.md`, Blocking calls and Threading Model).
+ *       (the HAL specification, Blocking calls and Threading Model).
  *
  * @note This interface does not state whether the setting survives a restart.
- *       `docs/pages/halSpec.md` records that Wi-Fi `HAL` configuration is
+ *       the HAL specification records that Wi-Fi `HAL` configuration is
  *       maintained by the upper layer, so a caller should not treat the `HAL`
  *       as the store of record for it.
  *
@@ -117,10 +117,10 @@ INT wifi_setBandSteeringEnable(BOOL enable);
  *                            establish termination or a length, so every read
  *                            must be bounded by the size the caller allocated.
  *                            The caller allocates and owns it
- *                            (`docs/pages/halSpec.md`, Memory Model).
+ *                            (the HAL specification, Memory Model).
  *
  * @pre `wifi_init()` must have completed successfully; see
- *      `Initialization and Startup` in `docs/pages/halSpec.md`. This interface
+ *      `Initialization and Startup` in the HAL specification. This interface
  *      does not specify the outcome of a call made beforehand: neither the
  *      status code nor the effect of the call is established, so a caller must
  *      not rely on either.
@@ -145,7 +145,7 @@ INT wifi_setBandSteeringEnable(BOOL enable);
  * @note This function must not suspend and must not invoke any blocking system
  *       calls, and the `HAL` is expected to be thread safe, so it may be
  *       called concurrently from separate caller threads
- *       (`docs/pages/halSpec.md`, Blocking calls and Threading Model).
+ *       (the HAL specification, Blocking calls and Threading Model).
  *
  * @see wifi_setBandSteeringApGroup()
  */
@@ -167,12 +167,12 @@ INT wifi_getBandSteeringApGroup(char *output_ApGroup);
  *                    at least one pair. The caller passes NUL-terminated text,
  *                    because this interface carries no length parameter for
  *                    the argument and states no maximum length for it. The
- *                    caller owns the buffer (`docs/pages/halSpec.md`, Memory
+ *                    caller owns the buffer (the HAL specification, Memory
  *                    Model) and must keep it valid for the duration of the
  *                    call.
  *
  * @pre `wifi_init()` must have completed successfully; see
- *      `Initialization and Startup` in `docs/pages/halSpec.md`. This interface
+ *      `Initialization and Startup` in the HAL specification. This interface
  *      does not specify the outcome of a call made beforehand: neither the
  *      status code nor the effect of the call is established, so a caller must
  *      not rely on either.
@@ -194,7 +194,7 @@ INT wifi_getBandSteeringApGroup(char *output_ApGroup);
  * @note This function must not suspend and must not invoke any blocking system
  *       calls, and the `HAL` is expected to be thread safe, so it may be
  *       called concurrently from separate caller threads
- *       (`docs/pages/halSpec.md`, Blocking calls and Threading Model).
+ *       (the HAL specification, Blocking calls and Threading Model).
  *
  * @note This declaration states its result with the `RETURN_OK`/`RETURN_ERR`
  *       spelling; they are aliases of `WIFI_HAL_SUCCESS`/`WIFI_HAL_ERROR` and
@@ -224,7 +224,7 @@ INT wifi_setBandSteeringApGroup(char *ApGroup);
  *                          scale.
  *
  * @pre `wifi_init()` must have completed successfully; see
- *      `Initialization and Startup` in `docs/pages/halSpec.md`. This interface
+ *      `Initialization and Startup` in the HAL specification. This interface
  *      does not specify the outcome of a call made beforehand: neither the
  *      status code nor the effect of the call is established, so a caller must
  *      not rely on either.
@@ -241,7 +241,7 @@ INT wifi_setBandSteeringApGroup(char *ApGroup);
  * @note This function must not suspend and must not invoke any blocking system
  *       calls, and the `HAL` is expected to be thread safe, so it may be
  *       called concurrently from separate caller threads
- *       (`docs/pages/halSpec.md`, Blocking calls and Threading Model).
+ *       (the HAL specification, Blocking calls and Threading Model).
  *
  * @see wifi_setBandSteeringBandUtilizationThreshold()
  */
@@ -268,7 +268,7 @@ INT wifi_getBandSteeringBandUtilizationThreshold(INT radioIndex, INT *pBuThresho
  *                        targets.
  *
  * @pre `wifi_init()` must have completed successfully; see
- *      `Initialization and Startup` in `docs/pages/halSpec.md`. This interface
+ *      `Initialization and Startup` in the HAL specification. This interface
  *      does not specify the outcome of a call made beforehand: neither the
  *      status code nor the effect of the call is established, so a caller must
  *      not rely on either.
@@ -284,7 +284,7 @@ INT wifi_getBandSteeringBandUtilizationThreshold(INT radioIndex, INT *pBuThresho
  * @note This function must not suspend and must not invoke any blocking system
  *       calls, and the `HAL` is expected to be thread safe, so it may be
  *       called concurrently from separate caller threads
- *       (`docs/pages/halSpec.md`, Blocking calls and Threading Model).
+ *       (the HAL specification, Blocking calls and Threading Model).
  *
  * @see wifi_getBandSteeringBandUtilizationThreshold(),
  *      wifi_setBandSteeringEnable()
@@ -311,7 +311,7 @@ INT wifi_setBandSteeringBandUtilizationThreshold(INT radioIndex, INT buThreshold
  *                            the platform it targets.
  *
  * @pre `wifi_init()` must have completed successfully; see
- *      `Initialization and Startup` in `docs/pages/halSpec.md`. This interface
+ *      `Initialization and Startup` in the HAL specification. This interface
  *      does not specify the outcome of a call made beforehand: neither the
  *      status code nor the effect of the call is established, so a caller must
  *      not rely on either.
@@ -328,7 +328,7 @@ INT wifi_setBandSteeringBandUtilizationThreshold(INT radioIndex, INT buThreshold
  * @note This function must not suspend and must not invoke any blocking system
  *       calls, and the `HAL` is expected to be thread safe, so it may be
  *       called concurrently from separate caller threads
- *       (`docs/pages/halSpec.md`, Blocking calls and Threading Model).
+ *       (the HAL specification, Blocking calls and Threading Model).
  *
  * @see wifi_setBandSteeringRSSIThreshold()
  */
@@ -355,7 +355,7 @@ INT wifi_getBandSteeringRSSIThreshold(INT radioIndex, INT *pRssiThreshold);
  *                          caller must take both from the platform it targets.
  *
  * @pre `wifi_init()` must have completed successfully; see
- *      `Initialization and Startup` in `docs/pages/halSpec.md`. This interface
+ *      `Initialization and Startup` in the HAL specification. This interface
  *      does not specify the outcome of a call made beforehand: neither the
  *      status code nor the effect of the call is established, so a caller must
  *      not rely on either.
@@ -370,7 +370,7 @@ INT wifi_getBandSteeringRSSIThreshold(INT radioIndex, INT *pRssiThreshold);
  * @note This function must not suspend and must not invoke any blocking system
  *       calls, and the `HAL` is expected to be thread safe, so it may be
  *       called concurrently from separate caller threads
- *       (`docs/pages/halSpec.md`, Blocking calls and Threading Model).
+ *       (the HAL specification, Blocking calls and Threading Model).
  *
  * @see wifi_getBandSteeringRSSIThreshold()
  */
@@ -395,7 +395,7 @@ INT wifi_setBandSteeringRSSIThreshold(INT radioIndex, INT rssiThreshold);
  *                          it targets.
  *
  * @pre `wifi_init()` must have completed successfully; see
- *      `Initialization and Startup` in `docs/pages/halSpec.md`. This interface
+ *      `Initialization and Startup` in the HAL specification. This interface
  *      does not specify the outcome of a call made beforehand: neither the
  *      status code nor the effect of the call is established, so a caller must
  *      not rely on either.
@@ -412,7 +412,7 @@ INT wifi_setBandSteeringRSSIThreshold(INT radioIndex, INT rssiThreshold);
  * @note This function must not suspend and must not invoke any blocking system
  *       calls, and the `HAL` is expected to be thread safe, so it may be
  *       called concurrently from separate caller threads
- *       (`docs/pages/halSpec.md`, Blocking calls and Threading Model).
+ *       (the HAL specification, Blocking calls and Threading Model).
  *
  * @see wifi_setBandSteeringPhyRateThreshold()
  */
@@ -435,7 +435,7 @@ INT wifi_getBandSteeringPhyRateThreshold(INT radioIndex, INT *pPrThreshold);
  *                        must take both from the platform it targets.
  *
  * @pre `wifi_init()` must have completed successfully; see
- *      `Initialization and Startup` in `docs/pages/halSpec.md`. This interface
+ *      `Initialization and Startup` in the HAL specification. This interface
  *      does not specify the outcome of a call made beforehand: neither the
  *      status code nor the effect of the call is established, so a caller must
  *      not rely on either.
@@ -451,7 +451,7 @@ INT wifi_getBandSteeringPhyRateThreshold(INT radioIndex, INT *pPrThreshold);
  * @note This function must not suspend and must not invoke any blocking system
  *       calls, and the `HAL` is expected to be thread safe, so it may be
  *       called concurrently from separate caller threads
- *       (`docs/pages/halSpec.md`, Blocking calls and Threading Model).
+ *       (the HAL specification, Blocking calls and Threading Model).
  *
  * @see wifi_getBandSteeringPhyRateThreshold()
  */
@@ -476,7 +476,7 @@ INT wifi_setBandSteeringPhyRateThreshold(INT radioIndex, INT prThreshold);
  *                                  range of the value.
  *
  * @pre `wifi_init()` must have completed successfully; see
- *      `Initialization and Startup` in `docs/pages/halSpec.md`. This interface
+ *      `Initialization and Startup` in the HAL specification. This interface
  *      does not specify the outcome of a call made beforehand: neither the
  *      status code nor the effect of the call is established, so a caller must
  *      not rely on either.
@@ -493,7 +493,7 @@ INT wifi_setBandSteeringPhyRateThreshold(INT radioIndex, INT prThreshold);
  * @note This function must not suspend and must not invoke any blocking system
  *       calls, and the `HAL` is expected to be thread safe, so it may be
  *       called concurrently from separate caller threads
- *       (`docs/pages/halSpec.md`, Blocking calls and Threading Model).
+ *       (the HAL specification, Blocking calls and Threading Model).
  *
  * @see wifi_setBandSteeringOverloadInactiveTime(),
  *      wifi_getBandSteeringIdleInactiveTime()
@@ -518,7 +518,7 @@ INT wifi_getBandSteeringOverloadInactiveTime(INT radioIndex, INT *overloadInacti
  *                                 of the value.
  *
  * @pre `wifi_init()` must have completed successfully; see
- *      `Initialization and Startup` in `docs/pages/halSpec.md`. This interface
+ *      `Initialization and Startup` in the HAL specification. This interface
  *      does not specify the outcome of a call made beforehand: neither the
  *      status code nor the effect of the call is established, so a caller must
  *      not rely on either.
@@ -534,7 +534,7 @@ INT wifi_getBandSteeringOverloadInactiveTime(INT radioIndex, INT *overloadInacti
  * @note This function must not suspend and must not invoke any blocking system
  *       calls, and the `HAL` is expected to be thread safe, so it may be
  *       called concurrently from separate caller threads
- *       (`docs/pages/halSpec.md`, Blocking calls and Threading Model).
+ *       (the HAL specification, Blocking calls and Threading Model).
  *
  * @see wifi_getBandSteeringOverloadInactiveTime(),
  *      wifi_setBandSteeringIdleInactiveTime()
@@ -559,7 +559,7 @@ INT wifi_setBandSteeringOverloadInactiveTime(INT radioIndex, INT overloadInactiv
  *                              the value.
  *
  * @pre `wifi_init()` must have completed successfully; see
- *      `Initialization and Startup` in `docs/pages/halSpec.md`. This interface
+ *      `Initialization and Startup` in the HAL specification. This interface
  *      does not specify the outcome of a call made beforehand: neither the
  *      status code nor the effect of the call is established, so a caller must
  *      not rely on either.
@@ -576,7 +576,7 @@ INT wifi_setBandSteeringOverloadInactiveTime(INT radioIndex, INT overloadInactiv
  * @note This function must not suspend and must not invoke any blocking system
  *       calls, and the `HAL` is expected to be thread safe, so it may be
  *       called concurrently from separate caller threads
- *       (`docs/pages/halSpec.md`, Blocking calls and Threading Model).
+ *       (the HAL specification, Blocking calls and Threading Model).
  *
  * @see wifi_setBandSteeringIdleInactiveTime(),
  *      wifi_getBandSteeringOverloadInactiveTime()
@@ -601,7 +601,7 @@ INT wifi_getBandSteeringIdleInactiveTime(INT radioIndex, INT *idleInactiveTime);
  *                             the value.
  *
  * @pre `wifi_init()` must have completed successfully; see
- *      `Initialization and Startup` in `docs/pages/halSpec.md`. This interface
+ *      `Initialization and Startup` in the HAL specification. This interface
  *      does not specify the outcome of a call made beforehand: neither the
  *      status code nor the effect of the call is established, so a caller must
  *      not rely on either.
@@ -617,7 +617,7 @@ INT wifi_getBandSteeringIdleInactiveTime(INT radioIndex, INT *idleInactiveTime);
  * @note This function must not suspend and must not invoke any blocking system
  *       calls, and the `HAL` is expected to be thread safe, so it may be
  *       called concurrently from separate caller threads
- *       (`docs/pages/halSpec.md`, Blocking calls and Threading Model).
+ *       (the HAL specification, Blocking calls and Threading Model).
  *
  * @see wifi_getBandSteeringIdleInactiveTime(),
  *      wifi_setBandSteeringOverloadInactiveTime()
@@ -643,7 +643,7 @@ INT wifi_setBandSteeringIdleInactiveTime(INT radioIndex, INT idleInactiveTime);
  *
  * @param[out] pClientMAC Caller-allocated buffer that receives the MAC address
  *                        of the steered client. The caller allocates and owns
- *                        it (`docs/pages/halSpec.md`, Memory Model).
+ *                        it (the HAL specification, Memory Model).
  *
  * @param[out] pSourceSSIDIndex Caller-supplied `INT` that receives the index
  *                              of the SSID the client was steered from.
@@ -656,7 +656,7 @@ INT wifi_setBandSteeringIdleInactiveTime(INT radioIndex, INT idleInactiveTime);
  *                             enumerate the reason values.
  *
  * @pre `wifi_init()` must have completed successfully; see
- *      `Initialization and Startup` in `docs/pages/halSpec.md`. This interface
+ *      `Initialization and Startup` in the HAL specification. This interface
  *      does not specify the outcome of a call made beforehand: neither the
  *      status code nor the effect of the call is established, so a caller must
  *      not rely on either.
@@ -681,7 +681,7 @@ INT wifi_setBandSteeringIdleInactiveTime(INT radioIndex, INT idleInactiveTime);
  * @note This function must not suspend and must not invoke any blocking system
  *       calls, and the `HAL` is expected to be thread safe, so it may be
  *       called concurrently from separate caller threads
- *       (`docs/pages/halSpec.md`, Blocking calls and Threading Model).
+ *       (the HAL specification, Blocking calls and Threading Model).
  *
  * @see wifi_setBandSteeringEnable()
  */
@@ -710,7 +710,7 @@ INT wifi_getBandSteeringLog(INT record_index, ULONG *pSteeringTime, CHAR *pClien
  *                    calculation is disabled.
  *
  * @pre `wifi_init()` must have completed successfully; see
- *      `Initialization and Startup` in `docs/pages/halSpec.md`. This interface
+ *      `Initialization and Startup` in the HAL specification. This interface
  *      does not specify the outcome of a call made beforehand: neither the
  *      status code nor the effect of the call is established, so a caller must
  *      not rely on either.
@@ -726,7 +726,7 @@ INT wifi_getBandSteeringLog(INT record_index, ULONG *pSteeringTime, CHAR *pClien
  * @note This function must not suspend and must not invoke any blocking system
  *       calls, and the `HAL` is expected to be thread safe, so it may be
  *       called concurrently from separate caller threads
- *       (`docs/pages/halSpec.md`, Blocking calls and Threading Model).
+ *       (the HAL specification, Blocking calls and Threading Model).
  *
  * @note This declaration states its result with the `RETURN_OK`/`RETURN_ERR`
  *       spelling; they are aliases of `WIFI_HAL_SUCCESS`/`WIFI_HAL_ERROR` and
@@ -761,7 +761,7 @@ INT wifi_getApAssociatedDevicesHighWatermarkThreshold(INT apIndex, UINT *output)
  *                      rejected or accepted.
  *
  * @pre `wifi_init()` must have completed successfully; see
- *      `Initialization and Startup` in `docs/pages/halSpec.md`. This interface
+ *      `Initialization and Startup` in the HAL specification. This interface
  *      does not specify the outcome of a call made beforehand: neither the
  *      status code nor the effect of the call is established, so a caller must
  *      not rely on either.
@@ -777,7 +777,7 @@ INT wifi_getApAssociatedDevicesHighWatermarkThreshold(INT apIndex, UINT *output)
  * @note This function must not suspend and must not invoke any blocking system
  *       calls, and the `HAL` is expected to be thread safe, so it may be
  *       called concurrently from separate caller threads
- *       (`docs/pages/halSpec.md`, Blocking calls and Threading Model).
+ *       (the HAL specification, Blocking calls and Threading Model).
  *
  * @note This declaration states its result with the `RETURN_OK`/`RETURN_ERR`
  *       spelling; they are aliases of `WIFI_HAL_SUCCESS`/`WIFI_HAL_ERROR` and
@@ -810,7 +810,7 @@ INT wifi_setApAssociatedDevicesHighWatermarkThreshold(INT apIndex, UINT Threshol
  *                    state what resets the counter or whether it saturates.
  *
  * @pre `wifi_init()` must have completed successfully; see
- *      `Initialization and Startup` in `docs/pages/halSpec.md`. This interface
+ *      `Initialization and Startup` in the HAL specification. This interface
  *      does not specify the outcome of a call made beforehand: neither the
  *      status code nor the effect of the call is established, so a caller must
  *      not rely on either.
@@ -826,7 +826,7 @@ INT wifi_setApAssociatedDevicesHighWatermarkThreshold(INT apIndex, UINT Threshol
  * @note This function must not suspend and must not invoke any blocking system
  *       calls, and the `HAL` is expected to be thread safe, so it may be
  *       called concurrently from separate caller threads
- *       (`docs/pages/halSpec.md`, Blocking calls and Threading Model).
+ *       (the HAL specification, Blocking calls and Threading Model).
  *
  * @note This declaration states its result with the `RETURN_OK`/`RETURN_ERR`
  *       spelling; they are aliases of `WIFI_HAL_SUCCESS`/`WIFI_HAL_ERROR` and
@@ -857,7 +857,7 @@ INT wifi_getApAssociatedDevicesHighWatermarkThresholdReached(INT apIndex, UINT *
  *                    reset.
  *
  * @pre `wifi_init()` must have completed successfully; see
- *      `Initialization and Startup` in `docs/pages/halSpec.md`. This interface
+ *      `Initialization and Startup` in the HAL specification. This interface
  *      does not specify the outcome of a call made beforehand: neither the
  *      status code nor the effect of the call is established, so a caller must
  *      not rely on either.
@@ -873,7 +873,7 @@ INT wifi_getApAssociatedDevicesHighWatermarkThresholdReached(INT apIndex, UINT *
  * @note This function must not suspend and must not invoke any blocking system
  *       calls, and the `HAL` is expected to be thread safe, so it may be
  *       called concurrently from separate caller threads
- *       (`docs/pages/halSpec.md`, Blocking calls and Threading Model).
+ *       (the HAL specification, Blocking calls and Threading Model).
  *
  * @see wifi_getApAssociatedDevicesHighWatermarkDate(),
  *      wifi_getApAssociatedDevicesHighWatermarkThreshold()
@@ -899,7 +899,7 @@ INT wifi_getApAssociatedDevicesHighWatermark(INT apIndex, UINT *output);
  *                               where the peak has never been reached.
  *
  * @pre `wifi_init()` must have completed successfully; see
- *      `Initialization and Startup` in `docs/pages/halSpec.md`. This interface
+ *      `Initialization and Startup` in the HAL specification. This interface
  *      does not specify the outcome of a call made beforehand: neither the
  *      status code nor the effect of the call is established, so a caller must
  *      not rely on either.
@@ -916,7 +916,7 @@ INT wifi_getApAssociatedDevicesHighWatermark(INT apIndex, UINT *output);
  * @note This function must not suspend and must not invoke any blocking system
  *       calls, and the `HAL` is expected to be thread safe, so it may be
  *       called concurrently from separate caller threads
- *       (`docs/pages/halSpec.md`, Blocking calls and Threading Model).
+ *       (the HAL specification, Blocking calls and Threading Model).
  *
  * @see wifi_getApAssociatedDevicesHighWatermark()
  */
@@ -948,7 +948,7 @@ INT wifi_getApAssociatedDevicesHighWatermarkDate(INT apIndex, ULONG *output_in_s
  *                     value is not specified by this interface.
  *
  * @pre `wifi_init()` must have completed successfully; see
- *      `Initialization and Startup` in `docs/pages/halSpec.md`. This interface
+ *      `Initialization and Startup` in the HAL specification. This interface
  *      does not specify the outcome of a call made beforehand: neither the
  *      status code nor the effect of the call is established, so a caller must
  *      not rely on either.
@@ -973,7 +973,7 @@ INT wifi_getApAssociatedDevicesHighWatermarkDate(INT apIndex, ULONG *output_in_s
  * @note This function must not suspend and must not invoke any blocking system
  *       calls, and the `HAL` is expected to be thread safe, so it may be
  *       called concurrently from separate caller threads
- *       (`docs/pages/halSpec.md`, Blocking calls and Threading Model).
+ *       (the HAL specification, Blocking calls and Threading Model).
  *
  * @see wifi_getBSSTransitionActivated(), wifi_pushApFastTransitionConfig(),
  *      wifi_setBSSTransitionActivation()
@@ -994,11 +994,11 @@ INT wifi_setFastBSSTransitionActivated(INT apIndex, UCHAR activate);
  *                    no specified behaviour.
  *
  * @param[out] activate Caller-supplied `BOOL` that receives the support level.
- *                      The caller owns the storage (`docs/pages/halSpec.md`,
+ *                      The caller owns the storage (the HAL specification,
  *                      Memory Model).
  *
  * @pre `wifi_init()` must have completed successfully; see
- *      `Initialization and Startup` in `docs/pages/halSpec.md`. This interface
+ *      `Initialization and Startup` in the HAL specification. This interface
  *      does not specify the outcome of a call made beforehand: neither the
  *      status code nor the effect of the call is established, so a caller must
  *      not rely on either.
@@ -1023,7 +1023,7 @@ INT wifi_setFastBSSTransitionActivated(INT apIndex, UCHAR activate);
  * @note This function must not suspend and must not invoke any blocking system
  *       calls, and the `HAL` is expected to be thread safe, so it may be
  *       called concurrently from separate caller threads
- *       (`docs/pages/halSpec.md`, Blocking calls and Threading Model).
+ *       (the HAL specification, Blocking calls and Threading Model).
  *
  * @see wifi_setFastBSSTransitionActivated(), wifi_getBSSTransitionActivation()
  */
@@ -1100,13 +1100,13 @@ typedef struct _wifi_eap_config_t
  *                  caller passes NUL-terminated text, because this interface
  *                  carries no length parameter for the argument and states no
  *                  maximum length for it. The caller owns the buffer
- *                  (`docs/pages/halSpec.md`, Memory Model) and must keep it
+ *                  (the HAL specification, Memory Model) and must keep it
  *                  valid for the duration of the call. This interface does not
  *                  state whether the comparison is case sensitive, nor the
  *                  result of passing a name outside that set.
  *
  * @pre `wifi_init()` must have completed successfully; see
- *      `Initialization and Startup` in `docs/pages/halSpec.md`. This interface
+ *      `Initialization and Startup` in the HAL specification. This interface
  *      does not specify the outcome of a call made beforehand: neither the
  *      status code nor the effect of the call is established, so a caller must
  *      not rely on either.
@@ -1132,7 +1132,7 @@ typedef struct _wifi_eap_config_t
  * @note This function must not suspend and must not invoke any blocking system
  *       calls, and the `HAL` is expected to be thread safe, so it may be
  *       called concurrently from separate caller threads
- *       (`docs/pages/halSpec.md`, Blocking calls and Threading Model).
+ *       (the HAL specification, Blocking calls and Threading Model).
  *
  * @note This declaration states its result with the `RETURN_OK`/`RETURN_ERR`
  *       spelling; they are aliases of `WIFI_HAL_SUCCESS`/`WIFI_HAL_ERROR` and
@@ -1159,11 +1159,11 @@ INT wifi_setEAP_Param(UINT apIndex, UINT value, char *param);
  *
  * @param[out] output Caller-allocated `wifi_eap_config_t` that receives the
  *                    six settings. The caller allocates and owns it
- *                    (`docs/pages/halSpec.md`, Memory Model). This interface
+ *                    (the HAL specification, Memory Model). This interface
  *                    does not state the unit of the three timeout members.
  *
  * @pre `wifi_init()` must have completed successfully; see
- *      `Initialization and Startup` in `docs/pages/halSpec.md`. This interface
+ *      `Initialization and Startup` in the HAL specification. This interface
  *      does not specify the outcome of a call made beforehand: neither the
  *      status code nor the effect of the call is established, so a caller must
  *      not rely on either.
@@ -1179,7 +1179,7 @@ INT wifi_setEAP_Param(UINT apIndex, UINT value, char *param);
  * @note This function must not suspend and must not invoke any blocking system
  *       calls, and the `HAL` is expected to be thread safe, so it may be
  *       called concurrently from separate caller threads
- *       (`docs/pages/halSpec.md`, Blocking calls and Threading Model).
+ *       (the HAL specification, Blocking calls and Threading Model).
  *
  * @note This declaration states its result with the `RETURN_OK`/`RETURN_ERR`
  *       spelling; they are aliases of `WIFI_HAL_SUCCESS`/`WIFI_HAL_ERROR` and
@@ -1205,10 +1205,10 @@ INT wifi_getEAP_Param(UINT apIndex, wifi_eap_config_t *output);
  *
  * @param[out] activate Caller-supplied `BOOL` that receives `TRUE` when FT
  *                      over DS is activated. The caller owns the storage
- *                      (`docs/pages/halSpec.md`, Memory Model).
+ *                      (the HAL specification, Memory Model).
  *
  * @pre `wifi_init()` must have completed successfully; see
- *      `Initialization and Startup` in `docs/pages/halSpec.md`. This interface
+ *      `Initialization and Startup` in the HAL specification. This interface
  *      does not specify the outcome of a call made beforehand: neither the
  *      status code nor the effect of the call is established, so a caller must
  *      not rely on either.
@@ -1228,7 +1228,7 @@ INT wifi_getEAP_Param(UINT apIndex, wifi_eap_config_t *output);
  * @note This function must not suspend and must not invoke any blocking system
  *       calls, and the `HAL` is expected to be thread safe, so it may be
  *       called concurrently from separate caller threads
- *       (`docs/pages/halSpec.md`, Blocking calls and Threading Model).
+ *       (the HAL specification, Blocking calls and Threading Model).
  *
  * @see wifi_setFTOverDSActivated()
  */
@@ -1251,11 +1251,11 @@ INT wifi_getFTOverDSActivated(INT apIndex, BOOL *activate);
  * @param[in] activate Caller-supplied `BOOL` holding the state to apply, read
  *                     from the pointer: `TRUE` to activate FT over DS, `FALSE`
  *                     to deactivate it. The caller owns the storage
- *                     (`docs/pages/halSpec.md`, Memory Model) and must keep it
+ *                     (the HAL specification, Memory Model) and must keep it
  *                     valid for the duration of the call.
  *
  * @pre `wifi_init()` must have completed successfully; see
- *      `Initialization and Startup` in `docs/pages/halSpec.md`. This interface
+ *      `Initialization and Startup` in the HAL specification. This interface
  *      does not specify the outcome of a call made beforehand: neither the
  *      status code nor the effect of the call is established, so a caller must
  *      not rely on either.
@@ -1277,7 +1277,7 @@ INT wifi_getFTOverDSActivated(INT apIndex, BOOL *activate);
  * @note This function must not suspend and must not invoke any blocking system
  *       calls, and the `HAL` is expected to be thread safe, so it may be
  *       called concurrently from separate caller threads
- *       (`docs/pages/halSpec.md`, Blocking calls and Threading Model).
+ *       (the HAL specification, Blocking calls and Threading Model).
  *
  * @see wifi_getFTOverDSActivated()
  */
@@ -1300,11 +1300,11 @@ INT wifi_setFTOverDSActivated(INT apIndex, BOOL *activate);
  * @param[out] mobilityDomain Caller-allocated array of exactly two `UCHAR`, as
  *                            the declaration states, that receives the
  *                            Mobility Domain Identifier. The caller allocates
- *                            and owns it (`docs/pages/halSpec.md`, Memory
+ *                            and owns it (the HAL specification, Memory
  *                            Model).
  *
  * @pre `wifi_init()` must have completed successfully; see
- *      `Initialization and Startup` in `docs/pages/halSpec.md`. This interface
+ *      `Initialization and Startup` in the HAL specification. This interface
  *      does not specify the outcome of a call made beforehand: neither the
  *      status code nor the effect of the call is established, so a caller must
  *      not rely on either.
@@ -1326,7 +1326,7 @@ INT wifi_setFTOverDSActivated(INT apIndex, BOOL *activate);
  * @note This function must not suspend and must not invoke any blocking system
  *       calls, and the `HAL` is expected to be thread safe, so it may be
  *       called concurrently from separate caller threads
- *       (`docs/pages/halSpec.md`, Blocking calls and Threading Model).
+ *       (the HAL specification, Blocking calls and Threading Model).
  *
  * @see wifi_setFTMobilityDomainID(), wifi_FastTransitionConfig_t
  */
@@ -1350,11 +1350,11 @@ INT wifi_getFTMobilityDomainID(INT apIndex, UCHAR mobilityDomain[2]);
  * @param[in] mobilityDomain Caller-allocated array of exactly two `UCHAR`, as
  *                           the declaration states, holding the Mobility
  *                           Domain Identifier to apply. The caller owns it
- *                           (`docs/pages/halSpec.md`, Memory Model) and must
+ *                           (the HAL specification, Memory Model) and must
  *                           keep it valid for the duration of the call.
  *
  * @pre `wifi_init()` must have completed successfully; see
- *      `Initialization and Startup` in `docs/pages/halSpec.md`. This interface
+ *      `Initialization and Startup` in the HAL specification. This interface
  *      does not specify the outcome of a call made beforehand: neither the
  *      status code nor the effect of the call is established, so a caller must
  *      not rely on either.
@@ -1375,7 +1375,7 @@ INT wifi_getFTMobilityDomainID(INT apIndex, UCHAR mobilityDomain[2]);
  * @note This function must not suspend and must not invoke any blocking system
  *       calls, and the `HAL` is expected to be thread safe, so it may be
  *       called concurrently from separate caller threads
- *       (`docs/pages/halSpec.md`, Blocking calls and Threading Model).
+ *       (the HAL specification, Blocking calls and Threading Model).
  *
  * @see wifi_getFTMobilityDomainID(), wifi_setFastBSSTransitionActivated()
  */
@@ -1397,11 +1397,11 @@ INT wifi_setFTMobilityDomainID(INT apIndex, UCHAR mobilityDomain[2]);
  *
  * @param[out] supported Caller-supplied `BOOL` that receives `TRUE` when the
  *                       resource request protocol is supported. The caller
- *                       owns the storage (`docs/pages/halSpec.md`, Memory
+ *                       owns the storage (the HAL specification, Memory
  *                       Model).
  *
  * @pre `wifi_init()` must have completed successfully; see
- *      `Initialization and Startup` in `docs/pages/halSpec.md`. This interface
+ *      `Initialization and Startup` in the HAL specification. This interface
  *      does not specify the outcome of a call made beforehand: neither the
  *      status code nor the effect of the call is established, so a caller must
  *      not rely on either.
@@ -1422,7 +1422,7 @@ INT wifi_setFTMobilityDomainID(INT apIndex, UCHAR mobilityDomain[2]);
  * @note This function must not suspend and must not invoke any blocking system
  *       calls, and the `HAL` is expected to be thread safe, so it may be
  *       called concurrently from separate caller threads
- *       (`docs/pages/halSpec.md`, Blocking calls and Threading Model).
+ *       (the HAL specification, Blocking calls and Threading Model).
  *
  * @see wifi_setFTResourceRequestSupported()
  */
@@ -1444,11 +1444,11 @@ INT wifi_getFTResourceRequestSupported(INT apIndex, BOOL *supported);
  * @param[in] supported Caller-supplied `BOOL` holding the state to apply, read
  *                      from the pointer: `TRUE` to declare support, `FALSE` to
  *                      withdraw it. The caller owns the storage
- *                      (`docs/pages/halSpec.md`, Memory Model) and must keep
+ *                      (the HAL specification, Memory Model) and must keep
  *                      it valid for the duration of the call.
  *
  * @pre `wifi_init()` must have completed successfully; see
- *      `Initialization and Startup` in `docs/pages/halSpec.md`. This interface
+ *      `Initialization and Startup` in the HAL specification. This interface
  *      does not specify the outcome of a call made beforehand: neither the
  *      status code nor the effect of the call is established, so a caller must
  *      not rely on either.
@@ -1471,7 +1471,7 @@ INT wifi_getFTResourceRequestSupported(INT apIndex, BOOL *supported);
  * @note This function must not suspend and must not invoke any blocking system
  *       calls, and the `HAL` is expected to be thread safe, so it may be
  *       called concurrently from separate caller threads
- *       (`docs/pages/halSpec.md`, Blocking calls and Threading Model).
+ *       (the HAL specification, Blocking calls and Threading Model).
  *
  * @see wifi_getFTResourceRequestSupported()
  */
@@ -1493,11 +1493,11 @@ INT wifi_setFTResourceRequestSupported(INT apIndex, BOOL *supported);
  *
  * @param[out] lifetime Caller-supplied `UINT` that receives the configured
  *                      lifetime. The caller owns the storage
- *                      (`docs/pages/halSpec.md`, Memory Model). This interface
+ *                      (the HAL specification, Memory Model). This interface
  *                      does not state the unit of the value.
  *
  * @pre `wifi_init()` must have completed successfully; see
- *      `Initialization and Startup` in `docs/pages/halSpec.md`. This interface
+ *      `Initialization and Startup` in the HAL specification. This interface
  *      does not specify the outcome of a call made beforehand: neither the
  *      status code nor the effect of the call is established, so a caller must
  *      not rely on either.
@@ -1518,7 +1518,7 @@ INT wifi_setFTResourceRequestSupported(INT apIndex, BOOL *supported);
  * @note This function must not suspend and must not invoke any blocking system
  *       calls, and the `HAL` is expected to be thread safe, so it may be
  *       called concurrently from separate caller threads
- *       (`docs/pages/halSpec.md`, Blocking calls and Threading Model).
+ *       (the HAL specification, Blocking calls and Threading Model).
  *
  * @see wifi_setFTR0KeyLifetime(), wifi_pushApFastTransitionConfig()
  */
@@ -1539,13 +1539,13 @@ INT wifi_getFTR0KeyLifetime(INT apIndex, UINT *lifetime);
  *
  * @param[in] lifetime Caller-supplied `UINT` holding the lifetime to apply,
  *                     read from the pointer. The caller owns the storage
- *                     (`docs/pages/halSpec.md`, Memory Model) and must keep it
+ *                     (the HAL specification, Memory Model) and must keep it
  *                     valid for the duration of the call. This interface
  *                     states neither the unit nor the accepted range of the
  *                     value.
  *
  * @pre `wifi_init()` must have completed successfully; see
- *      `Initialization and Startup` in `docs/pages/halSpec.md`. This interface
+ *      `Initialization and Startup` in the HAL specification. This interface
  *      does not specify the outcome of a call made beforehand: neither the
  *      status code nor the effect of the call is established, so a caller must
  *      not rely on either.
@@ -1570,7 +1570,7 @@ INT wifi_getFTR0KeyLifetime(INT apIndex, UINT *lifetime);
  * @note This function must not suspend and must not invoke any blocking system
  *       calls, and the `HAL` is expected to be thread safe, so it may be
  *       called concurrently from separate caller threads
- *       (`docs/pages/halSpec.md`, Blocking calls and Threading Model).
+ *       (the HAL specification, Blocking calls and Threading Model).
  *
  * @see wifi_getFTR0KeyLifetime(), wifi_pushApFastTransitionConfig()
  */
@@ -1592,10 +1592,10 @@ INT wifi_setFTR0KeyLifetime(INT apIndex, UINT *lifetime);
  *
  * @param[out] keyHolderID Caller-allocated buffer that receives the R0 Key
  *                         Holder identifier. The caller allocates and owns it
- *                         (`docs/pages/halSpec.md`, Memory Model).
+ *                         (the HAL specification, Memory Model).
  *
  * @pre `wifi_init()` must have completed successfully; see
- *      `Initialization and Startup` in `docs/pages/halSpec.md`. This interface
+ *      `Initialization and Startup` in the HAL specification. This interface
  *      does not specify the outcome of a call made beforehand: neither the
  *      status code nor the effect of the call is established, so a caller must
  *      not rely on either.
@@ -1618,7 +1618,7 @@ INT wifi_setFTR0KeyLifetime(INT apIndex, UINT *lifetime);
  * @note This function must not suspend and must not invoke any blocking system
  *       calls, and the `HAL` is expected to be thread safe, so it may be
  *       called concurrently from separate caller threads
- *       (`docs/pages/halSpec.md`, Blocking calls and Threading Model).
+ *       (the HAL specification, Blocking calls and Threading Model).
  *
  * @see wifi_setFTR0KeyHolderID(), wifi_r0KH_t
  */
@@ -1639,11 +1639,11 @@ INT wifi_getFTR0KeyHolderID(INT apIndex, UCHAR *keyHolderID);
  *
  * @param[in] keyHolderID Caller-allocated buffer holding the R0 Key Holder
  *                        identifier to apply. The caller owns it
- *                        (`docs/pages/halSpec.md`, Memory Model) and must keep
+ *                        (the HAL specification, Memory Model) and must keep
  *                        it valid for the duration of the call.
  *
  * @pre `wifi_init()` must have completed successfully; see
- *      `Initialization and Startup` in `docs/pages/halSpec.md`. This interface
+ *      `Initialization and Startup` in the HAL specification. This interface
  *      does not specify the outcome of a call made beforehand: neither the
  *      status code nor the effect of the call is established, so a caller must
  *      not rely on either.
@@ -1671,7 +1671,7 @@ INT wifi_getFTR0KeyHolderID(INT apIndex, UCHAR *keyHolderID);
  * @note This function must not suspend and must not invoke any blocking system
  *       calls, and the `HAL` is expected to be thread safe, so it may be
  *       called concurrently from separate caller threads
- *       (`docs/pages/halSpec.md`, Blocking calls and Threading Model).
+ *       (the HAL specification, Blocking calls and Threading Model).
  *
  * @see wifi_getFTR0KeyHolderID(), wifi_r0KH_t
  */
@@ -1693,10 +1693,10 @@ INT wifi_setFTR0KeyHolderID(INT apIndex, UCHAR *keyHolderID);
  *
  * @param[out] keyHolderID Caller-allocated buffer that receives the R1 Key
  *                         Holder identifier. The caller allocates and owns it
- *                         (`docs/pages/halSpec.md`, Memory Model).
+ *                         (the HAL specification, Memory Model).
  *
  * @pre `wifi_init()` must have completed successfully; see
- *      `Initialization and Startup` in `docs/pages/halSpec.md`. This interface
+ *      `Initialization and Startup` in the HAL specification. This interface
  *      does not specify the outcome of a call made beforehand: neither the
  *      status code nor the effect of the call is established, so a caller must
  *      not rely on either.
@@ -1719,7 +1719,7 @@ INT wifi_setFTR0KeyHolderID(INT apIndex, UCHAR *keyHolderID);
  * @note This function must not suspend and must not invoke any blocking system
  *       calls, and the `HAL` is expected to be thread safe, so it may be
  *       called concurrently from separate caller threads
- *       (`docs/pages/halSpec.md`, Blocking calls and Threading Model).
+ *       (the HAL specification, Blocking calls and Threading Model).
  *
  * @see wifi_setFTR1KeyHolderID(), wifi_r1KH_t
  */
@@ -1740,11 +1740,11 @@ INT wifi_getFTR1KeyHolderID(INT apIndex, UCHAR *keyHolderID);
  *
  * @param[in] keyHolderID Caller-allocated buffer holding the R1 Key Holder
  *                        identifier to apply. The caller owns it
- *                        (`docs/pages/halSpec.md`, Memory Model) and must keep
+ *                        (the HAL specification, Memory Model) and must keep
  *                        it valid for the duration of the call.
  *
  * @pre `wifi_init()` must have completed successfully; see
- *      `Initialization and Startup` in `docs/pages/halSpec.md`. This interface
+ *      `Initialization and Startup` in the HAL specification. This interface
  *      does not specify the outcome of a call made beforehand: neither the
  *      status code nor the effect of the call is established, so a caller must
  *      not rely on either.
@@ -1772,7 +1772,7 @@ INT wifi_getFTR1KeyHolderID(INT apIndex, UCHAR *keyHolderID);
  * @note This function must not suspend and must not invoke any blocking system
  *       calls, and the `HAL` is expected to be thread safe, so it may be
  *       called concurrently from separate caller threads
- *       (`docs/pages/halSpec.md`, Blocking calls and Threading Model).
+ *       (the HAL specification, Blocking calls and Threading Model).
  *
  * @see wifi_getFTR1KeyHolderID(), wifi_r1KH_t
  */
@@ -1945,13 +1945,13 @@ typedef struct
  *                   must populate all of them; in particular `numR0KHs` and
  *                   `numR1KHs` bound the valid entries of `r0KH` and `r1KH`
  *                   and must not exceed `MAX_KEY_HOLDERS`. The caller owns the
- *                   structure (`docs/pages/halSpec.md`, Memory Model) and must
+ *                   structure (the HAL specification, Memory Model) and must
  *                   keep it valid for the duration of the call; this interface
  *                   does not state whether the implementation retains the
  *                   pointer beyond it.
  *
  * @pre `wifi_init()` must have completed successfully; see
- *      `Initialization and Startup` in `docs/pages/halSpec.md`. This interface
+ *      `Initialization and Startup` in the HAL specification. This interface
  *      does not specify the outcome of a call made beforehand: neither the
  *      status code nor the effect of the call is established, so a caller must
  *      not rely on either.
@@ -1977,7 +1977,7 @@ typedef struct
  * @note This function must not suspend and must not invoke any blocking system
  *       calls, and the `HAL` is expected to be thread safe, so it may be
  *       called concurrently from separate caller threads
- *       (`docs/pages/halSpec.md`, Blocking calls and Threading Model).
+ *       (the HAL specification, Blocking calls and Threading Model).
  *
  * @see wifi_FastTransitionConfig_t, wifi_setFastBSSTransitionActivated()
  */
@@ -2007,7 +2007,7 @@ INT wifi_pushApFastTransitionConfig(INT apIndex, wifi_FastTransitionConfig_t *ft
  *                     deactivate it.
  *
  * @pre `wifi_init()` must have completed successfully; see
- *      `Initialization and Startup` in `docs/pages/halSpec.md`. This interface
+ *      `Initialization and Startup` in the HAL specification. This interface
  *      does not specify the outcome of a call made beforehand: neither the
  *      status code nor the effect of the call is established, so a caller must
  *      not rely on either.
@@ -2028,7 +2028,7 @@ INT wifi_pushApFastTransitionConfig(INT apIndex, wifi_FastTransitionConfig_t *ft
  * @note This function must not suspend and must not invoke any blocking system
  *       calls, and the `HAL` is expected to be thread safe, so it may be
  *       called concurrently from separate caller threads
- *       (`docs/pages/halSpec.md`, Blocking calls and Threading Model).
+ *       (the HAL specification, Blocking calls and Threading Model).
  *
  * @note This declaration states its result with the `RETURN_OK`/`RETURN_ERR`
  *       spelling; they are aliases of `WIFI_HAL_SUCCESS`/`WIFI_HAL_ERROR` and
@@ -2054,10 +2054,10 @@ INT wifi_setBSSTransitionActivation(UINT apIndex, BOOL activate);
  *
  * @param[out] activate Caller-supplied `BOOL` that receives `TRUE` when BSS
  *                      Transition Management is activated. The caller owns the
- *                      storage (`docs/pages/halSpec.md`, Memory Model).
+ *                      storage (the HAL specification, Memory Model).
  *
  * @pre `wifi_init()` must have completed successfully; see
- *      `Initialization and Startup` in `docs/pages/halSpec.md`. This interface
+ *      `Initialization and Startup` in the HAL specification. This interface
  *      does not specify the outcome of a call made beforehand: neither the
  *      status code nor the effect of the call is established, so a caller must
  *      not rely on either.
@@ -2077,7 +2077,7 @@ INT wifi_setBSSTransitionActivation(UINT apIndex, BOOL activate);
  * @note This function must not suspend and must not invoke any blocking system
  *       calls, and the `HAL` is expected to be thread safe, so it may be
  *       called concurrently from separate caller threads
- *       (`docs/pages/halSpec.md`, Blocking calls and Threading Model).
+ *       (the HAL specification, Blocking calls and Threading Model).
  *
  * @see wifi_setBSSTransitionActivation(), wifi_getBSSTransitionActivated()
  */
@@ -2104,7 +2104,7 @@ INT wifi_getBSSTransitionActivation(UINT apIndex, BOOL *activate);
  *                     deactivate it.
  *
  * @pre `wifi_init()` must have completed successfully; see
- *      `Initialization and Startup` in `docs/pages/halSpec.md`. This interface
+ *      `Initialization and Startup` in the HAL specification. This interface
  *      does not specify the outcome of a call made beforehand: neither the
  *      status code nor the effect of the call is established, so a caller must
  *      not rely on either.
@@ -2127,7 +2127,7 @@ INT wifi_getBSSTransitionActivation(UINT apIndex, BOOL *activate);
  * @note This function must not suspend and must not invoke any blocking system
  *       calls, and the `HAL` is expected to be thread safe, so it may be
  *       called concurrently from separate caller threads
- *       (`docs/pages/halSpec.md`, Blocking calls and Threading Model).
+ *       (the HAL specification, Blocking calls and Threading Model).
  *
  * @note This declaration states its result with the `RETURN_OK`/`RETURN_ERR`
  *       spelling; they are aliases of `WIFI_HAL_SUCCESS`/`WIFI_HAL_ERROR` and
@@ -2151,10 +2151,10 @@ INT wifi_setNeighborReportActivation(UINT apIndex, BOOL activate);
  *
  * @param[out] activate Caller-supplied `BOOL` that receives `TRUE` when
  *                      neighbor reporting is activated. The caller owns the
- *                      storage (`docs/pages/halSpec.md`, Memory Model).
+ *                      storage (the HAL specification, Memory Model).
  *
  * @pre `wifi_init()` must have completed successfully; see
- *      `Initialization and Startup` in `docs/pages/halSpec.md`. This interface
+ *      `Initialization and Startup` in the HAL specification. This interface
  *      does not specify the outcome of a call made beforehand: neither the
  *      status code nor the effect of the call is established, so a caller must
  *      not rely on either.
@@ -2173,7 +2173,7 @@ INT wifi_setNeighborReportActivation(UINT apIndex, BOOL activate);
  * @note This function must not suspend and must not invoke any blocking system
  *       calls, and the `HAL` is expected to be thread safe, so it may be
  *       called concurrently from separate caller threads
- *       (`docs/pages/halSpec.md`, Blocking calls and Threading Model).
+ *       (the HAL specification, Blocking calls and Threading Model).
  *
  * @see wifi_setNeighborReportActivation()
  */

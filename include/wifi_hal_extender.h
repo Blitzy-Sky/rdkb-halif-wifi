@@ -35,7 +35,7 @@ extern "C"{
  * One instance describes the survey result for a single 20MHz channel. The structure is
  * both an input and an output of `wifi_getRadioChannelStats()`: the caller sets
  * `ch_number` to name the channel it wants, and the `HAL` writes every remaining member.
- * The caller allocates and owns the array, per `Memory Model` in `docs/pages/halSpec.md`.
+ * The caller allocates and owns the array, per `Memory Model` in the HAL specification.
  *
  * The six `ch_utilization_*` members are busy-time accumulators rather than percentages.
  * A caller derives a proportion by dividing one of them by `ch_utilization_total` over the
@@ -566,7 +566,7 @@ typedef struct
  * This interface declares `wifi_steering_evConnect_t` twice, once in each arm of
  * `WIFI_HAL_VERSION_3_PHASE2`, and the two declarations are separately documented because
  * their public field layouts differ - see `Platform or Product Customization` in
- * `docs/pages/halSpec.md`. This is the arm that carries the client's band support as the
+ * the HAL specification. This is the arm that carries the client's band support as the
  * single bitmask `bandsCap`; the other arm carries it as the three `BOOL` members
  * `bandCap2G`, `bandCap5G` and `bandCap6G`. The two are not interchangeable: they differ in
  * member set, in size and in the offsets of the members that follow, so a handler compiled
@@ -621,7 +621,7 @@ typedef struct
  * This interface declares `wifi_steering_evConnect_t` twice, once in each arm of
  * `WIFI_HAL_VERSION_3_PHASE2`, and the two declarations are separately documented because
  * their public field layouts differ - see `Platform or Product Customization` in
- * `docs/pages/halSpec.md`. This is the arm that carries the client's band support as the
+ * the HAL specification. This is the arm that carries the client's band support as the
  * three `BOOL` members `bandCap2G`, `bandCap5G` and `bandCap6G`; the other arm replaces all
  * three with the single `wifi_freq_bands_t` bitmask `bandsCap`. The two are not
  * interchangeable: they differ in member set, in size and in the offsets of the members that
@@ -1692,7 +1692,7 @@ typedef struct
  * @param[in,out] input_output_channelStats_array Array of `wifi_channelStats_t` that
  *                                    carries the request in and the result out. The caller
  *                                    allocates and owns it, per `Memory Model` in
- *                                    `docs/pages/halSpec.md`. Whether the implementation
+ *                                    the HAL specification. Whether the implementation
  *                                    retains the pointer beyond the call is not specified
  *                                    by this interface, so the caller should keep the
  *                                    array allocated and unmoved while the `HAL` remains
@@ -1711,7 +1711,7 @@ typedef struct
  *                                    channel.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
- *      in `docs/pages/halSpec.md`. A call made beforehand does not meet the runtime
+ *      in the HAL specification. A call made beforehand does not meet the runtime
  *      requirements and, per `Component Runtime Execution Requirements`, likely results
  *      in undefined behaviour.
  * @post On success the first `array_size` elements have been written, or the single ONCHAN
@@ -1729,11 +1729,11 @@ typedef struct
  *
  * @warning An `array_size` of 0 still causes one element to be written, so passing 0 with
  *          a NULL or zero-length array overruns the caller's storage.
- * @note This call does not block, per `Blocking calls` in `docs/pages/halSpec.md`, so a
+ * @note This call does not block, per `Blocking calls` in the HAL specification, so a
  *       caller must not assume it triggers a fresh off-channel survey; the interface does
  *       not state how recent the returned statistics are.
  * @note The `HAL` is expected to be thread safe, per `Threading Model` in
- *       `docs/pages/halSpec.md`.
+ *       the HAL specification.
  *
  * @see wifi_channelStats_t
  */
@@ -1764,7 +1764,7 @@ INT wifi_getRadioChannelStats(INT radioIndex, wifi_channelStats_t *input_output_
  *                                 store the receive statistics. The array is allocated by
  *                                 the HAL layer and should be freed by the caller. That is
  *                                 an explicit exception to `Memory Model` in
- *                                 `docs/pages/halSpec.md`, under which memory the `HAL`
+ *                                 the HAL specification, under which memory the `HAL`
  *                                 creates stays `HAL`-owned, and the exception applies
  *                                 only to this array. On success it holds
  *                                 `*output_array_size` elements. This interface does not
@@ -1791,7 +1791,7 @@ INT wifi_getRadioChannelStats(INT radioIndex, wifi_channelStats_t *input_output_
  *                                 can pass anywhere else.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
- *      in `docs/pages/halSpec.md`. A call made beforehand does not meet the runtime
+ *      in the HAL specification. A call made beforehand does not meet the runtime
  *      requirements and, per `Component Runtime Execution Requirements`, likely results
  *      in undefined behaviour.
  * @post On success `*stats_array` points to an array of `*output_array_size` elements that
@@ -1810,9 +1810,9 @@ INT wifi_getRadioChannelStats(INT radioIndex, wifi_channelStats_t *input_output_
  * @warning The `HAL` allocates a fresh array on each successful call and nothing in this
  *          interface releases a previous one, so a caller that samples repeatedly must free
  *          every array it is given.
- * @note This call does not block, per `Blocking calls` in `docs/pages/halSpec.md`.
+ * @note This call does not block, per `Blocking calls` in the HAL specification.
  * @note The `HAL` is expected to be thread safe, per `Threading Model` in
- *       `docs/pages/halSpec.md`.
+ *       the HAL specification.
  *
  * @see wifi_associated_dev_rate_info_rx_stats_t
  * @see wifi_getApAssociatedDeviceTxStatsResult
@@ -1844,7 +1844,7 @@ INT wifi_getApAssociatedDeviceRxStatsResult(INT radioIndex, mac_address_t *clien
  *                                 store the transmit statistics. The array is allocated by
  *                                 the HAL layer and should be freed by the caller, which
  *                                 is an explicit exception to `Memory Model` in
- *                                 `docs/pages/halSpec.md` applying only to this array. On
+ *                                 the HAL specification applying only to this array. On
  *                                 success it holds `*output_array_size` elements, and this
  *                                 interface does not name the matching release function.
  * @param[out] output_array_size   Pointer to a variable to store the size of the returned
@@ -1861,7 +1861,7 @@ INT wifi_getApAssociatedDeviceRxStatsResult(INT radioIndex, mac_address_t *clien
  *                                 caller's own previous reading for the same client.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
- *      in `docs/pages/halSpec.md`. A call made beforehand does not meet the runtime
+ *      in the HAL specification. A call made beforehand does not meet the runtime
  *      requirements and, per `Component Runtime Execution Requirements`, likely results
  *      in undefined behaviour.
  * @post On success `*stats_array` points to an array of `*output_array_size` elements that
@@ -1879,9 +1879,9 @@ INT wifi_getApAssociatedDeviceRxStatsResult(INT radioIndex, mac_address_t *clien
  * @warning The `HAL` allocates a fresh array on each successful call and nothing in this
  *          interface releases a previous one, so a caller that samples repeatedly must free
  *          every array it is given.
- * @note This call does not block, per `Blocking calls` in `docs/pages/halSpec.md`.
+ * @note This call does not block, per `Blocking calls` in the HAL specification.
  * @note The `HAL` is expected to be thread safe, per `Threading Model` in
- *       `docs/pages/halSpec.md`.
+ *       the HAL specification.
  *
  * @see wifi_associated_dev_rate_info_tx_stats_t
  * @see wifi_getApAssociatedDeviceRxStatsResult
@@ -1906,7 +1906,7 @@ INT wifi_getApAssociatedDeviceTxStatsResult(INT radioIndex, mac_address_t *clien
  *                              reads it during the call.
  * @param[out] tid_stats        Pointer to a `wifi_associated_dev_tid_stats_t` structure to
  *                              store the TID statistics. The caller allocates and owns the
- *                              storage, per `Memory Model` in `docs/pages/halSpec.md`.
+ *                              storage, per `Memory Model` in the HAL specification.
  *                              The `HAL` writes it during the call, and whether the
  *                              implementation retains the pointer afterwards is not
  *                              specified by this interface, so the caller should keep the
@@ -1918,7 +1918,7 @@ INT wifi_getApAssociatedDeviceTxStatsResult(INT radioIndex, mac_address_t *clien
  *                             owns the variable.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
- *      in `docs/pages/halSpec.md`. A call made beforehand does not meet the runtime
+ *      in the HAL specification. A call made beforehand does not meet the runtime
  *      requirements and, per `Component Runtime Execution Requirements`, likely results
  *      in undefined behaviour.
  * @post On success every element of `tid_stats->tid_array` has been written, with a zero
@@ -1939,9 +1939,9 @@ INT wifi_getApAssociatedDeviceTxStatsResult(INT radioIndex, mac_address_t *clien
  *       all four. The direction is therefore not consistently established by this
  *       interface, so a caller should initialise the variable before the call and re-read
  *       it afterwards rather than relying on either behaviour.
- * @note This call does not block, per `Blocking calls` in `docs/pages/halSpec.md`.
+ * @note This call does not block, per `Blocking calls` in the HAL specification.
  * @note The `HAL` is expected to be thread safe, per `Threading Model` in
- *       `docs/pages/halSpec.md`.
+ *       the HAL specification.
  *
  * @see wifi_associated_dev_tid_stats_t
  * @see wifi_associated_dev_tid_entry_t
@@ -1968,7 +1968,7 @@ INT wifi_getApAssociatedDeviceTidStatsResult(INT radioIndex, mac_address_t *clie
  * @param[out] associated_dev_stats Pointer to a `wifi_associated_dev_stats_t` structure to
  *                                   store the device statistics. The caller allocates and
  *                                   owns the storage, per `Memory Model` in
- *                                   `docs/pages/halSpec.md`. The `HAL` writes it during
+ *                                   the HAL specification. The `HAL` writes it during
  *                                   the call, and whether the implementation retains the
  *                                   pointer afterwards is not specified by this
  *                                   interface, so the caller should keep the structure
@@ -1980,7 +1980,7 @@ INT wifi_getApAssociatedDeviceTidStatsResult(INT radioIndex, mac_address_t *clie
  *                                 variable.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
- *      in `docs/pages/halSpec.md`. A call made beforehand does not meet the runtime
+ *      in the HAL specification. A call made beforehand does not meet the runtime
  *      requirements and, per `Component Runtime Execution Requirements`, likely results
  *      in undefined behaviour.
  * @post On success every member of `*associated_dev_stats` has been written, including
@@ -1997,9 +1997,9 @@ INT wifi_getApAssociatedDeviceTidStatsResult(INT radioIndex, mac_address_t *clie
  *       `wifi_getApAssociatedDeviceTidStatsResult()`, but as an output on the two per-rate
  *       statistics calls, while declaring it as `ULLONG *` in all four, so the direction is
  *       not consistently established.
- * @note This call does not block, per `Blocking calls` in `docs/pages/halSpec.md`.
+ * @note This call does not block, per `Blocking calls` in the HAL specification.
  * @note The `HAL` is expected to be thread safe, per `Threading Model` in
- *       `docs/pages/halSpec.md`.
+ *       the HAL specification.
  *
  * @see wifi_associated_dev_stats_t
  * @see wifi_getApAssociatedDeviceRxStatsResult
@@ -2027,7 +2027,7 @@ INT wifi_getApAssociatedDeviceStats(INT apIndex, mac_address_t *clientMacAddress
  *                       `MAX_NUM_RADIOS`.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
- *      in `docs/pages/halSpec.md`. A call made beforehand does not meet the runtime
+ *      in the HAL specification. A call made beforehand does not meet the runtime
  *      requirements and, per `Component Runtime Execution Requirements`, likely results
  *      in undefined behaviour.
  * @post On success `*radioIndex` holds the index of the radio the SSID entry belongs to.
@@ -2042,9 +2042,9 @@ INT wifi_getApAssociatedDeviceStats(INT apIndex, mac_address_t *clientMacAddress
  *                          since addressing the wrong radio would apply a subsequent call
  *                          to the wrong hardware.
  *
- * @note This call does not block, per `Blocking calls` in `docs/pages/halSpec.md`.
+ * @note This call does not block, per `Blocking calls` in the HAL specification.
  * @note The `HAL` is expected to be thread safe, per `Threading Model` in
- *       `docs/pages/halSpec.md`.
+ *       the HAL specification.
  *
  * @see wifi_applySSIDSettings
  */
@@ -2066,7 +2066,7 @@ INT wifi_getSSIDRadioIndex(INT ssidIndex, INT *radioIndex);
  *                      `AP_INDEX_24` in `wifi_hal_generic.h`.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
- *      in `docs/pages/halSpec.md`. A call made beforehand does not meet the runtime
+ *      in the HAL specification. A call made beforehand does not meet the runtime
  *      requirements and, per `Component Runtime Execution Requirements`, likely results
  *      in undefined behaviour.
  * @post On success the `HAL` has accepted the request to apply the settings for
@@ -2083,10 +2083,10 @@ INT wifi_getSSIDRadioIndex(INT ssidIndex, INT *radioIndex);
  *                          hardware partly reconfigured, so the caller should read the
  *                          affected settings back rather than assuming either.
  *
- * @note This call does not block, per `Blocking calls` in `docs/pages/halSpec.md`, and
+ * @note This call does not block, per `Blocking calls` in the HAL specification, and
  *       this interface establishes no completion notification for it.
  * @note The `HAL` is expected to be thread safe, per `Threading Model` in
- *       `docs/pages/halSpec.md`.
+ *       the HAL specification.
  *
  * @see wifi_getSSIDRadioIndex
  */
@@ -2116,7 +2116,7 @@ INT wifi_applySSIDSettings(INT ssidIndex);
  *                       scan is whatever `scan_mode` alone implies.
  * @param[in] chan_list  Array of channel numbers to scan, holding `chan_num` entries. The
  *                       caller allocates and owns it, per `Memory Model` in
- *                       `docs/pages/halSpec.md`; the `HAL` reads it during the call, and
+ *                       the HAL specification; the `HAL` reads it during the call, and
  *                       whether the implementation retains the pointer afterwards is not
  *                       specified by this interface, so the caller should keep the array
  *                       allocated and unmoved while the `HAL` remains initialised. This
@@ -2124,7 +2124,7 @@ INT wifi_applySSIDSettings(INT ssidIndex);
  *                       they are interpreted in the band of the radio behind `apIndex`.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
- *      in `docs/pages/halSpec.md`. A call made beforehand does not meet the runtime
+ *      in the HAL specification. A call made beforehand does not meet the runtime
  *      requirements and, per `Component Runtime Execution Requirements`, likely results
  *      in undefined behaviour.
  * @post On success the `HAL` has accepted the scan request for `apIndex`. The scan is not
@@ -2137,14 +2137,14 @@ INT wifi_applySSIDSettings(INT ssidIndex);
  *                          its arguments and retry rather than waiting for results that
  *                          will not arrive.
  *
- * @note This call does not block, per `Blocking calls` in `docs/pages/halSpec.md`, so it
+ * @note This call does not block, per `Blocking calls` in the HAL specification, so it
  *       returns before the scan has run and does not itself wait out `dwell_time`.
  * @note This interface does not establish how the completion of a scan started here is
  *       signalled, nor which call returns its results, so a caller must not assume a
  *       notification and must not infer a completion time from `dwell_time` and
  *       `chan_num`.
  * @note The `HAL` is expected to be thread safe, per `Threading Model` in
- *       `docs/pages/halSpec.md`. This interface does not state what happens when a scan is
+ *       the HAL specification. This interface does not state what happens when a scan is
  *       started while one is already running on the same radio.
  *
  * @see wifi_setApScanFilter
@@ -2172,7 +2172,7 @@ INT wifi_startNeighborScan(INT apIndex, wifi_neighborScanMode_t scan_mode, INT d
  *                    enumeration type for them, so a caller passes the bare value.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
- *      in `docs/pages/halSpec.md`. A call made beforehand does not meet the runtime
+ *      in the HAL specification. A call made beforehand does not meet the runtime
  *      requirements and, per `Component Runtime Execution Requirements`, likely results
  *      in undefined behaviour.
  * @post On success the mode is in force for subsequent channel switches on `apIndex`. This
@@ -2187,9 +2187,9 @@ INT wifi_startNeighborScan(INT apIndex, wifi_neighborScanMode_t scan_mode, INT d
  *                          should re-apply the mode it wants rather than assuming either
  *                          outcome.
  *
- * @note This call does not block, per `Blocking calls` in `docs/pages/halSpec.md`.
+ * @note This call does not block, per `Blocking calls` in the HAL specification.
  * @note The `HAL` is expected to be thread safe, per `Threading Model` in
- *       `docs/pages/halSpec.md`.
+ *       the HAL specification.
  */
 INT wifi_setApCsaDeauth(INT apIndex, INT mode);
 
@@ -2218,7 +2218,7 @@ INT wifi_setApCsaDeauth(INT apIndex, INT mode);
  * @param[in] essid   The ESSID to filter on, as a caller-allocated string. The caller
  *                    passes NUL-terminated text, because this interface carries no length
  *                    parameter for the argument. The caller owns the storage, per `Memory
- *                    Model` in `docs/pages/halSpec.md`; the `HAL` reads it during the
+ *                    Model` in the HAL specification; the `HAL` reads it during the
  *                    call, and whether the implementation retains the pointer afterwards
  *                    is not specified by this interface, so the caller should keep it
  *                    allocated and unmoved while the `HAL` remains initialised. A blank
@@ -2230,7 +2230,7 @@ INT wifi_setApCsaDeauth(INT apIndex, INT mode);
  *                    stay within that and must not assume a longer argument is accepted.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
- *      in `docs/pages/halSpec.md`. A call made beforehand does not meet the runtime
+ *      in the HAL specification. A call made beforehand does not meet the runtime
  *      requirements and, per `Component Runtime Execution Requirements`, likely results
  *      in undefined behaviour.
  * @post On success the filter setting is in force for subsequent scans on that interface.
@@ -2249,9 +2249,9 @@ INT wifi_setApCsaDeauth(INT apIndex, INT mode);
  * @warning A filter left enabled suppresses non-matching BSSs from every later scan on
  *          that interface, so a caller that scans for neighbours after filtering will see
  *          an incomplete neighbourhood rather than an empty one.
- * @note This call does not block, per `Blocking calls` in `docs/pages/halSpec.md`.
+ * @note This call does not block, per `Blocking calls` in the HAL specification.
  * @note The `HAL` is expected to be thread safe, per `Threading Model` in
- *       `docs/pages/halSpec.md`.
+ *       the HAL specification.
  *
  * @see wifi_startNeighborScan
  */
@@ -2282,14 +2282,14 @@ INT wifi_setApScanFilter(INT apIndex, INT mode, CHAR *essid);
  *                               structures, containing the settings for each
  *                               AP in the group. It holds `numElements` entries. The caller
  *                               allocates and owns the array, per `Memory Model` in
- *                               `docs/pages/halSpec.md`, and this interface does not state
+ *                               the HAL specification, and this interface does not state
  *                               whether the `HAL` copies the contents during the call or
  *                               retains the pointer, so a caller must keep the array
  *                               allocated and unmodified for as long as the group exists
  *                               rather than freeing it when the call returns.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
- *      in `docs/pages/halSpec.md`. A call made beforehand does not meet the runtime
+ *      in the HAL specification. A call made beforehand does not meet the runtime
  *      requirements and, per `Component Runtime Execution Requirements`, likely results
  *      in undefined behaviour.
  * @post On success the group exists and the client calls in this header may be addressed
@@ -2305,12 +2305,12 @@ INT wifi_setApScanFilter(INT apIndex, INT mode, CHAR *essid);
  *       values as the `WIFI_HAL_SUCCESS` and `WIFI_HAL_ERROR` codes the rest of this
  *       interface uses for the same two outcomes. The two codes above are the whole
  *       return-code contract of this call, per `Internal Error Handling` in
- *       `docs/pages/halSpec.md`. On failure the caller should validate its arguments and
+ *       the HAL specification. On failure the caller should validate its arguments and
  *       must not address client calls to the group, since this interface does not state
  *       whether a partly configured group is left behind.
- * @note This call does not block, per `Blocking calls` in `docs/pages/halSpec.md`.
+ * @note This call does not block, per `Blocking calls` in the HAL specification.
  * @note The `HAL` is expected to be thread safe, per `Threading Model` in
- *       `docs/pages/halSpec.md`.
+ *       the HAL specification.
  * @note This declaration is compiled only where `WIFI_HAL_VERSION_3_PHASE2` is defined.
  *
  * @see wifi_steering_apConfig_t
@@ -2402,7 +2402,7 @@ typedef struct
  *                    bytes are readable through it, so the client must not assume either
  *                    that it survives the call or that it may be released. The one
  *                    established obligation is the client copy duty in
- *                    `Asynchronous Notification Model` in `docs/pages/halSpec.md`: copy what
+ *                    `Asynchronous Notification Model` in the HAL specification: copy what
  *                    is needed before returning, and neither retain nor free the pointer.
  *                    That applies to the `module` string the structure carries as much as to
  *                    the structure itself, and the copy of that string must be bounded by a
@@ -2418,10 +2418,10 @@ typedef struct
  *       use the return value to veto the steering decision.
  * @note The handler must not suspend and must not invoke any blocking system calls; it
  *       should do no more than pass the event to its own event handler task, per
- *       `Blocking calls` in `docs/pages/halSpec.md`.
+ *       `Blocking calls` in the HAL specification.
  * @note The `HAL` is expected to be thread safe and may enter the handler on a `HAL`
  *       thread, so the handler must serialise its own access to caller state; see
- *       `Threading Model` in `docs/pages/halSpec.md`.
+ *       `Threading Model` in the HAL specification.
  *
  * @see wifi_steerTriggered_callback_register
  * @see wifi_steer_trigger_data_t
@@ -2461,7 +2461,7 @@ typedef INT (*wifi_steerTriggered_callback)(INT apIndex, wifi_steer_trigger_data
  *                          that takes such an argument.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
- *      in `docs/pages/halSpec.md`. The effect of registering beforehand is not specified
+ *      in the HAL specification. The effect of registering beforehand is not specified
  *      by this interface.
  * @post The handler is installed and is invoked on each subsequent steering trigger.
  *
@@ -2479,10 +2479,10 @@ typedef INT (*wifi_steerTriggered_callback)(INT apIndex, wifi_steer_trigger_data
  *       replaces an earlier one, adds to it or is rejected, so a caller should register
  *       once and must not assume a handler can be removed.
  * @note The registration call itself is synchronous and does not block, per
- *       `Blocking calls` in `docs/pages/halSpec.md`; delivery of `wifi_steerTriggered_callback` is
+ *       `Blocking calls` in the HAL specification; delivery of `wifi_steerTriggered_callback` is
  *       asynchronous.
  * @note The `HAL` is expected to be thread safe, per `Threading Model` in
- *       `docs/pages/halSpec.md`.
+ *       the HAL specification.
  *
  * @see wifi_steerTriggered_callback
  * @see wifi_steer_trigger_data_t
@@ -2512,7 +2512,7 @@ void wifi_steerTriggered_callback_register(wifi_steerTriggered_callback callback
  *                               valid, so the client must not assume it survives the call
  *                               or that it may be released. The established obligation is
  *                               the client copy duty in `Asynchronous Notification Model`
- *                               in `docs/pages/halSpec.md`: copy before returning, and
+ *                               in the HAL specification: copy before returning, and
  *                               neither retain nor free the pointer. The handler must read the `type`
  *                               member first and then only the union member `type` selects,
  *                               as `wifi_steering_event_t` sets out.
@@ -2521,10 +2521,10 @@ void wifi_steerTriggered_callback_register(wifi_steerTriggered_callback callback
  *       to the `HAL` and the `HAL` has no way to learn that an event was not consumed.
  * @note The handler must not suspend and must not invoke any blocking system calls; it
  *       should do no more than pass the event to its own event handler task, per
- *       `Blocking calls` in `docs/pages/halSpec.md`.
+ *       `Blocking calls` in the HAL specification.
  * @note The `HAL` is expected to be thread safe and may enter the handler on a `HAL`
  *       thread, so the handler must serialise its own access to caller state; see
- *       `Threading Model` in `docs/pages/halSpec.md`.
+ *       `Threading Model` in the HAL specification.
  *
  * @see wifi_steering_eventRegister
  * @see wifi_steering_eventUnregister
@@ -2557,7 +2557,7 @@ typedef void (*wifi_steering_eventCB_t)(UINT steeringgroupIndex, wifi_steering_e
  *                     delivery should call `wifi_steering_eventUnregister()` instead.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
- *      in `docs/pages/halSpec.md`. The effect of registering beforehand is not specified by
+ *      in the HAL specification. The effect of registering beforehand is not specified by
  *      this interface.
  * @post On success the handler is installed and receives subsequent steering events. This
  *       interface does not state whether events are delivered for groups created after the
@@ -2582,10 +2582,10 @@ typedef void (*wifi_steering_eventCB_t)(UINT steeringgroupIndex, wifi_steering_e
  *       either. `wifi_steering_eventUnregister()` is the only call this interface offers
  *       for returning to a known state.
  * @note The registration call itself is synchronous and does not block, per
- *       `Blocking calls` in `docs/pages/halSpec.md`; delivery of `wifi_steering_eventCB_t` is
+ *       `Blocking calls` in the HAL specification; delivery of `wifi_steering_eventCB_t` is
  *       asynchronous.
  * @note The `HAL` is expected to be thread safe, per `Threading Model` in
- *       `docs/pages/halSpec.md`.
+ *       the HAL specification.
  *
  * @see wifi_steering_eventCB_t
  * @see wifi_steering_eventUnregister
@@ -2615,9 +2615,9 @@ INT wifi_steering_eventRegister(wifi_steering_eventCB_t event_cb);
  *       `WIFI_HAL_ERROR`, and are the whole return-code contract of this call. On
  *       `RETURN_ERR` the caller must assume the handler may still be invoked and so must
  *       not free anything the handler uses.
- * @note This call does not block, per `Blocking calls` in `docs/pages/halSpec.md`.
+ * @note This call does not block, per `Blocking calls` in the HAL specification.
  * @note The `HAL` is expected to be thread safe, per `Threading Model` in
- *       `docs/pages/halSpec.md`.
+ *       the HAL specification.
  *
  * @see wifi_steering_eventRegister
  * @see wifi_steering_eventCB_t
@@ -2647,14 +2647,14 @@ INT wifi_steering_eventUnregister(void);
  *                               during the call.
  * @param[in] config             Pointer to the client configuration. One structure is
  *                               passed, not an array. The caller allocates and owns it, per
- *                               `Memory Model` in `docs/pages/halSpec.md`, and this
+ *                               `Memory Model` in the HAL specification, and this
  *                               interface does not state whether the `HAL` copies the
  *                               contents or retains the pointer, so a caller must keep the
  *                               structure allocated and unmodified while the client remains
  *                               configured.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
- *      in `docs/pages/halSpec.md`. A call made beforehand does not meet the runtime
+ *      in the HAL specification. A call made beforehand does not meet the runtime
  *      requirements and, per `Component Runtime Execution Requirements`, likely results
  *      in undefined behaviour.
  * @pre The group named by `steeringgroupIndex` must already exist, having been created by
@@ -2674,9 +2674,9 @@ INT wifi_steering_eventUnregister(void);
  *       `RETURN_ERR` the caller should validate the group, AP and pointer arguments, and
  *       must not assume the client is being steered - nor that a previous configuration for
  *       it survived, which this interface does not state.
- * @note This call does not block, per `Blocking calls` in `docs/pages/halSpec.md`.
+ * @note This call does not block, per `Blocking calls` in the HAL specification.
  * @note The `HAL` is expected to be thread safe, per `Threading Model` in
- *       `docs/pages/halSpec.md`.
+ *       the HAL specification.
  *
  * @see wifi_steering_clientConfig_t
  * @see wifi_steering_clientRemove
@@ -2701,7 +2701,7 @@ INT wifi_steering_clientSet(UINT steeringgroupIndex, INT apIndex, mac_address_t 
  *                               storage and the `HAL` reads it during the call.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
- *      in `docs/pages/halSpec.md`. A call made beforehand does not meet the runtime
+ *      in the HAL specification. A call made beforehand does not meet the runtime
  *      requirements and, per `Component Runtime Execution Requirements`, likely results
  *      in undefined behaviour.
  * @post On success the client is no longer configured on that AP, and the interface's
@@ -2717,9 +2717,9 @@ INT wifi_steering_clientSet(UINT steeringgroupIndex, INT apIndex, mac_address_t 
  *       interface does not distinguish a client that was not configured in the first place
  *       from a genuine failure, so on `RETURN_ERR` the caller must not release the
  *       configuration structure and should retry the removal.
- * @note This call does not block, per `Blocking calls` in `docs/pages/halSpec.md`.
+ * @note This call does not block, per `Blocking calls` in the HAL specification.
  * @note The `HAL` is expected to be thread safe, per `Threading Model` in
- *       `docs/pages/halSpec.md`.
+ *       the HAL specification.
  *
  * @see wifi_steering_clientSet
  * @see wifi_steering_clientDisconnect
@@ -2748,7 +2748,7 @@ INT wifi_steering_clientRemove(UINT steeringgroupIndex, INT apIndex, mac_address
  *                               `client_mac` member of the event that reports the result.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
- *      in `docs/pages/halSpec.md`. A call made beforehand does not meet the runtime
+ *      in the HAL specification. A call made beforehand does not meet the runtime
  *      requirements and, per `Component Runtime Execution Requirements`, likely results
  *      in undefined behaviour.
  * @pre A handler must be registered with `wifi_steering_eventRegister()` before the call,
@@ -2775,10 +2775,10 @@ INT wifi_steering_clientRemove(UINT steeringgroupIndex, INT apIndex, mac_address
  * @note This interface carries no request identifier on either the call or the event, so a
  *       caller with several measurements outstanding can only match a result to a request
  *       by the client MAC address it echoes.
- * @note This call does not block, per `Blocking calls` in `docs/pages/halSpec.md`, so it
+ * @note This call does not block, per `Blocking calls` in the HAL specification, so it
  *       returns before the NULL frames have been sent and their ACKs averaged.
  * @note The `HAL` is expected to be thread safe, per `Threading Model` in
- *       `docs/pages/halSpec.md`.
+ *       the HAL specification.
  *
  * @see wifi_steering_evRssi_t
  * @see wifi_steering_eventRegister
@@ -2811,7 +2811,7 @@ INT wifi_steering_clientMeasure(UINT steeringgroupIndex, INT apIndex, mac_addres
  *                               code the `HAL` uses if an unrecognised one is passed.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
- *      in `docs/pages/halSpec.md`. A call made beforehand does not meet the runtime
+ *      in the HAL specification. A call made beforehand does not meet the runtime
  *      requirements and, per `Component Runtime Execution Requirements`, likely results
  *      in undefined behaviour.
  * @post On success the `HAL` has accepted the disconnect request. This interface does not
@@ -2830,9 +2830,9 @@ INT wifi_steering_clientMeasure(UINT steeringgroupIndex, INT apIndex, mac_addres
  *       interface does not distinguish a client that was not associated from a genuine
  *       failure, so on `RETURN_ERR` the caller should read the client's association state
  *       rather than inferring it, and must not repeat the disconnect blindly.
- * @note This call does not block, per `Blocking calls` in `docs/pages/halSpec.md`.
+ * @note This call does not block, per `Blocking calls` in the HAL specification.
  * @note The `HAL` is expected to be thread safe, per `Threading Model` in
- *       `docs/pages/halSpec.md`.
+ *       the HAL specification.
  *
  * @see https://supportforums.cisco.com/document/141136/80211-association-status-80211-deauth-reason-codes
  * @see wifi_disconnectType_t
@@ -2884,14 +2884,14 @@ INT wifi_steering_clientDisconnect(UINT steeringgroupIndex, INT apIndex, mac_add
  * @note This interface does not state which component owns `query` or how long it stays
  *       valid, so a handler must neither assume it survives the call nor release it. A
  *       handler that needs the query afterwards copies it before returning, per
- *       `Asynchronous Notification Model` in `docs/pages/halSpec.md`. `request` is the caller's own
+ *       `Asynchronous Notification Model` in the HAL specification. `request` is the caller's own
  *       storage and the driver reads it once the handler returns.
  * @note The handler must not suspend and must not invoke any blocking system calls, per
- *       `Blocking calls` in `docs/pages/halSpec.md`. It runs on the path that answers the
+ *       `Blocking calls` in the HAL specification. It runs on the path that answers the
  *       STA, so a slow handler delays the BTM response.
  * @note The `HAL` is expected to be thread safe and may enter the handler on a `HAL`
  *       thread, so the handler must serialise its own access to caller state; see
- *       `Threading Model` in `docs/pages/halSpec.md`.
+ *       `Threading Model` in the HAL specification.
  * @note In this build `peerMac` is a `mac_address_t`, the six raw octets; where
  *       `WIFI_HAL_VERSION_3_PHASE2` is not defined the same argument is a `CHAR *`
  *       instead, so a handler written against one form does not compile against the other.
@@ -2928,14 +2928,14 @@ typedef INT (*wifi_BTMQueryRequest_callback)(UINT apIndex,
  * @note This interface does not state which component owns `response` or how long it stays
  *       valid, so a handler must neither assume it survives the call nor release it. A
  *       handler that needs it afterwards copies it before returning, per
- *       `Asynchronous Notification Model` in `docs/pages/halSpec.md`. Its `token` member is what matches the response
+ *       `Asynchronous Notification Model` in the HAL specification. Its `token` member is what matches the response
  *       to the request that prompted it, and its `status` member is what says whether the
  *       STA accepted the transition.
  * @note The handler must not suspend and must not invoke any blocking system calls, per
- *       `Blocking calls` in `docs/pages/halSpec.md`.
+ *       `Blocking calls` in the HAL specification.
  * @note The `HAL` is expected to be thread safe and may enter the handler on a `HAL`
  *       thread, so the handler must serialise its own access to caller state; see
- *       `Threading Model` in `docs/pages/halSpec.md`.
+ *       `Threading Model` in the HAL specification.
  * @note In this build `peerMac` is a `mac_address_t`, the six raw octets; where
  *       `WIFI_HAL_VERSION_3_PHASE2` is not defined the same argument is a `CHAR *`
  *       instead.
@@ -2983,7 +2983,7 @@ typedef INT (*wifi_BTMResponse_callback)(UINT apIndex,
  *       STA, so a handler that cannot build a request should still leave `request` in a
  *       consistent state rather than partly filled.
  * @note `query` and `peerMac` are pointers the `HAL` supplies. `Asynchronous Notification
- *       Model` in `docs/pages/halSpec.md` makes the copy the client's responsibility during
+ *       Model` in the HAL specification makes the copy the client's responsibility during
  *       the callback, so a handler that needs either afterwards must copy it before
  *       returning. That is the only statement this interface makes about their
  *       availability: it does not say which component owns the storage, how long it stays
@@ -2993,11 +2993,11 @@ typedef INT (*wifi_BTMResponse_callback)(UINT apIndex,
  *       cannot be bounded from this interface. `request` is the caller's own storage and
  *       the driver reads it once the handler returns.
  * @note The handler must not suspend and must not invoke any blocking system calls, per
- *       `Blocking calls` in `docs/pages/halSpec.md`. It runs on the path that answers the
+ *       `Blocking calls` in the HAL specification. It runs on the path that answers the
  *       STA, so a slow handler delays the BTM response.
  * @note The `HAL` is expected to be thread safe and may enter the handler on a `HAL`
  *       thread, so the handler must serialise its own access to caller state; see
- *       `Threading Model` in `docs/pages/halSpec.md`.
+ *       `Threading Model` in the HAL specification.
  * @note In this build `peerMac` is a `CHAR *`. This interface does not state whether it
  *       points at a NUL-terminated MAC address string or at six raw octets, so a handler
  *       must not assume either; where `WIFI_HAL_VERSION_3_PHASE2` is defined the same
@@ -3033,7 +3033,7 @@ typedef INT (*wifi_BTMQueryRequest_callback)(UINT apIndex,
  *       reports only whether the handler consumed it. This interface does not state how the
  *       `HAL` acts on `WIFI_HAL_ERROR`, so a handler must not rely on redelivery.
  * @note `response` and `peerMac` are pointers the `HAL` supplies. `Asynchronous
- *       Notification Model` in `docs/pages/halSpec.md` makes the copy the client's
+ *       Notification Model` in the HAL specification makes the copy the client's
  *       responsibility during the callback, so a handler that needs either afterwards must
  *       copy it before returning. That is the only statement this interface makes about
  *       their availability: it does not say which component owns the storage, how long it
@@ -3044,10 +3044,10 @@ typedef INT (*wifi_BTMQueryRequest_callback)(UINT apIndex,
  *       what matches it to the request that prompted it, and its `status` member is what
  *       says whether the STA accepted the transition.
  * @note The handler must not suspend and must not invoke any blocking system calls, per
- *       `Blocking calls` in `docs/pages/halSpec.md`.
+ *       `Blocking calls` in the HAL specification.
  * @note The `HAL` is expected to be thread safe and may enter the handler on a `HAL`
  *       thread, so the handler must serialise its own access to caller state; see
- *       `Threading Model` in `docs/pages/halSpec.md`.
+ *       `Threading Model` in the HAL specification.
  * @note In this build `peerMac` is a `CHAR *`, and this interface does not state whether it
  *       points at a NUL-terminated MAC address string or at six raw octets; where
  *       `WIFI_HAL_VERSION_3_PHASE2` is defined the same argument is a `mac_address_t`.
@@ -3093,7 +3093,7 @@ typedef INT (*wifi_BTMResponse_callback)(UINT apIndex,
  *                                a caller should supply both.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
- *      in `docs/pages/halSpec.md`. The effect of registering beforehand is not specified by
+ *      in the HAL specification. The effect of registering beforehand is not specified by
  *      this interface.
  * @post On success both handlers are installed for `apIndex`. This interface defines no
  *       unregister call for them, so a caller must not assume the handlers can be
@@ -3113,9 +3113,9 @@ typedef INT (*wifi_BTMResponse_callback)(UINT apIndex,
  *             pointers after this call returns. This interface states no other effect.
  *
  * @note The registration call itself is synchronous and does not block, per
- *       `Blocking calls` in `docs/pages/halSpec.md`; delivery of both handlers is asynchronous.
+ *       `Blocking calls` in the HAL specification; delivery of both handlers is asynchronous.
  * @note The `HAL` is expected to be thread safe, per `Threading Model` in
- *       `docs/pages/halSpec.md`.
+ *       the HAL specification.
  *
  * @see wifi_BTMQueryRequest_callback
  * @see wifi_BTMResponse_callback
@@ -3139,7 +3139,7 @@ INT wifi_BTMQueryRequest_callback_register(UINT apIndex, wifi_BTMQueryRequest_ca
  *                     The caller owns the storage and the `HAL` reads it during the call.
  * @param[in] request  Pointer to the BTM request frame to send. One frame is passed, not
  *                     an array. The caller allocates and owns it, per `Memory Model` in
- *                     `docs/pages/halSpec.md`; the `HAL` reads it during the call, and
+ *                     the HAL specification; the `HAL` reads it during the call, and
  *                     whether the implementation retains the pointer afterwards is not
  *                     specified by this interface, so the caller should keep the
  *                     structure allocated and unmoved while the `HAL` remains
@@ -3150,7 +3150,7 @@ INT wifi_BTMQueryRequest_callback_register(UINT apIndex, wifi_BTMQueryRequest_ca
  *                     populated.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
- *      in `docs/pages/halSpec.md`. A call made beforehand does not meet the runtime
+ *      in the HAL specification. A call made beforehand does not meet the runtime
  *      requirements and, per `Component Runtime Execution Requirements`, likely results
  *      in undefined behaviour.
  * @pre A `wifi_BTMResponse_callback` handler should be installed for `apIndex` with
@@ -3170,11 +3170,11 @@ INT wifi_BTMQueryRequest_callback_register(UINT apIndex, wifi_BTMQueryRequest_ca
  *                          `wifi_steering_clientDisconnect()` if it must move a client that
  *                          cannot be transitioned.
  *
- * @note This call does not block, per `Blocking calls` in `docs/pages/halSpec.md`, so it
+ * @note This call does not block, per `Blocking calls` in the HAL specification, so it
  *       returns before the frame is acknowledged.
  * @note This declaration is compiled only where `WIFI_HAL_VERSION_3_PHASE2` is defined.
  * @note The `HAL` is expected to be thread safe, per `Threading Model` in
- *       `docs/pages/halSpec.md`.
+ *       the HAL specification.
  *
  * @see wifi_BTMRequest_t
  * @see wifi_BTMResponse_callback
@@ -3237,14 +3237,14 @@ INT wifi_setBTMRequest(UINT apIndex, mac_address_t peerMac, wifi_BTMRequest_t *r
  *       of it. This interface does not state which component owns the three pointers or how
  *       long they stay valid, so a handler that needs the report afterwards copies the
  *       elements it wants before returning, and must not free or retain any of the three,
- *       per `Asynchronous Notification Model` in `docs/pages/halSpec.md`. This interface does
+ *       per `Asynchronous Notification Model` in the HAL specification. This interface does
  *       not state that the `HAL` reads anything written back through them, so a handler
  *       must not use them to return data.
  * @note The handler must not suspend and must not invoke any blocking system calls, per
- *       `Blocking calls` in `docs/pages/halSpec.md`.
+ *       `Blocking calls` in the HAL specification.
  * @note The `HAL` is expected to be thread safe and may enter the handler on a `HAL`
  *       thread, so the handler must serialise its own access to caller state; see
- *       `Threading Model` in `docs/pages/halSpec.md`.
+ *       `Threading Model` in the HAL specification.
  *
  * @see wifi_RMBeaconRequestCallbackRegister
  * @see wifi_RMBeaconRequestCallbackUnregister
@@ -3282,7 +3282,7 @@ typedef INT (*wifi_RMBeaconReport_callback)(UINT apIndex,
  *                                 this interface.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
- *      in `docs/pages/halSpec.md`. The effect of registering beforehand is not specified by
+ *      in the HAL specification. The effect of registering beforehand is not specified by
  *      this interface.
  * @post On success beacon reports for `apIndex` are delivered to the handler. This interface
  *       does not state whether registering a second handler for the same AP adds to a list
@@ -3302,9 +3302,9 @@ typedef INT (*wifi_RMBeaconReport_callback)(UINT apIndex,
  *             This interface states no other effect.
  *
  * @note The registration call itself is synchronous and does not block, per
- *       `Blocking calls` in `docs/pages/halSpec.md`; delivery of the report is asynchronous.
+ *       `Blocking calls` in the HAL specification; delivery of the report is asynchronous.
  * @note The `HAL` is expected to be thread safe, per `Threading Model` in
- *       `docs/pages/halSpec.md`.
+ *       the HAL specification.
  *
  * @see wifi_RMBeaconReport_callback
  * @see wifi_RMBeaconRequestCallbackUnregister
@@ -3341,11 +3341,11 @@ INT wifi_RMBeaconRequestCallbackRegister(UINT apIndex, wifi_RMBeaconReport_callb
  *                          assume the handler may still be invoked and so must not free
  *                          anything the handler uses.
  *
- * @note This call does not block, per `Blocking calls` in `docs/pages/halSpec.md`. It is a
+ * @note This call does not block, per `Blocking calls` in the HAL specification. It is a
  *       teardown call rather than a registration, so it carries no callback-execution
  *       marker.
  * @note The `HAL` is expected to be thread safe, per `Threading Model` in
- *       `docs/pages/halSpec.md`.
+ *       the HAL specification.
  *
  * @see wifi_RMBeaconRequestCallbackRegister
  * @see wifi_cancelRMBeaconRequest
@@ -3373,7 +3373,7 @@ INT wifi_RMBeaconRequestCallbackUnregister(UINT apIndex, wifi_RMBeaconReport_cal
  *                        token.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
- *      in `docs/pages/halSpec.md`. A call made beforehand does not meet the runtime
+ *      in the HAL specification. A call made beforehand does not meet the runtime
  *      requirements and, per `Component Runtime Execution Requirements`, likely results
  *      in undefined behaviour.
  * @post On success the `HAL` has accepted the cancellation. This interface does not state
@@ -3388,9 +3388,9 @@ INT wifi_RMBeaconRequestCallbackUnregister(UINT apIndex, wifi_RMBeaconReport_cal
  *                          the measurement as possibly still running and must not release
  *                          its handler on the strength of this code alone.
  *
- * @note This call does not block, per `Blocking calls` in `docs/pages/halSpec.md`.
+ * @note This call does not block, per `Blocking calls` in the HAL specification.
  * @note The `HAL` is expected to be thread safe, per `Threading Model` in
- *       `docs/pages/halSpec.md`.
+ *       the HAL specification.
  *
  * @see wifi_setRMBeaconRequest
  * @see wifi_RMBeaconRequestCallbackUnregister
@@ -3419,7 +3419,7 @@ INT wifi_cancelRMBeaconRequest(UINT apIndex, UCHAR dialogToken);
  * @param[in] in_request     Pointer to a `wifi_BeaconRequest_t` structure containing the
  *                           beacon request information. One request is passed, not an
  *                           array. The caller allocates and owns it, per `Memory Model`
- *                           in `docs/pages/halSpec.md`; the `HAL` reads it during the
+ *                           in the HAL specification; the `HAL` reads it during the
  *                           call, and whether the implementation retains the pointer
  *                           afterwards is not specified by this interface, so the caller
  *                           should keep the structure allocated and unmoved while the
@@ -3440,7 +3440,7 @@ INT wifi_cancelRMBeaconRequest(UINT apIndex, UCHAR dialogToken);
  *                           cancel or to correlate reports must therefore keep it.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
- *      in `docs/pages/halSpec.md`. A call made beforehand does not meet the runtime
+ *      in the HAL specification. A call made beforehand does not meet the runtime
  *      requirements and, per `Component Runtime Execution Requirements`, likely results
  *      in undefined behaviour.
  * @pre A handler must be registered for `apIndex` with
@@ -3468,12 +3468,12 @@ INT wifi_cancelRMBeaconRequest(UINT apIndex, UCHAR dialogToken);
  *       must not branch as though it could. Confirming the registration, and the peer's
  *       capabilities with `wifi_getRMCapabilities()`, is what a caller can do before
  *       retrying; anything further has to come from the implementation's own diagnostics.
- * @note This call does not block, per `Blocking calls` in `docs/pages/halSpec.md`, so it
+ * @note This call does not block, per `Blocking calls` in the HAL specification, so it
  *       returns before the measurement has been made and does not wait out the request's
  *       `duration`.
  * @note This declaration is compiled only where `WIFI_HAL_VERSION_3_PHASE2` is defined.
  * @note The `HAL` is expected to be thread safe, per `Threading Model` in
- *       `docs/pages/halSpec.md`.
+ *       the HAL specification.
  *
  * @see wifi_BeaconRequest_t
  * @see wifi_RMBeaconReport_callback
@@ -3515,7 +3515,7 @@ INT wifi_setRMBeaconRequest(UINT apIndex,
  *                            capabilities that steering uses, in decoded form.
  *
  * @pre `wifi_init()` must have completed successfully; see `Initialization and Startup`
- *      in `docs/pages/halSpec.md`. A call made beforehand does not meet the runtime
+ *      in the HAL specification. A call made beforehand does not meet the runtime
  *      requirements and, per `Component Runtime Execution Requirements`, likely results
  *      in undefined behaviour.
  * @post On success all five octets have been written. On failure the contents are undefined
@@ -3529,12 +3529,12 @@ INT wifi_setRMBeaconRequest(UINT apIndex,
  *                          peer's RM support as unknown rather than absent, and may still
  *                          issue a beacon request and rely on its return code.
  *
- * @note This call does not block, per `Blocking calls` in `docs/pages/halSpec.md`, so it
+ * @note This call does not block, per `Blocking calls` in the HAL specification, so it
  *       reports capabilities the `HAL` already holds from association rather than querying
  *       the peer over the air.
  * @note This declaration is compiled only where `WIFI_HAL_VERSION_3_PHASE2` is defined.
  * @note The `HAL` is expected to be thread safe, per `Threading Model` in
- *       `docs/pages/halSpec.md`.
+ *       the HAL specification.
  *
  * @see wifi_RMEnabledCapabilities_t
  * @see wifi_steering_rrmCaps_t

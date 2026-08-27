@@ -112,7 +112,7 @@
  * below. Complete wifi_init() successfully before invoking any other function in
  * this group. The interface is expected to be thread safe and none of its calls
  * should block; the "Initialization and Startup", "Threading Model" and "Blocking
- * calls" sections of docs/pages/halSpec.md state those requirements.
+ * calls" sections of the HAL specification state those requirements.
  */
 /**
  * Wifi generic API and types definition used across multiples modules.
