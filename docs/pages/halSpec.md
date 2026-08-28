@@ -511,6 +511,8 @@ The status enumerations a caller reads are listed under `State Diagram`, with th
 
 This topic is the boundary between the two ways of reading this document. Everything above answers "what is this interface and how do I drive it"; from here on the document answers "exactly what is declared, and what happens when it fails". Every function this interface declares is named below, by exact identifier, grouped by the header that declares it, with the purpose taken from that declaration's own documentation. The header named beside each group is where the per-`API` detail lives: parameter ranges, ownership, pre-conditions, and the return values each function can produce.
 
+**Where these pointers resolve.** The locators in this topic are relative paths into the headers under `include/`, the form this documentation set uses throughout, so they resolve on GitHub and in a checkout \- the surface a developer using this repository reads. They do **not** resolve from inside the generated documentation site: the generator copies each link target verbatim into a page one directory below this file, so a site served with `docs/output/html` as its root has nothing above that root to reach and answers `404`, and opened from the filesystem the same target does not exist. Follow a source pointer on GitHub or in a checkout; inside the generated site, reach the same declaration through its `Files` and function-index pages.
+
 [wifi_hal.h](../../include/wifi_hal.h) declares no functions of its own. It is the umbrella header, and a caller includes it to obtain the whole surface below in one step.
 
 **Generic \- [wifi_hal_generic.h](../../include/wifi_hal_generic.h), 10 declared functions.** Subsystem lifetime, capability discovery and the optional `hostapd` path. Detail: [wifi_hal_generic.h](../../include/wifi_hal_generic.h)
@@ -973,6 +975,8 @@ sequenceDiagram
     WifiHAL->>Vendor: stop transmitting
     WifiHAL->>Caller: WIFI_HAL_SUCCESS
 ```
+
+Every diagram in this document is a fenced `mermaid` block. Such blocks render as diagrams on GitHub, which the repository's `README.md` symlink makes the primary reading surface for this specification; they do **not** render in the `HTML` the documentation generator produces, where the block appears as its source text instead. That limitation is stated here rather than worked around, because the only available workaround would fix the generated site at the cost of the surface most readers use.
 
 ### State Diagram
 
