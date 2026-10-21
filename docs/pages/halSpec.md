@@ -323,7 +323,7 @@ These orderings and each declaration's own pre-conditions are the complete seque
 
 - **Before initialization.** A call made before `wifi_init()` has completed does not meet the runtime requirements. Most status-returning functions report `WIFI_HAL_ERROR`, or its alias `RETURN_ERR`, for such a call; others state that it likely results in undefined behaviour, and a `void` registration has no status to report. Each declaration's pre-condition states which applies, and a caller initializes first rather than relying on any of them.
 - **Radio and `VAP` enable state.** A radio that is administratively disabled takes every Access Point hosted on it off the air, so a read against a `VAP` on a disabled radio reports the state it is in rather than the configuration it would have. `wifi_getRadioStatus()` reports operational state and `wifi_getRadioEnable()` administrative state; a radio can be enabled and not yet up.
-- **`DFS` occupancy.** A channel that is subject to `DFS` may be unusable while a `Channel Availability Check` or a `Non-Occupancy Period` is outstanding, which is why a channel set can be refused on hardware that supports it.
+- **Occupancy under `DFS`.** A channel that is subject to `DFS` may be unusable while a `Channel Availability Check` or a `Non-Occupancy Period` is outstanding, which is why a channel set can be refused on hardware that supports it.
 - **Statistics and diagnostics.** The counters a statistics call returns depend on what the subsystem has done since it started, and several of them are cumulative rather than instantaneous, so a caller measuring a rate differences two samples itself.
 
 ### Data Structures and Defines
@@ -349,7 +349,7 @@ A caller of this interface constructs or interprets the types below. Every one i
 
 **Every type a declared signature takes or returns,** grouped by the header that declares it. A type appears here exactly when a declared function names it as a return or parameter type, and the `Represents` column carries the opening statement of that type's own documentation.
 
-*`wifi_hal_generic.h`*
+*Types in `wifi_hal_generic.h`*
 
 | Type | Represents |
 | --- | --- |
@@ -367,7 +367,7 @@ A caller of this interface constructs or interprets the types below. Every one i
 | `wifi_twt_sessions_t` | Wi-Fi TWT sessions. |
 | `wifi_ul_mu_type_t` | Uplink multi-user scheme a radio is configured for. |
 
-*`wifi_hal_radio.h`*
+*Types in `wifi_hal_radio.h`*
 
 | Type | Represents |
 | --- | --- |
@@ -377,7 +377,7 @@ A caller of this interface constructs or interprets the types below. Every one i
 | `wifi_radioTemperature_t` | Radio temperature information. |
 | `wifi_radio_operationParam_t` | Wi-Fi radio operation parameters. |
 
-*`wifi_hal_ap.h`*
+*Types in `wifi_hal_ap.h`*
 
 | Type | Represents |
 | --- | --- |
@@ -395,21 +395,21 @@ A caller of this interface constructs or interprets the types below. Every one i
 | `wifi_vap_security_t` | VAP security settings. |
 | `wifi_wps_t` | Wi-Fi Protected Setup (WPS) settings. |
 
-*`wifi_hal_sta.h`*
+*Types in `wifi_hal_sta.h`*
 
 | Type | Represents |
 | --- | --- |
 | `wifi_sta_capability_t` | Station capabilities. |
 | `wifi_station_stats_t` | Station statistics. |
 
-*`wifi_hal_client_mgt.h`*
+*Types in `wifi_hal_client_mgt.h`*
 
 | Type | Represents |
 | --- | --- |
 | `wifi_FastTransitionConfig_t` | A complete 802.11r Fast BSS Transition configuration for one Access Point. |
 | `wifi_eap_config_t` | The EAP and EAPOL timing parameters an Access Point uses during 802.1X authentication. |
 
-*`wifi_hal_extender.h`*
+*Types in `wifi_hal_extender.h`*
 
 | Type | Represents |
 | --- | --- |
@@ -424,7 +424,7 @@ A caller of this interface constructs or interprets the types below. Every one i
 | `wifi_steering_apConfig_t` | Steering configuration per AP. |
 | `wifi_steering_clientConfig_t` | Configuration per Client This defines the per-client, per-apIndex configuration settings. |
 
-*`wifi_hal_telemetry.h`*
+*Types in `wifi_hal_telemetry.h`*
 
 | Type | Represents |
 | --- | --- |
