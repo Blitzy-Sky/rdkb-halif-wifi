@@ -53,11 +53,10 @@ The Hardware Abstraction Layer (HAL) is to abstract the RDK Wi-Fi requirements a
 This repository holds the interface definition only. A vendor supplies the implementation behind it, and OneWifi is the RDK-B component that calls it.
 
 ```mermaid
-flowchart TD;
-    ONEWIFI[OneWifi] <-->
-    WIFIHAL["Wi-Fi HAL - wifi_hal.h"] <-->
-    VENDORSOFTWARE[Vendor Software] <-->
-    VENDORDRIVER[Vendor Wi-Fi Driver and Hardware]
+flowchart TD
+    Caller["OneWifi"] <--> HAL["Wi-Fi HAL - wifi_hal.h"]
+    HAL <--> Vendor["Vendor Software"]
+    Vendor <--> Hardware["Wi-Fi driver and hardware"]
 ```
 
 Beneath the interface, an implementation may reach the driver through the optional `hostapd`, `nl80211` and `cfg80211` path, which spans user space and the kernel, or through a proprietary `IOCTL` route. A caller must not depend on either route; `Optional Components` lists what the interface declares for the `hostapd` path.
@@ -234,10 +233,7 @@ The vendor should endeavour to:-
 
 ### Licensing
 
- Licensed under the Apache License, Version 2.0 (the "License").
- you may not use this file except in compliance with the License.
-
-The full text is in `LICENSE`, with attribution in `NOTICE` and the copyright statement in `COPYING`. An implementation of this interface is expected to be released under the same license.
+This interface is licensed under the Apache License, Version 2.0. The full text is in `LICENSE`, with attribution in `NOTICE`; `COPYING` is a symbolic link to `LICENSE` and holds the same text. An implementation of this interface is expected to be released under the same license.
 
 ### Build Requirements
 
@@ -968,4 +964,4 @@ The status enumerations a caller reads are declared in `wifi_hal_generic.h` (`wi
 - [rdkcentral/rdkb-halif-wifi/docs/pages/images/WifiHALDiagram.PNG](https://github.com/rdkcentral/rdkb-halif-wifi/blob/develop/docs/pages/images/WifiHALDiagram.PNG) — vendor arrangement image shown under `Description`
 - [rdkcentral/rdkb-halif-wifi/LICENSE](https://github.com/rdkcentral/rdkb-halif-wifi/blob/develop/LICENSE) — Apache License, Version 2.0
 - [rdkcentral/rdkb-halif-wifi/NOTICE](https://github.com/rdkcentral/rdkb-halif-wifi/blob/develop/NOTICE) — attribution notice
-- [rdkcentral/rdkb-halif-wifi/COPYING](https://github.com/rdkcentral/rdkb-halif-wifi/blob/develop/COPYING) — copyright statement
+- [rdkcentral/rdkb-halif-wifi/COPYING](https://github.com/rdkcentral/rdkb-halif-wifi/blob/develop/COPYING) — Apache License 2.0 text, a symbolic link to `LICENSE`
