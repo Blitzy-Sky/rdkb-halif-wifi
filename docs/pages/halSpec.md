@@ -2,19 +2,10 @@
 
 ## Version History
 
-This table records revisions of *this document*. It is not the version of the interface, of the repository, or of the generated documentation site; those are three further identities, kept apart immediately below.
-
 | Date | Comment | Version |
 | --- | --- | --- |
 | 2022-08-16 | Initial Release | 0.1.0 |
 | 2026-08-24 | Brought to the canonical `HAL` specification topic set. Every declared `API` is now named, the four version identities are separated, and the interface's own return codes, public types and status enumerations are documented. | 0.2.0 |
-
-Four version identities exist around this interface, and a reader who conflates them will draw the wrong conclusion about how mature it is:
-
-- **Document revision** \- the `Version` column above. This document is at `0.2.0`.
-- **Release tag** \- the nearest ancestor tag of the revision this document describes is `4.0.0`, recorded without a date in the repository's changelog. Later tags exist in the repository, including `5.0.0` and the `8.x` series, but they are not ancestors of this revision, so no later release is claimed here.
-- **Interface version** \- `3.0.6`, declared by the version macros in `wifi_hal_generic.h`. This is what a caller compiles against and can test at runtime; see `Variability Management`.
-- **Generated-site version string** \- `docs/generate_docs.sh` derives `PROJECT_VERSION` from `git describe --tags`, which yields a string of the form `<tag>-<commits-since-tag>-g<abbreviated-hash>`. That is a build identifier, not a released version, and it must not be read as one.
 
 ## Acronyms
 
@@ -58,20 +49,19 @@ Four version identities exist around this interface, and a reader who conflates 
 
 The Hardware Abstraction Layer (HAL) is to abstract the RDK Wi-Fi requirements at a general level to allow platform independent control.
 
-This repository holds the interface definition only. A vendor supplies the implementation behind it, and a caller is the RDK-B middleware that drives it. The diagram below places the interface in the stack; the workspace inventory names `harvester` and `onewifi` as the RDK-B services that own this interface, so a test or tool that drives the `HAL` directly contends with them for the hardware.
+This repository holds the interface definition only. A vendor supplies the implementation behind it, and OneWifi is the RDK-B component that calls it.
 
 ```mermaid
 flowchart TD;
-    RDKBSTACK[RDK-B Stack] <-->
-    OWNINGSERVICES["Owning RDK-B services: harvester, onewifi"] <-->
-    WIFIHAL["Wi-Fi HAL - wifi_hal.h and its member headers"] <-->
+    ONEWIFI[OneWifi] <-->
+    WIFIHAL["Wi-Fi HAL - wifi_hal.h"] <-->
     VENDORSOFTWARE[Vendor Software] <-->
     VENDORDRIVER[Vendor Wi-Fi Driver and Hardware]
 ```
 
-The vendor step in that flowchart stands for a layering this interface deliberately does not constrain: an implementation may reach the driver through the optional `hostapd`, `nl80211` and `cfg80211` path, which spans user space and the kernel, or through a proprietary `IOCTL` interface. Which route a vendor takes is not observable through the declarations documented here, so a caller must not depend on either; `Optional Components` below states what the interface does say about the choice.
+Beneath the interface, an implementation may reach the driver through the optional `hostapd`, `nl80211` and `cfg80211` path, which spans user space and the kernel, or through a proprietary `IOCTL` route. A caller must not depend on either route; `Optional Components` lists what the interface declares for the `hostapd` path.
 
-**On the architecture raster this repository carries.** `docs/pages/images/WifiHALDiagram.PNG` was audited against the interface for this revision and its reference is retained, because it carries exactly what the flowchart above abstracts: the vendor layering *below* the HAL boundary, drawn as an explicit optional region that spans user space and the kernel, beside a direct `IOCTL` and proprietary route, over the driver and the SOC hardware. Only one element of it is established by the declarations - `hostapd`, by the five functions `Optional Components` lists - so the rest is read as an illustration of one vendor arrangement and not as contract: `nl80211`, `cfg80211` and the `IOCTL` route are named by no declaration in any documented header, and the raster's own header label `hal.h` and its `Comcast` attribution predate this repository, whose umbrella header is `wifi_hal.h` under `rdkcentral` and whose documented headers contain no occurrence of `Comcast` at all. The raster is re-audited against the interface whenever this topic changes.
+The image below illustrates one such vendor arrangement: the optional user-space and kernel region beside a direct `IOCTL` route, over the driver and the `SoC` hardware. Of its elements only `hostapd` is part of the interface, and its `hal.h` label stands for `wifi_hal.h`; the rest is illustration, not contract.
 
 ![WiFi HAL DIAGRAM](images/WifiHALDiagram.PNG)
 
@@ -83,9 +73,7 @@ The following components are optional and it is up to the vendor's discretion wh
 
 - `nl80211/cfg80211` nl80211 is the interface between user space software (iw etc.) and the kernel (cfg80211 and mac80211 kernel modules, and specific drivers)
 
-Three declared APIs presuppose the first of these and are the caller's only interface to it: `wifi_createHostApdConfig`, `wifi_startHostApd` and `wifi_stopHostApd`, with `wifi_getLibhostapd` reporting whether the implementation uses the library form and `wifi_updateLibHostApdConfig` refreshing its configuration. A vendor that reaches the driver by a proprietary route still implements those functions, because they are part of the interface; what a vendor chooses is the mechanism behind them, not their presence.
-
-Source: the two component names are carried forward from this repository's own specification; the five declarations are read from `include/wifi_hal_generic.h` (`wifi_createHostApdConfig`, `wifi_startHostApd`, `wifi_stopHostApd`) and `include/wifi_hal_ap.h` (`wifi_getLibhostapd`, `wifi_updateLibHostApdConfig`).
+Three declared APIs presuppose `hostapd` and are the caller's only interface to it: `wifi_createHostApdConfig`, `wifi_startHostApd` and `wifi_stopHostApd`. `wifi_getLibhostapd` reports whether the implementation uses the library form, and `wifi_updateLibHostApdConfig` refreshes its configuration. A vendor that reaches the driver by a proprietary route still implements these functions; the vendor chooses the mechanism behind them, not their presence.
 
 ## Component Runtime Execution Requirements
 
@@ -113,9 +101,7 @@ The declared functions that govern the interface's lifetime are:
 - `wifi_createInitialConfigFiles()` \- creates initial Wi-Fi configuration files
 - `wifi_createHostApdConfig()`, `wifi_startHostApd()`, `wifi_stopHostApd()` \- bring up and take down the optional `hostapd` path
 
-Third party vendors will implement these appropriately to meet operational requirements. Beyond the ordering stated here and in `Method Sequencing`, this interface does not specify a call order between the remaining functions, and a caller must not infer one from the order of declaration in a header.
-
-Source: every function above is declared in `include/wifi_hal_generic.h`, and the requirement that `wifi_init()` complete before any other call is stated by the `WIFI_HAL_APIS` group comment in `include/wifi_hal.h`.
+Third party vendors will implement these appropriately to meet operational requirements. The ordering a caller follows after initialization is set out under `Method Sequencing`.
 
 ### Threading Model
 
@@ -123,24 +109,13 @@ Source: every function above is declared in `include/wifi_hal_generic.h`, and th
 
 There is no restriction on the vendor to create any number of threads to meet the operational requirements.
 
-**Source:** `include/wifi_hal.h` states the expectation for the whole callable surface in its `WIFI_HAL_APIS` group comment, and refers back to this topic; the per-function blocks in `include/wifi_hal_ap.h` and its siblings cite it the same way.
-
-**Scope of the guarantee:** the expectation is stated once here and applies across the interface, so every `API`'s inline documentation states it by reference to this topic rather than repeating a per-function rule. The obligation therefore rests with the implementation rather than with the caller: a caller may invoke the interface concurrently from more than one thread. Where a callback handler is entered, the handler itself may run on a `HAL`-owned thread, so a handler must serialize access to the caller's own state; see `Asynchronous Notification Model`.
-
-*Derived from the threading statement this page carried before the current revision:
-line 55 of this page as it stood at commit `76594ec9b6e2`, which `git show` against that commit
-and this page's own repository path retrieves. It is this repository's own policy statement. It is
-the expectation the interface places on the implementation, not an observation of one: no
-implementation is shipped
-here, and the headers state the rule by reference to this topic rather than establishing it.*
+**Scope of the guarantee:** the expectation applies to every function in the interface, so the obligation rests with the implementation and a caller may invoke the interface concurrently from more than one thread. A callback handler may run on a `HAL`-owned thread; see `Asynchronous Notification Model`.
 
 ### Process Model
 
 A single instance is expected to exist. And only one instance will be initialized.
 
 The interface is delivered as a statically loadable library within the calling process, so the single instance is per process and its lifetime is the process lifetime.
-
-Source: the single-instance requirement is carried forward from this repository's own specification. No declaration or comment in `include/wifi_hal.h` or the seven per-area headers it includes states an instance count, so nothing beyond that prior statement establishes it.
 
 ### Memory Model
 
@@ -149,34 +124,26 @@ Where `client` creates memory, then `client` is expected to own it.
 
 Exceptions to these rules can be specified in the API documentation.
 
-Source: the ownership rule is carried forward from this repository's own specification; the three exceptions below are read from the declarations and blocks of `wifi_findNetworks()` in `include/wifi_hal_generic.h`, `wifi_getNeighboringWiFiStatus()` in `include/wifi_hal_telemetry.h`, and `wifi_getApAssociatedDeviceDiagnosticResult3()` in `include/wifi_hal_generic.h`.
-
-That exception clause is load-bearing rather than decorative: three declared functions use it, and each names the obligation in its own block.
-
 #### Caller Responsibilities
 
-- Allocate, and release, every structure and buffer passed to an `API`, including the out-parameters an `API` writes into. That much is the ownership rule above. What the rule does *not* settle is how long the implementation may keep the pointer: this interface does not state whether an implementation retains a caller-supplied pointer after the call that received it, so a caller must not rely on being able to release or reuse the storage the instant the call returns, and must not rely on the implementation having copied the contents. Where a particular `API` has more to say about it, it says so in its own block - most state that the caller must keep the storage valid and unmodified until the call returns, and the registration functions that take caller-supplied configuration state that it must stay valid and unmodified for as long as the registration stands. Those are obligations placed on the caller precisely because the interface does not settle retention; none of them is a guarantee that an implementation does or does not keep the pointer.
-- Read an out-parameter only after the call has reported success. On failure the contents are unspecified, and the count fields that describe an array are unspecified with them.
-- Copy any data handed to a callback before returning from the handler, unless that `API`'s documentation says otherwise.
-- Release the arrays that the three documented exceptions hand back. `wifi_findNetworks()` returns a `HAL`-allocated array of `wifi_bss_info_t`; `wifi_getNeighboringWiFiStatus()` returns a `HAL`-allocated array of `wifi_neighbor_ap2_t`; and `wifi_getApAssociatedDeviceDiagnosticResult3()` ordinarily returns a `HAL`-allocated array of `wifi_associated_dev3_t`. In each case the caller passes the address of its own pointer variable, the `HAL` sets it, and the caller frees the array as a whole. This interface does not name the allocator the `HAL` used, so the matching release function is a platform convention rather than something established here.
+- Allocate and release every structure and buffer passed to an `API`, including the out-parameters it writes into.
+- Keep that storage valid and unmodified until the call returns, and, where a registration function takes caller-supplied configuration, for as long as the registration stands.
+- Read an out-parameter, including any count that describes an array, only after the call has returned success.
+- Copy callback data before the handler returns, as `Asynchronous Notification Model` requires.
+- Free the `HAL`-allocated arrays returned by `wifi_findNetworks()`, `wifi_getNeighboringWiFiStatus()` and `wifi_getApAssociatedDeviceDiagnosticResult3()`: the caller passes the address of its own pointer, the `HAL` sets it, and the caller frees the array as a whole.
 
 #### Module Responsibilities
 
-- Allocate and release the memory the implementation needs for its own operation, and release it when it is no longer needed, so that memory held for a superseded configuration does not accumulate.
-- Where an `API` returns memory the `HAL` allocated, state that exception in that `API`'s own documentation. The three functions above are the only ones in the current surface that do so.
-- Where an `API` needs a caller-supplied pointer to outlive the call, state that in that `API`'s own documentation, because the ownership rule above does not settle it. The rule fixes who allocates and who releases; it says nothing about how long a pointer may be held, and this specification does not add a corpus-wide no-retention rule that the interface definition does not state. A caller therefore has to be told per `API`, and the blocks that need it do tell.
+- Allocate the memory the implementation needs for its own operation and release it when it is no longer needed, so that nothing accumulates across reconfiguration, reset or re-initialization.
+- State in an `API`'s own documentation any exception to the ownership rule: memory the `HAL` returns for the caller to free, or a caller-supplied pointer that must outlive the call.
 
 ### Power Management Requirements
 
 There is no requirement for the component to participate in power management.
 
-Source: measured over the interface itself. Neither `include/wifi_hal.h` nor any of the seven per-area headers it includes - `include/wifi_hal_generic.h`, `include/wifi_hal_radio.h`, `include/wifi_hal_ap.h`, `include/wifi_hal_client_mgt.h`, `include/wifi_hal_sta.h`, `include/wifi_hal_extender.h` and `include/wifi_hal_telemetry.h` - declares a power-management entry point, a power-state type or a suspend or resume notification, so there is nothing here for a caller to call and nothing for an implementation to honour.
-
 ### Asynchronous Notification Model
 
 A number of asynchronous callback registration functions exist. They carry the `_callback_register` or `_callbacks_register` suffix and are marked in the doxygen comments with the generator's `execution` alias, whose value on those declarations is `callback`.
-
-Source: that alias marks twenty declarations across `include/wifi_hal_ap.h`, `include/wifi_hal_extender.h`, `include/wifi_hal_radio.h` and `include/wifi_hal_sta.h`, and the callback typedefs they install are grouped under `WIFI_HAL_TYPES` as `include/wifi_hal.h` describes.
 
 As a few examples of this are:-
 
@@ -191,49 +158,41 @@ Seventeen such registration functions are declared, and five further functions i
 
 During callbacks the client is responsible for creating a copy of the data, unless otherwise specified in the API documentation.
 
-**Handler obligations:** a handler may be entered on a `HAL`-owned thread, so it must serialize its own access to caller state. It must not suspend and must not invoke a blocking system call, for the reason given under `Blocking calls`; a slow handler delays the `HAL`, and where the notification is part of an exchange with a station it delays the response on the air. Registration is the caller's declaration of interest, so register before the events of interest are wanted, and expect no notification for anything that occurred before registration.
+**Handler obligations:** a handler may be entered on a `HAL`-owned thread, so it must serialize its own access to caller state. It must not suspend or invoke a blocking system call, because a slow handler delays the `HAL` and, where the notification is part of an exchange with a station, the response on the air. Register before the events of interest are wanted; no notification is delivered for anything that occurred before registration.
 
 ### Blocking calls
 
 None of the calls in the interface should block.
 
-Source: `include/wifi_hal.h` states this for the whole callable surface in its `WIFI_HAL_APIS` group comment, and the per-function blocks cite this topic in turn.
+**Non-Blocking Requirement:** an implementation must not suspend or invoke a blocking system call from any function in this interface. Where an operation cannot be completed immediately, it reports the condition through the return value rather than waiting.
 
-**Non-Blocking Requirement:** an implementation must not suspend and must not invoke a blocking system call from any function in this interface, including from a callback handler. Where an operation cannot be completed immediately, the correct behavior is to report the condition through the return value rather than to wait.
-
-**Timeout Handling:** this interface specifies no timeout value for any call, so a caller must not derive one from this specification. Where a caller needs a bound it is a property of that caller's own design.
+Each call returns its status to the caller synchronously; an event that occurs later is reported through a handler registered as `Asynchronous Notification Model` describes.
 
 ### Internal Error Handling
 
-All the APIs define a list of return codes, each API must be capable of returning all of the codes defined, the `UT` if possible, will create cases
-for the error codes to be exercised.
+Each `API` documents its return codes in its own `@retval` list and must be capable of returning every code in that list; the `UT`, where possible, will create cases that exercise each of them.
 
-HAL is responsible to handle system errors (e.g., failure of memory allocation, array boundary out of memory, return code check), and returning
-only the fixed returned codes as defined in the `API` specification.
+HAL is responsible to handle system errors (e.g., failure of memory allocation, array boundary out of memory, return code check), and returning only the fixed returned codes as defined in the `API` specification.
 
 The fixed codes are declared in `wifi_hal_generic.h`:
 
 | Code | Value | What it reports, and what a caller does about it |
 | --- | --- | --- |
 | `WIFI_HAL_SUCCESS` | `0` | The operation completed. Out-parameters may be read. |
-| `WIFI_HAL_ERROR` | `-1` | The operation failed. Each `API`'s own documentation states the conditions it uses this code for, which for most of the surface include an out-of-range index, a `NULL` output pointer, and a vendor layer that could not supply the value. |
+| `WIFI_HAL_ERROR` | `-1` | The operation failed, typically through an out-of-range index, a `NULL` output pointer or a vendor layer that could not supply the value; the function's own documentation lists its causes. Out-parameters must not be read. |
 | `WIFI_HAL_INTERNAL_ERROR` | `-2` | The implementation failed internally. The caller's arguments were not the cause, so retrying the identical call is unlikely to help. |
 | `WIFI_HAL_UNSUPPORTED` | `-3` | The platform does not implement the operation. This is a capability answer, not a fault: a caller should treat the feature as absent and not retry. |
 | `WIFI_HAL_INVALID_ARGUMENTS` | `-4` | An argument was unacceptable, for instance an index outside the declared range or a `NULL` pointer. The caller should correct the call. |
-| `WIFI_HAL_INVALID_VALUE` | `-5` | An argument was well formed but its value is not one this interface accepts for that parameter. |
-| `WIFI_HAL_NOT_READY` | `-6` | The subsystem is not yet able to serve the request. The header declares the code and names it; it does not say which conditions produce it, and no declaration in this interface documents it as a return value, so a caller should handle it if it arrives and must not expect it as the answer to any particular call - including a call made before `wifi_init()` has completed. |
+| `WIFI_HAL_INVALID_VALUE` | `-5` | An argument was well formed but its value is not one this interface accepts for that parameter. The caller should supply an accepted value. |
+| `WIFI_HAL_NOT_READY` | `-6` | The subsystem is not yet able to serve the request. A caller handles it wherever it arrives rather than expecting it from a particular call. |
 
-Two aliases, `RETURN_OK` and `RETURN_ERR`, are declared in the same header with the values `0` and `-1`. They are numerically identical to `WIFI_HAL_SUCCESS` and `WIFI_HAL_ERROR`, and both are guarded so that a caller which already defines them keeps its own definition. The two vocabularies are mixed across the interface - `wifi_hal_sta.h`, for instance, documents its returns entirely in the alias spelling - so a caller comparing against a literal `0` or `-1` is correct either way, and a caller comparing symbolically should not assume one spelling.
-
-Which codes a given function can actually return is a per-function fact, stated in that function's own `@retval` list. This topic fixes the vocabulary; it does not claim that every function returns every code.
+`RETURN_OK` (`0`) and `RETURN_ERR` (`-1`) are guarded aliases of `WIFI_HAL_SUCCESS` and `WIFI_HAL_ERROR`, and some headers, such as `wifi_hal_sta.h`, document their returns in the alias spelling. A caller comparing symbolically therefore accepts either spelling.
 
 ### Persistence Model
 
 Wi-Fi `HAL` configuration will be maintained by the upper layer.
 
-Consequently this interface does not state, for any setting it can change, whether the change survives a reboot: several functions say as much in their own documentation and refer back to this topic. A caller that needs a setting to persist must arrange that itself. The interface declares one path constant, `RESTORE_CNFG_FILE_NAME`, but names no function that reads or writes it, so nothing here establishes which component owns that file.
-
-Source: the upper-layer ownership statement is carried forward from this repository's own specification; `RESTORE_CNFG_FILE_NAME` is declared in `include/wifi_hal_generic.h`, and the absence of any function referencing it was measured across all eight in-scope headers.
+A caller that needs a setting to survive a reboot or a reset therefore stores it and reapplies it itself.
 
 ## Non functional requirements
 
@@ -246,43 +205,19 @@ This helps to debug/triage the issues and understand the functional flow of the 
 
 The logging should be consistent across all `HAL` components. Logging should be implemented using the syslog method; the use of `printf` is discouraged unless `syslog` is not available.
 
-If the vendor is going to log then it has to be logged in `wifi_vendor_hal.log` file name. This specification names the file and not its directory, so the log location is not established here and a caller must not depend on a particular path.
+If the vendor is going to log then it has to be logged in `wifi_vendor_hal.log` file name.
 
-Logging should be defined with log levels as per Linux standard logging, listed here in descending order of severity:
+Logging should be defined with log levels as per Linux standard logging, in descending order of severity: `FATAL`, `ERROR`, `WARNING`, `NOTICE`, `INFO`, `DEBUG` and `TRACE`. Each log entry should include a timestamp, the log level and a message describing the event or condition.
 
-- **FATAL:** Critical conditions, typically indicating system crashes or severe failures that require immediate attention.
-- **ERROR:** Non-fatal error conditions that nonetheless significantly impede normal operation.
-- **WARNING:** Potentially harmful situations that do not yet represent errors.
-- **NOTICE:** Important but not error-level events.
-- **INFO:** General informational messages that highlight system operations.
-- **DEBUG:** Detailed information typically useful only when diagnosing problems.
-- **TRACE:** Very fine-grained logging to trace the internal flow of the system.
+`wifi_hal_analytics_callback_register()` installs the caller's log sink for catastrophic `HAL` failures, so the calling middleware receives those events as well as the vendor log.
 
-Each log entry should include a timestamp, the log level, and a message describing the event or condition, so that log files can be parsed and compared across vendors and components.
-
-One declared function is a logging interface in its own right rather than a diagnostic aid: `wifi_hal_analytics_callback_register()` installs the caller's log sink for catastrophic `HAL` failures, which lets the calling middleware receive those events instead of only finding them in the vendor log.
-
-**Credentials and personal identifiers must not be logged.** This interface carries both, so the rule is normative rather than advisory, and it binds the implementer and the caller equally - a secret is just as exposed by the middleware that read it as by the `HAL` that returned it.
-
-- **Never log a secret, at any severity.** A RADIUS shared secret, a `WPA` passphrase or `PSK`, a multi-`PSK` key, a `WPS` `PIN`, an 802.11r `R0`/`R1` key, and any structure that embeds one must not be written to `wifi_vendor_hal.log`, to `syslog`, to a `printf` fallback, or to the analytics sink installed by `wifi_hal_analytics_callback_register()`. `DEBUG` and `TRACE` are not exceptions: a level that is off in the field is still on in the lab, and lab logs are routinely attached to defect reports.
-- **Redact, do not truncate, where a value must be referenced.** Where a log line has to identify *which* credential it concerns, log the identity of the object holding it - the Access Point index, the `VAP` name, the RADIUS server address - and substitute a fixed placeholder for the value itself. A prefix, a suffix or a length is not redaction: each of them narrows a search space, and a length alone distinguishes a `PIN` from a passphrase.
-- **Treat a personal identifier as identifying, not as opaque.** A client `MAC` address, a hostname and a `SSID` are personal data in this context, because each links a person to a place and a time. Where such a value is logged it must be redacted or reduced to a non-reversible form, and it must not be logged at all where the log line does not need it - a per-frame or per-poll trace keyed on a client `MAC` should identify the association, not the device.
-- **Clear caller-side copies after use.** A caller that receives a credential through an output buffer - the `RadiusSecret_output` argument of the RADIUS getters, a `wifi_vap_security_t`, a `wifi_wps_t`, a `wifi_key_multi_psk_t` - must overwrite that storage once the value is no longer needed rather than leave it to be freed or reused. Ownership of those buffers rests with the caller under `Caller Responsibilities`, so no other party can do this on its behalf. The same applies to a caller that supplies a credential on a setter: the argument buffer is the caller's, and it survives the call.
-- **The prohibition follows the value, not the log.** A credential or identifier must equally not be copied into a crash dump, a core file, a diagnostic or support bundle, a telemetry record, an error string returned to a peer, or a persisted configuration file that is not access-controlled. Failure paths are where this is most often broken: an error report that quotes the arguments that failed defeats every rule above.
-
-The declarations these obligations attach to are named where they appear in `API Surface` - the RADIUS server and settings accessors, the `WPS` `PIN` and configuration accessors, the multi-`PSK` key accessors, and the `VAP` security accessors - and each of those declarations carries a `@warning` in `wifi_hal_ap.h` restating the obligation at the point of use.
+Implementations must not log credentials, secrets, security-sensitive information, or other sensitive data. The rule applies at every log level and to every destination, including the analytics sink; where a message must refer to such data, it identifies the object that holds it rather than the value.
 
 ### Memory and performance requirements
 
 During idle and Standby, memory and CPU utilization will be a minimal footprint.
 
-Refer to product specification for guidance on maximum CPU load average and memory requirements. No numeric memory footprint limit, CPU load average or completion time is specified by this interface, so none may be inferred from this document; the figures are a property of the product a vendor is delivering against.
-
-**Client Module Responsibility:** the caller allocates and releases the data structures the interface's functions require, including the buffers that receive data from the `HAL`, as `Memory Model` sets out.
-
-**Vendor Implementation Responsibility:** an implementation may allocate memory internally for its own needs and is solely responsible for releasing it.
-
-Source: the idle and standby expectation and the deferral to the product specification are carried forward from this repository's own specification. The absence of any numeric bound was measured over `include/wifi_hal.h` and the seven per-area headers it includes, none of which declares a footprint, load-average or completion-time constant; the division of responsibility restates `Memory Model` above.
+Refer to product specification for guidance on maximum CPU load average and memory requirements. Memory ownership between caller and implementation is set out under `Memory Model`.
 
 ### Quality Control
 
@@ -293,29 +228,25 @@ The vendor should endeavour to:-
 - Use of memory analysis tools like Valgrind are encouraged, to identify leaks/corruptions.
 - `HAL` Tests, run under `HATS`, will endeavour to create worst case scenarios to assist investigations
 
-**Keeping this document true:** every topic here names the file its content was derived from - a header for an interface fact, the repository's changelog and its tags for `Version History`, `docs/generate_docs.sh` for the generated-site version string. Any change to one of those files obliges a review of the topics that cite it. That makes staleness detectable from a diff rather than from a review-by date, and in particular renaming or removing a declared function invalidates `API Surface` and the `Sequence Diagram` immediately.
-
-**Who reviews it:** the repository's contribution guide gives the route - raise an issue, then open a [pull request against this repository](https://github.com/rdkcentral/rdkb-halif-wifi/compare), which the repository's maintainers review before merging. This repository carries no `CODEOWNERS` entry and names no maintainer team, so there is no more specific addressee to record than that route.
+**Review route:** a change to this interface or this document follows the repository's contribution guide - raise an issue, then open a [pull request against this repository](https://github.com/rdkcentral/rdkb-halif-wifi/compare), which the repository's maintainers review before merging.
 
 ### Licensing
 
  Licensed under the Apache License, Version 2.0 (the "License").
  you may not use this file except in compliance with the License.
 
-The full text is in `LICENSE`, with attribution in `NOTICE` and the copyright statement in `COPYING`; all three are linked into `docs/pages/` so the generated documentation carries them. An implementation of this interface is expected to be released under the same license.
+The full text is in `LICENSE`, with attribution in `NOTICE` and the copyright statement in `COPYING`. An implementation of this interface is expected to be released under the same license.
 
 ### Build Requirements
 
 The source code should be built under a Linux environment using `make`, `gcc` and the associated tooling as required, and would normally be delivered as a library and source code. That is the expectation placed on the vendor implementation.
 
-What this repository itself declares is narrower, and a caller should not read more into it than is there. Alongside the headers it tracks one build manifest, `configure.ac`, which is an Autoconf manifest rather than a `cmake` project: it requires Autoconf `2.65` or later, initialises a component named `hal` at version `1.0`, and enables Automake and Libtool with shared libraries enabled and static disabled. It does **not** amount to a working build of anything. The manifest expects an Automake input file that this repository does not track, and it names no library and no installed artefact, so **no library name and no build output is specified by this repository**. The one other build script here, `build_ut.sh`, builds the unit-test suite by cloning a companion test repository derived from this one's remote; it does not build the interface.
-
-The practical consequence is that the library a caller links against, and the toolchain that produced it, are properties of the product being built and must be taken from there rather than from this specification.
+Alongside the headers, this repository tracks two build files: `configure.ac`, an Autoconf manifest that requires Autoconf `2.65` or later, initialises a component named `hal` at version `1.0`, and enables Automake and Libtool with shared libraries enabled and static disabled; and `build_ut.sh`, which builds the unit-test suite by cloning a companion test repository. The library a caller links against, and the toolchain that produced it, come from the product build.
 
 To use the interface:
 
 1. **Inclusion:** include `wifi_hal.h`. It is an umbrella header that declares nothing itself and includes the seven per-area headers listed in `API Surface`, so one include obtains the whole current surface. It also includes `wifi_hal_deprecated.h`; see the scope note at the end of `API Surface`.
-2. **Linking:** establish a linker dependency on the vendor-supplied implementation. This repository does not name that library, so the name comes from the platform.
+2. **Linking:** establish a linker dependency on the vendor-supplied implementation library the platform provides.
 
 ### Variability Management
 
@@ -323,7 +254,7 @@ Ideally the source code should be delivered into git repositories and tagged bas
 
 The role of adjusting the interface, guided by versioning, rests with architecture. Vendors then align their implementation with a designated version of the interface. Each `API` interface is versioned using [Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.html), and the vendor code complies with a specific version of it.
 
-**The interface version a caller compiles against is `3.0.6`**, and it is declared twice over in `wifi_hal_generic.h`: by the macros `WIFI_HAL_MAJOR_VERSION` `3`, `WIFI_HAL_MINOR_VERSION` `0` and `WIFI_HAL_MAINTENANCE_VERSION` `6`, which `WIFI_HAL_VERSION` composes into a single comparable integer as `major * 1000 + minor * 10 + maintenance`; and by that header's own interface changelog, which records what changed for `3.0.6` and for each of `3.0.5` down to `3.0.1`, continuing the `2.2.0` to `3.0.0` history kept in `wifi_hal.h`. A caller can therefore test the interface version it compiled against at build time, and the value is independent of the repository's release tag and of this document's revision - see `Version History`.
+**The interface version a caller compiles against is `3.0.6`.** `wifi_hal_generic.h` declares it through `WIFI_HAL_MAJOR_VERSION` `3`, `WIFI_HAL_MINOR_VERSION` `0` and `WIFI_HAL_MAINTENANCE_VERSION` `6`, which `WIFI_HAL_VERSION` composes into one comparable integer as `major * 1000 + minor * 10 + maintenance`, so a caller can test the version at build time. The interface changelogs in `wifi_hal_generic.h` (`3.0.1` to `3.0.6`) and `wifi_hal.h` (`2.2.0` to `3.0.0`) record what changed in each version.
 
 Compile time flags can control compilation. `config` flags are encouraged, so this can be defined at the top-level compile time, in the shape:
 
@@ -335,22 +266,20 @@ Compile time flags can control compilation. `config` flags are encouraged, so th
 #endif
 ```
 
-That is the pattern, illustrated with a name of the caller's own choosing: `CONFIG_WIFI_V6` is not defined or referenced anywhere in this interface. The flags this interface really is conditioned on are named in `Platform or Product Customization`.
+`CONFIG_WIFI_V6` illustrates the pattern; the flags this interface is conditioned on are listed under `Platform or Product Customization`.
 
 The interface will maintain `wifi_getHalCapability()` functionality, and the upper layers will use this to determine available features. That is the runtime counterpart to the compile-time flags: a caller reads the platform's actual capabilities rather than inferring them.
 
 ### Platform or Product Customization
 
-Two compile-time flags condition this interface, and both are visible to a caller rather than internal to an implementation. Neither is defined by the interface headers; both are supplied by the build that compiles against them.
+Two compile-time flags condition this interface, and both are visible to a caller. Both are supplied by the build that compiles against the headers.
 
 **When `WIFI_HAL_VERSION_3_PHASE2` is defined:**
 
-- **Twelve functions are declared by the documented headers only in this configuration.** In `wifi_hal_ap.h`: `wifi_getApAssociatedDevice`, `wifi_kickApAssociatedDevice`, `wifi_getApAclDevices`, `wifi_addApAclDevice` and `wifi_delApAclDevice` - so the per-address `ACL` write path and the associated-device enumeration are conditional, while `wifi_delApAclDevices` and `wifi_getApAclDeviceNum` beside them are not. In `wifi_hal_radio.h`: `wifi_getRadioChannelsInUse`. In `wifi_hal_extender.h`: `wifi_steering_setGroup`, `wifi_setBTMRequest`, `wifi_setRMBeaconRequest` and `wifi_getRMCapabilities`. In `wifi_hal_telemetry.h`: `wifi_getNeighboringWiFiStatus` and `wifi_getApAssociatedClientDiagnosticResult`.
+- **Twelve functions are declared by the documented headers only in this configuration.** In `wifi_hal_ap.h`: `wifi_getApAssociatedDevice`, `wifi_kickApAssociatedDevice`, `wifi_getApAclDevices`, `wifi_addApAclDevice` and `wifi_delApAclDevice`, while `wifi_delApAclDevices` and `wifi_getApAclDeviceNum` beside them are unconditional. In `wifi_hal_radio.h`: `wifi_getRadioChannelsInUse`. In `wifi_hal_extender.h`: `wifi_steering_setGroup`, `wifi_setBTMRequest`, `wifi_setRMBeaconRequest` and `wifi_getRMCapabilities`. In `wifi_hal_telemetry.h`: `wifi_getNeighboringWiFiStatus` and `wifi_getApAssociatedClientDiagnosticResult`.
 
-  Those twelve names do not simply vanish in the other configuration. `wifi_hal_deprecated.h` declares each of them behind the complementary `#ifndef` guard, so exactly one declaration of each name is compiled either way, and the two headers are complementary rather than duplicating. What changes with the flag is therefore *which header owns the declaration*, and only the form declared here is part of the documented contract - see the scope note at the end of `API Surface`. A caller that needs the same source to build both ways must guard its use of these twelve accordingly.
-
-  The generated reference documents that form and no other, because the documentation build predefines the flag: `docs/generate_docs.sh` supplies `PREDEFINED = WIFI_HAL_VERSION_3_PHASE2=1` to Doxygen's preprocessor. Each of the twelve is therefore published from its owning header with the signature declared there - `wifi_getApAclDevices()`, for example, as `(INT apIndex, mac_address_t *macArray, UINT maxArraySize, UINT *output_numEntries)` from `wifi_hal_ap.h` - and the complementary arm in `wifi_hal_deprecated.h` is not extracted at all, the preprocessor having discarded it before Doxygen reads the declaration. Without that setting the generated documentation would publish the deprecated header's `CHAR *` forms in their place, which is the opposite of the contract stated here.
-- **Two structures change a member's type.** `wifi_radius_settings_t` types `ip`, `s_ip` and `connectedendpoint` as `ip_addr_t` rather than `unsigned char[45]`, so a caller that assembles a `RADIUS` address as text does not port between configurations. `wifi_apRssi_t` types `ap_channelWidth` as the enumeration `wifi_channelBandwidth_t` rather than a plain `UINT`, which is the difference between a value the compiler checks and one it does not.
+  Without the flag, `wifi_hal_deprecated.h` declares the same twelve names behind the complementary `#ifndef` guard, so exactly one declaration of each is compiled either way; only the form declared in the documented headers is part of the contract. A caller that builds both ways guards its use of these twelve accordingly. `docs/generate_docs.sh` predefines the flag for Doxygen, so the generated reference publishes the documented form, for example `wifi_getApAclDevices()` with `mac_address_t *macArray`, rather than the deprecated header's `CHAR *` form.
+- **Two structures change a member's type.** `wifi_radius_settings_t` types `ip`, `s_ip` and `connectedendpoint` as `ip_addr_t` rather than `unsigned char[45]`, so a caller that assembles a `RADIUS` address as text does not port between configurations. `wifi_apRssi_t` types `ap_channelWidth` as the enumeration `wifi_channelBandwidth_t` rather than a plain `UINT`.
 - **One structure is declared twice.** `wifi_steering_evConnect_t` has a separate definition in each arm.
 - **Five handler typedefs change signature.** `wifi_newApAssociatedDevice_callback`, `wifi_receivedMgmtFrame_callback` and `wifi_receivedDataFrame_callback` in `wifi_hal_ap.h`, and the `peerMac` argument of `wifi_BTMQueryRequest_callback` and `wifi_BTMResponse_callback` in `wifi_hal_extender.h`, which is a `mac_address_t` of six raw octets here and a `CHAR *` otherwise. A handler written against one form does not compile against the other.
 
@@ -359,49 +288,47 @@ Two compile-time flags condition this interface, and both are visible to a calle
 - `MAX_NUM_RADIOS` is `3` rather than `2`, which changes the upper bound on every radio index a caller may pass.
 - `wifi_vap_security_t` carries `mfp` as the enumeration `wifi_mfp_cfg_t` rather than the character array `mfpConfig`.
 
-Nothing else in this interface is conditioned on a compile-time flag. `WIFI_HAL_VERSION_3_PHASE2` is the only one of the two the documentation build predefines, so the `WIFI_HAL_VERSION_3` alternatives above are generated in the form a build that leaves that flag undefined compiles - `MAX_NUM_RADIOS` appears as `2` in the generated reference. Where a caller needs to know what a running platform supports rather than what its build configured, `wifi_getHalCapability()` is the mechanism, not a flag test.
+Nothing else in this interface is conditioned on a compile-time flag. The documentation build predefines only `WIFI_HAL_VERSION_3_PHASE2`, so the generated reference shows the forms compiled without `WIFI_HAL_VERSION_3`, with `MAX_NUM_RADIOS` as `2`.
 
 ## Interface API Documentation
 
 The interface is documented by Doxygen and will be included with this release.
 
-The division of labour is deliberate. This document carries the narrative contract - what the interface is, what order to call it in, who owns which memory, what a return code means. The per-`API` contract - every parameter's direction, range and ownership, every pre-condition and post-condition, every return value and its cause, and whether a call may block - lives in the inline Doxygen on each declaration, in the headers listed under `API Surface`. Because that per-`API` detail is carried by the headers, there is no separate detailed reference document for this `HAL`. The generated documentation collects the declarations under two groups defined in `wifi_hal.h`: `WIFI_HAL_TYPES` for the structures, enumerations, typedefs and constants a caller populates or interprets, and `WIFI_HAL_APIS` for the callable functions.
+This document carries the narrative contract: what the interface is, what order to call it in, who owns which memory and what a return code means. The per-`API` contract - each parameter's direction, range and ownership, pre-conditions and post-conditions, return values and their causes - lives in the inline Doxygen on each declaration, in the headers listed under `API Surface`. The generated documentation collects the declarations under two groups defined in `wifi_hal.h`: `WIFI_HAL_TYPES` for the structures, enumerations, typedefs and constants a caller populates or interprets, and `WIFI_HAL_APIS` for the callable functions.
 
 ### Theory of operation and key concepts
 
 The interface presents the Wi-Fi subsystem as three kinds of addressable thing, and almost every function names one of them. A **radio** is a physical transmitter, identified by an index from `RADIO_INDEX_1` up to `MAX_NUM_RADIOS`. A **Virtual Access Point** is a broadcasting service hosted on a radio, identified by an `AP` index from `AP_INDEX_1` to `AP_INDEX_24`, with `MAX_NUM_VAP_PER_RADIO` bounding how many one radio carries. A **station** is a client, identified by its MAC address, and is either associated with one of this device's `VAP`s or - when the device itself acts as a client, through `wifi_hal_sta.h` - associated with somebody else's.
 
-Which of those indices a platform actually provisions is a platform fact, not an interface fact: the interface declares the constants and `wifi_getHalCapability()` reports what exists.
+The interface declares the index constants; `wifi_getHalCapability()` reports which of them a platform provisions.
 
 #### Object Lifecycles
 
 - **Creation.** The `HAL` is not an object factory. The caller allocates the structures it passes and the structures it reads, the implementation populates them, and the caller releases them. The only exceptions are the three functions named under `Memory Model` that hand back a `HAL`-allocated array.
 - **Configuration objects.** A radio's configuration travels as a `wifi_radio_operationParam_t` and a radio's set of `VAP`s as a `wifi_vap_info_map_t` of `wifi_vap_info_t` entries. `wifi_createVAP()` applies such a map and `wifi_getRadioVapInfoMap()` reads it back, so the map is the unit in which `VAP` configuration is created and inspected. `wifi_deleteAp()` removes a single Access Point and releases the state held for it.
-- **Destruction.** Releasing a structure the caller allocated is the caller's business, under the ownership rule in `Memory Model`. Three functions take the subsystem out of service, and each declares a different effect: `wifi_down()` removes transmit power from every radio, `wifi_reset()` resets the subsystem including every Access Point's state, and `wifi_factoryReset()` clears internal variables to the factory default configuration. None of the three states what becomes of the initialization that `wifi_init()` established, so this interface does not establish that any of them invalidates it, and a caller must not read a re-initialization requirement into them. A caller that continues to use the interface after one of these calls should check the return status of what it calls next rather than assume either that initialization survived or that it did not.
+- **Destruction.** Releasing a structure the caller allocated is the caller's business, under the ownership rule in `Memory Model`. Three functions take the subsystem out of service, each with its own effect: `wifi_down()` removes transmit power from every radio, `wifi_reset()` discards the subsystem's state including every Access Point's, and `wifi_factoryReset()` restores the implementation's factory default configuration. After any of them the initialization pre-condition applies again: a caller re-initializes with `wifi_init()` and reapplies its configuration before using the interface further.
 - **Identifiers.** A radio index, an `AP` index and a station MAC address are the only identifiers this interface uses to name instances. There is no opaque handle to keep.
 
 #### Method Sequencing
 
-- `wifi_init()` first. 255 of the 261 declarations state that requirement as their own pre-condition - 214 as a `@pre`, and the 41 band-steering and fast-transition calls in `wifi_hal_client_mgt.h` in their description - and the six that do not are `wifi_init()` itself, the two unregister functions whose pre-condition is a prior registration, and the three `get_vap_*` accessors that read a caller-supplied structure rather than subsystem state. What a call made beforehand actually does is likewise a per-function fact rather than a property of the interface; `State-Dependent Behavior` sets out both splits and what the declarations do and do not establish about them.
+- `wifi_init()` first. Every declaration requires it except `wifi_init()` itself, the two unregister functions, whose pre-condition is a prior registration, and the three `get_vap_*` accessors, which read a caller-supplied structure. `State-Dependent Behavior` sets out what a call made beforehand reports.
 - Discover before configuring: `wifi_getHalCapability()` reports the radio and `VAP` inventory and the platform's supported modes, which is what tells a caller which indices and which values the calls below will accept.
 - Configure the radio before the `VAP`s that sit on it: `wifi_setRadioOperatingParameters()` establishes a radio's channel, bandwidth and standard, and `wifi_createVAP()` then creates the Virtual Access Points hosted on it. `wifi_getRadioOperatingParameters()` and `wifi_getRadioVapInfoMap()` read either back.
-- Register handlers before the events wanted. A registration function installs a handler for events from that moment on; nothing replays what happened earlier.
-- Take the subsystem out of service with `wifi_down()`, `wifi_reset()` or `wifi_factoryReset()` as the situation requires. Each of the three states its own effect and none states whether the interface remains initialized afterwards, so this ordering ends here: see `Object Lifecycles` for what may and may not be inferred.
+- Register handlers before the events they are wanted for, as `Asynchronous Notification Model` sets out.
+- Take the subsystem out of service with `wifi_down()`, `wifi_reset()` or `wifi_factoryReset()` as the situation requires, and return it to service by re-initializing with `wifi_init()` and configuring again.
 
-Beyond these orderings, and the per-function pre-conditions each declaration states, this interface does not specify a call order. Two functions that both operate on the same radio may be called in either order unless one of them says otherwise, and a caller must not read an ordering out of the sequence in which declarations appear in a header.
+These orderings and each declaration's own pre-conditions are the complete sequencing contract; the order in which a header declares its functions implies none.
 
 #### State-Dependent Behavior
 
-- **Before initialization.** `wifi_init()` must have completed before the interface is used, and 255 of the 261 declarations state that as their own pre-condition. What ignoring it does is not uniform, though: each declaration states its own consequence, and the four groups below are what they actually state. Of the 261 declarations, 163 return a status and document the code a call made beforehand reports: `WIFI_HAL_ERROR` in every case but one, `wifi_setRadioCtsProtectionEnable()`, which documents the alias `RETURN_ERR`, and each of the 163 lists that code in its own `@retval` set. A further 76 return a status but state only that a call made beforehand does not meet the runtime requirements and, per `Component Runtime Execution Requirements`, likely results in undefined behaviour - a caller must not expect a defined error from those. Sixteen state that the effect of calling beforehand is not specified at all: the thirteen `void` callback registrations, which have no status to return, and `wifi_steering_eventRegister()`, `wifi_BTMQueryRequest_callback_register()` and `wifi_RMBeaconRequestCallbackRegister()`. The remaining six make no initialization statement, and correctly so: `wifi_init()` itself, `wifi_steering_eventUnregister()` and `wifi_RMBeaconRequestCallbackUnregister()`, whose pre-condition is a prior registration rather than initialization, and `get_vap_ssid()`, `get_vap_bridge_name()` and `get_vap_security_mode()`, which read a caller-supplied structure rather than subsystem state. `WIFI_HAL_NOT_READY` belongs to the return-code vocabulary of `Internal Error Handling`, but no declaration in this interface names it as the answer to a pre-initialization call, so a caller must not test for it as though it were the uniform result - and, for the functions that return no status or return a value rather than a status, a caller must not assume any particular result at all. Initialize first.
-- **Radio and `VAP` enable state.** A radio that is administratively disabled takes every Access Point hosted on it off the air, so a read against a `VAP` on a disabled radio reports the state it is in rather than the configuration it would have. `wifi_getRadioStatus()` reports operational state and `wifi_getRadioEnable()` administrative state; the two are not the same question, and a radio can be enabled and not yet up.
-- `DFS` occupancy. A channel that is subject to `DFS` may be unusable while a `Channel Availability Check` or a `Non-Occupancy Period` is outstanding, which is why a channel set can be refused on hardware that supports it.
+- **Before initialization.** A call made before `wifi_init()` has completed does not meet the runtime requirements. Most status-returning functions report `WIFI_HAL_ERROR`, or its alias `RETURN_ERR`, for such a call; others state that it likely results in undefined behaviour, and a `void` registration has no status to report. Each declaration's pre-condition states which applies, and a caller initializes first rather than relying on any of them.
+- **Radio and `VAP` enable state.** A radio that is administratively disabled takes every Access Point hosted on it off the air, so a read against a `VAP` on a disabled radio reports the state it is in rather than the configuration it would have. `wifi_getRadioStatus()` reports operational state and `wifi_getRadioEnable()` administrative state; a radio can be enabled and not yet up.
+- **`DFS` occupancy.** A channel that is subject to `DFS` may be unusable while a `Channel Availability Check` or a `Non-Occupancy Period` is outstanding, which is why a channel set can be refused on hardware that supports it.
 - **Statistics and diagnostics.** The counters a statistics call returns depend on what the subsystem has done since it started, and several of them are cumulative rather than instantaneous, so a caller measuring a rate differences two samples itself.
-
-What this interface does **not** establish is the set of legal transitions between the states it reports. It declares status enumerations, not a state machine; see `State Diagram`.
 
 ### Data Structures and Defines
 
-A caller of this interface constructs or interprets the types below. Every one is declared under the `WIFI_HAL_TYPES` group, and the complete field-level documentation is on the declaration itself - the tables here name each type, say where it is declared and what it represents, and leave the members to the header.
+A caller of this interface constructs or interprets the types below. Every one is declared under the `WIFI_HAL_TYPES` group; the tables name each type and what it represents, and the member-level documentation stays on the declaration.
 
 **Status codes and their aliases** \- `wifi_hal_generic.h`. `WIFI_HAL_SUCCESS`, `WIFI_HAL_ERROR`, `WIFI_HAL_INTERNAL_ERROR`, `WIFI_HAL_UNSUPPORTED`, `WIFI_HAL_INVALID_ARGUMENTS`, `WIFI_HAL_INVALID_VALUE` and `WIFI_HAL_NOT_READY`, with the aliases `RETURN_OK` and `RETURN_ERR`. Values and meanings are tabulated under `Internal Error Handling`.
 
@@ -411,72 +338,111 @@ A caller of this interface constructs or interprets the types below. Every one i
 | --- | --- |
 | `RADIO_INDEX_1`, `RADIO_INDEX_2`, `RADIO_INDEX_3` | The radio indices this interface names. |
 | `MAX_NUM_RADIOS` | The upper bound on radio indices; `3` under `WIFI_HAL_VERSION_3`, otherwise `2`. |
-| `AP_INDEX_1` to `AP_INDEX_24` | The Access Point indices this interface names. Which of them a platform provisions is not established here. |
+| `AP_INDEX_1` to `AP_INDEX_24` | The Access Point indices this interface names; `wifi_getHalCapability()` reports which a platform provisions. |
 | `MAX_NUM_VAP_PER_RADIO` | How many Virtual Access Points one radio carries; `8`. |
 | `MAC_STR_LEN`, `ETHER_ADDR_LEN` | The length of a printable MAC address string, and of a MAC address in raw octets. |
 | `ACL_MACADDR_SIZE`, `ACL_MACFLT_NUM`, `MAC_LIST_SIZE`, `ACL_MAC_ARRAY_MAX`, `ASSOC_MAC_ARRAY_MAX` | The sizes that bound the `ACL` and associated-device arrays a caller passes. |
 | `MAX_NUM_TWT_SESSION`, `MAX_STA_PER_SESSION` | The bounds on `TWT` session and per-session station counts. |
 | `WIFI_HAL_MAJOR_VERSION`, `WIFI_HAL_MINOR_VERSION`, `WIFI_HAL_MAINTENANCE_VERSION`, `WIFI_HAL_VERSION` | The interface version a caller compiled against; see `Variability Management`. |
-| `RESTORE_CNFG_FILE_NAME`, `NVRAM_LINE_MAX` | A restore-configuration file name and line bound. No function in this interface reads or writes it; see `Persistence Model`. |
+| `RESTORE_CNFG_FILE_NAME`, `NVRAM_LINE_MAX` | A restore-configuration file name and line bound; configuration persistence rests with the upper layer, per `Persistence Model`. |
 | `CONN_NEW`, `CONN_RENEW`, `CONN_RECONN_AFTER_INACTIVITY` | The three client-connection event modes a client-association notification distinguishes. |
 
-**Every type a declared signature takes or returns.** The list is complete: it is derived from the signatures themselves, so a type appears here if and only if some declared function names it in a return type or a parameter type. The `Represents` column carries the opening statement of that type's own documentation, and the member-level detail stays on the declaration.
+**Every type a declared signature takes or returns,** grouped by the header that declares it. A type appears here exactly when a declared function names it as a return or parameter type, and the `Represents` column carries the opening statement of that type's own documentation.
 
-| Type | Declared in | Represents |
-| --- | --- | --- |
-| `mac_address_t` | `wifi_hal_generic.h` | MAC address type. |
-| `wifi_80211ax_params_t` | `wifi_hal_generic.h` | 802.11ax parameters. |
-| `wifi_BTMRequest_t` | `wifi_hal_extender.h` | BSS Transition Management Request Frame. |
-| `wifi_BeaconRequest_t` | `wifi_hal_extender.h` | Beacon Request. |
-| `wifi_FastTransitionConfig_t` | `wifi_hal_client_mgt.h` | A complete 802.11r Fast BSS Transition configuration for one Access Point. |
-| `wifi_GASConfiguration_t` | `wifi_hal_ap.h` | GAS configuration structure. |
-| `wifi_InterworkingElement_t` | `wifi_hal_ap.h` | Interworking Element structure. |
-| `wifi_VAPTelemetry_t` | `wifi_hal_telemetry.h` | VAP telemetry information. |
-| `wifi_access_category_t` | `wifi_hal_generic.h` | Wi-Fi access category (AC) type. |
-| `wifi_ap_capabilities_t` | `wifi_hal_ap.h` | Wi-Fi AP capabilities. |
-| `wifi_associated_dev3_t` | `wifi_hal_generic.h` | Information about an associated device. |
-| `wifi_associated_dev_rate_info_rx_stats_t` | `wifi_hal_extender.h` | RX statistics for a specific rate. |
-| `wifi_associated_dev_rate_info_tx_stats_t` | `wifi_hal_extender.h` | TX statistics for a specific rate. |
-| `wifi_associated_dev_stats_t` | `wifi_hal_extender.h` | Associated device statistics. |
-| `wifi_associated_dev_tid_stats_t` | `wifi_hal_extender.h` | TID statistics. |
-| `wifi_bss_info_t` | `wifi_hal_generic.h` | BSS information. |
-| `wifi_channelStats_t` | `wifi_hal_extender.h` | Wi-Fi channel statistics. |
-| `wifi_channel_t` | `wifi_hal_generic.h` | Wi-Fi channel information. |
-| `wifi_channels_list_t` | `wifi_hal_generic.h` | Channel list. |
-| `wifi_data_priority_t` | `wifi_hal_ap.h` | Wi-Fi data priority values. |
-| `wifi_disconnectType_t` | `wifi_hal_extender.h` | Wifi Disconnect Types These are the types of wifi disconnects. |
-| `wifi_dl_data_ack_type_t` | `wifi_hal_radio.h` | Downlink data acknowledgement types. |
-| `wifi_dl_mu_type_t` | `wifi_hal_generic.h` | Wi-Fi downlink MU types. |
-| `wifi_eap_config_t` | `wifi_hal_client_mgt.h` | The EAP and EAPOL timing parameters an Access Point uses during 802.1X authentication. |
-| `wifi_edca_t` | `wifi_hal_radio.h` | Enhanced Distributed Channel Access (EDCA) parameters. |
-| `wifi_guard_interval_t` | `wifi_hal_radio.h` | Selects the OFDM guard interval a radio transmits with. |
-| `wifi_hal_capability_t` | `wifi_hal_generic.h` | Wi-Fi HAL capabilities. |
-| `wifi_key_multi_psk_t` | `wifi_hal_ap.h` | Structure for storing multi-PSK keys. |
-| `wifi_na_sta_info_t` | `wifi_hal_telemetry.h` | Returned unassociated station link metrics. |
-| `wifi_na_sta_req_params_t` | `wifi_hal_telemetry.h` | Parameters to request unassociated station information. |
-| `wifi_neighborScanMode_t` | `wifi_hal_ap.h` | Represents the Wi-Fi scan modes. |
-| `wifi_neighbor_ap2_t` | `wifi_hal_telemetry.h` | Neighboring Access Point information. |
-| `wifi_radioTemperature_t` | `wifi_hal_radio.h` | Radio temperature information. |
-| `wifi_radioTrafficStats2_t` | `wifi_hal_telemetry.h` | Wi-Fi radio traffic statistics. |
-| `wifi_radio_index_t` | `wifi_hal_generic.h` | Wi-Fi radio index type. |
-| `wifi_radio_operationParam_t` | `wifi_hal_radio.h` | Wi-Fi radio operation parameters. |
-| `wifi_radius_setting_t` | `wifi_hal_ap.h` | RADIUS Server information. |
-| `wifi_roamingConsortiumElement_t` | `wifi_hal_ap.h` | Roaming consortium element. |
-| `wifi_ssidTrafficStats2_t` | `wifi_hal_telemetry.h` | Wi-Fi SSID traffic statistics. |
-| `wifi_sta_capability_t` | `wifi_hal_sta.h` | Station capabilities. |
-| `wifi_station_stats_t` | `wifi_hal_sta.h` | Station statistics. |
-| `wifi_steering_apConfig_t` | `wifi_hal_extender.h` | Steering configuration per AP. |
-| `wifi_steering_clientConfig_t` | `wifi_hal_extender.h` | Configuration per Client This defines the per-client, per-apIndex configuration settings. |
-| `wifi_trafficStats_t` | `wifi_hal_ap.h` | Wi-Fi traffic statistics. |
-| `wifi_twt_params_t` | `wifi_hal_generic.h` | Wi-Fi TWT parameters. |
-| `wifi_twt_sessions_t` | `wifi_hal_generic.h` | Wi-Fi TWT sessions. |
-| `wifi_ul_mu_type_t` | `wifi_hal_generic.h` | This interface declares the type but states no description for it. |
-| `wifi_vap_info_map_t` | `wifi_hal_ap.h` | VAP information map structure. |
-| `wifi_vap_info_t` | `wifi_hal_ap.h` | VAP information structure. |
-| `wifi_vap_security_t` | `wifi_hal_ap.h` | VAP security settings. |
-| `wifi_wps_t` | `wifi_hal_ap.h` | Wi-Fi Protected Setup (WPS) settings. |
+*`wifi_hal_generic.h`*
 
-Further types a caller interprets *inside* those structures, rather than passing directly: `wifi_platform_property_t` and `wifi_interface_name_idex_map_t` in `wifi_hal_generic.h`, which carry the platform properties and the index-to-interface-name mapping inside the capability report; `wifi_channelBandwidth_t` and `ip_addr_t` in the same header, which are the channel-width codes and the address form the `RADIUS` settings use under `WIFI_HAL_VERSION_3_PHASE2`; `wifi_security_key_t`, `wifi_mfp_cfg_t` and `wifi_radius_settings_t` in `wifi_hal_ap.h`, which are the key material, the management-frame-protection setting and the `RADIUS` server settings inside a `VAP`'s security configuration - and note that `wifi_radius_settings_t` is a different type from the signature-facing `wifi_radius_setting_t` in the table above, differing by one letter, with the plural form being the one whose address members are flag-conditional; `wifi_apRssi_t` in `wifi_hal_telemetry.h`, whose `ap_channelWidth` member is flag-conditional; and `wifi_steering_evConnect_t` and `wifi_steering_evProbeReq_t` in `wifi_hal_extender.h`, which are the client-steering events a steering handler receives. The complete type inventory is the `WIFI_HAL_TYPES` group of the generated documentation, collected from the twenty-three group spans the seven headers contribute.
+| Type | Represents |
+| --- | --- |
+| `mac_address_t` | MAC address type. |
+| `wifi_80211ax_params_t` | 802.11ax parameters. |
+| `wifi_access_category_t` | Wi-Fi access category (AC) type. |
+| `wifi_associated_dev3_t` | Information about an associated device. |
+| `wifi_bss_info_t` | BSS information. |
+| `wifi_channel_t` | Wi-Fi channel information. |
+| `wifi_channels_list_t` | Channel list. |
+| `wifi_dl_mu_type_t` | Wi-Fi downlink MU types. |
+| `wifi_hal_capability_t` | Wi-Fi HAL capabilities. |
+| `wifi_radio_index_t` | Wi-Fi radio index type. |
+| `wifi_twt_params_t` | Wi-Fi TWT parameters. |
+| `wifi_twt_sessions_t` | Wi-Fi TWT sessions. |
+| `wifi_ul_mu_type_t` | Uplink multi-user scheme a radio is configured for. |
+
+*`wifi_hal_radio.h`*
+
+| Type | Represents |
+| --- | --- |
+| `wifi_dl_data_ack_type_t` | Downlink data acknowledgement types. |
+| `wifi_edca_t` | Enhanced Distributed Channel Access (EDCA) parameters. |
+| `wifi_guard_interval_t` | Selects the OFDM guard interval a radio transmits with. |
+| `wifi_radioTemperature_t` | Radio temperature information. |
+| `wifi_radio_operationParam_t` | Wi-Fi radio operation parameters. |
+
+*`wifi_hal_ap.h`*
+
+| Type | Represents |
+| --- | --- |
+| `wifi_GASConfiguration_t` | GAS configuration structure. |
+| `wifi_InterworkingElement_t` | Interworking Element structure. |
+| `wifi_ap_capabilities_t` | Wi-Fi AP capabilities. |
+| `wifi_data_priority_t` | Wi-Fi data priority values. |
+| `wifi_key_multi_psk_t` | Structure for storing multi-PSK keys. |
+| `wifi_neighborScanMode_t` | Represents the Wi-Fi scan modes. |
+| `wifi_radius_setting_t` | RADIUS Server information. |
+| `wifi_roamingConsortiumElement_t` | Roaming consortium element. |
+| `wifi_trafficStats_t` | Wi-Fi traffic statistics. |
+| `wifi_vap_info_map_t` | VAP information map structure. |
+| `wifi_vap_info_t` | VAP information structure. |
+| `wifi_vap_security_t` | VAP security settings. |
+| `wifi_wps_t` | Wi-Fi Protected Setup (WPS) settings. |
+
+*`wifi_hal_sta.h`*
+
+| Type | Represents |
+| --- | --- |
+| `wifi_sta_capability_t` | Station capabilities. |
+| `wifi_station_stats_t` | Station statistics. |
+
+*`wifi_hal_client_mgt.h`*
+
+| Type | Represents |
+| --- | --- |
+| `wifi_FastTransitionConfig_t` | A complete 802.11r Fast BSS Transition configuration for one Access Point. |
+| `wifi_eap_config_t` | The EAP and EAPOL timing parameters an Access Point uses during 802.1X authentication. |
+
+*`wifi_hal_extender.h`*
+
+| Type | Represents |
+| --- | --- |
+| `wifi_BTMRequest_t` | BSS Transition Management Request Frame. |
+| `wifi_BeaconRequest_t` | Beacon Request. |
+| `wifi_associated_dev_rate_info_rx_stats_t` | RX statistics for a specific rate. |
+| `wifi_associated_dev_rate_info_tx_stats_t` | TX statistics for a specific rate. |
+| `wifi_associated_dev_stats_t` | Associated device statistics. |
+| `wifi_associated_dev_tid_stats_t` | TID statistics. |
+| `wifi_channelStats_t` | Wi-Fi channel statistics. |
+| `wifi_disconnectType_t` | Wifi Disconnect Types These are the types of wifi disconnects. |
+| `wifi_steering_apConfig_t` | Steering configuration per AP. |
+| `wifi_steering_clientConfig_t` | Configuration per Client This defines the per-client, per-apIndex configuration settings. |
+
+*`wifi_hal_telemetry.h`*
+
+| Type | Represents |
+| --- | --- |
+| `wifi_VAPTelemetry_t` | VAP telemetry information. |
+| `wifi_na_sta_info_t` | Returned unassociated station link metrics. |
+| `wifi_na_sta_req_params_t` | Parameters to request unassociated station information. |
+| `wifi_neighbor_ap2_t` | Neighboring Access Point information. |
+| `wifi_radioTrafficStats2_t` | Wi-Fi radio traffic statistics. |
+| `wifi_ssidTrafficStats2_t` | Wi-Fi SSID traffic statistics. |
+
+Further types a caller interprets *inside* those structures rather than passing directly:
+
+- `wifi_hal_generic.h`: `wifi_platform_property_t` and `wifi_interface_name_idex_map_t`, the platform properties and index-to-interface-name mapping inside the capability report; `wifi_channelBandwidth_t` and `ip_addr_t`, the channel-width codes and the address form the `RADIUS` settings use under `WIFI_HAL_VERSION_3_PHASE2`.
+- `wifi_hal_ap.h`: `wifi_security_key_t`, `wifi_mfp_cfg_t` and `wifi_radius_settings_t`, the key material, management-frame-protection setting and `RADIUS` server settings inside a `VAP`'s security configuration. `wifi_radius_settings_t` is a different type from the signature-facing `wifi_radius_setting_t`.
+- `wifi_hal_telemetry.h`: `wifi_apRssi_t`, whose `ap_channelWidth` member is flag-conditional.
+- `wifi_hal_extender.h`: `wifi_steering_evConnect_t` and `wifi_steering_evProbeReq_t`, the client-steering events a steering handler receives.
+
+The complete type inventory is the `WIFI_HAL_TYPES` group of the generated documentation.
 
 **Handler typedefs, and the function that installs each.** A typedef in this group is a function-pointer type the caller implements; the registration function beside it is how the implementation is told about it.
 
@@ -503,19 +469,15 @@ Further types a caller interprets *inside* those structures, rather than passing
 | `wifi_BTMQueryRequest_callback`, `wifi_BTMResponse_callback` | `wifi_BTMQueryRequest_callback_register`, which takes both |
 | `wifi_RMBeaconReport_callback` | `wifi_RMBeaconRequestCallbackRegister`, removed by `wifi_RMBeaconRequestCallbackUnregister` |
 
-Eleven further handler typedefs are declared that no function in the current surface installs: `wifi_device_disassociated_callback`, `wifi_device_deauthenticated_callback`, `wifi_eapol_timeouts_callback`, `wifi_apMaxClientRejection_callback`, `wifi_received8021xFrame_callback`, `wifi_sent8021xFrame_callback`, `wifi_receivedAuthFrame_callback`, `wifi_sentAuthFrame_callback`, `wifi_receivedAssocReqFrame_callback`, `wifi_sentAssocRspFrame_callback` and `wifi_receivedDataFrame_callback`. They are part of the declared surface and a caller may need their signatures to interpret an implementation, but this interface declares no registration function that accepts them, so a caller cannot subscribe to them through it.
+Eleven further handler typedefs are declared that no function in the current surface installs: `wifi_device_disassociated_callback`, `wifi_device_deauthenticated_callback`, `wifi_eapol_timeouts_callback`, `wifi_apMaxClientRejection_callback`, `wifi_received8021xFrame_callback`, `wifi_sent8021xFrame_callback`, `wifi_receivedAuthFrame_callback`, `wifi_sentAuthFrame_callback`, `wifi_receivedAssocReqFrame_callback`, `wifi_sentAssocRspFrame_callback` and `wifi_receivedDataFrame_callback`. A caller may use their signatures to interpret an implementation but cannot subscribe to them through this interface.
 
 The status enumerations a caller reads are listed under `State Diagram`, with their members.
 
 ### API Surface
 
-This topic is the boundary between the two ways of reading this document. Everything above answers "what is this interface and how do I drive it"; from here on the document answers "exactly what is declared, and what happens when it fails". Every function this interface declares is named below, by exact identifier, grouped by the header that declares it, with the purpose taken from that declaration's own documentation. The header named beside each group is where the per-`API` detail lives: parameter ranges, ownership, pre-conditions, and the return values each function can produce.
+The topics above give the overview; this one indexes exactly what is declared. Every function this interface declares is named below by exact identifier, grouped by the header that declares it, with the purpose taken from that declaration's own documentation. That header carries the per-`API` detail: parameter ranges, ownership, pre-conditions and the return values each function can produce. The umbrella `wifi_hal.h` declares no functions of its own; see `Build Requirements`.
 
-**Where these pointers resolve.** The locators in this topic are relative paths into the headers under `include/`, the form this documentation set uses throughout, so they resolve on GitHub and in a checkout \- the surface a developer using this repository reads. They do **not** resolve from inside the generated documentation site: the generator copies each link target verbatim into a page one directory below this file, so a site served with `docs/output/html` as its root has nothing above that root to reach and answers `404`, and opened from the filesystem the same target does not exist. Follow a source pointer on GitHub or in a checkout; inside the generated site, reach the same declaration through its `Files` and function-index pages.
-
-[wifi_hal.h](../../include/wifi_hal.h) declares no functions of its own. It is the umbrella header, and a caller includes it to obtain the whole surface below in one step.
-
-**Generic \- [wifi_hal_generic.h](../../include/wifi_hal_generic.h), 10 declared functions.** Subsystem lifetime, capability discovery and the optional `hostapd` path. Detail: [wifi_hal_generic.h](../../include/wifi_hal_generic.h)
+**Generic \- `wifi_hal_generic.h`, 10 declared functions.** Subsystem lifetime, capability discovery and the optional `hostapd` path.
 
 | API | Purpose |
 | --- | --- |
@@ -530,7 +492,7 @@ This topic is the boundary between the two ways of reading this document. Everyt
 | `wifi_startHostApd` | Starts hostapd. |
 | `wifi_stopHostApd` | Stops hostapd. |
 
-**Radio \- [wifi_hal_radio.h](../../include/wifi_hal_radio.h), 52 declared functions.** Everything addressed by a radio index. Detail: [wifi_hal_radio.h](../../include/wifi_hal_radio.h)
+**Radio \- `wifi_hal_radio.h`, 52 declared functions.** Everything addressed by a radio index.
 
 *Reset, enable state and identity*
 
@@ -609,7 +571,7 @@ This topic is the boundary between the two ways of reading this document. Everyt
 | `wifi_scanResults_callback_register` | Installs the caller's handler for scan-result notifications. |
 | `wifi_hal_getRadioTemperature` | Reads a radio chipset's current temperature. |
 
-**Access point \- [wifi_hal_ap.h](../../include/wifi_hal_ap.h), 116 declared functions.** Everything addressed by an `AP` index, and the construction of the Virtual Access Points themselves. The largest group in the interface. Detail: [wifi_hal_ap.h](../../include/wifi_hal_ap.h)
+**Access point \- `wifi_hal_ap.h`, 116 declared functions.** Everything addressed by an `AP` index, and the construction of the Virtual Access Points themselves. The largest group in the interface.
 
 *Lifecycle, identity, associated devices and access control*
 
@@ -661,8 +623,6 @@ This topic is the boundary between the two ways of reading this document. Everyt
 | `wifi_setApMaxAssociatedDevices` | Sets the maximum number of associated devices allowed for an Access Point. |
 
 *Security, RADIUS, WPS and management-frame power*
-
-Every RADIUS accessor below moves a shared secret, and `wifi_setApWpsEnrolleePin` moves a `WPS` `PIN`. The no-log, redact and clear-after-use requirements in `Logging and debugging requirements` apply to each of them, on the caller's side as well as the implementer's; the declarations in [wifi_hal_ap.h](../../include/wifi_hal_ap.h) restate the obligation per function.
 
 | API | Purpose |
 | --- | --- |
@@ -753,8 +713,6 @@ Every RADIUS accessor below moves a shared secret, and `wifi_setApWpsEnrolleePin
 
 *Multi-PSK keys*
 
-A `wifi_key_multi_psk_t` holds a passphrase, so all three of these calls move credentials in one direction or the other and are bound by `Logging and debugging requirements`. `wifi_getMultiPskClientKey` additionally takes a client `MAC` address, which is a personal identifier under the same topic.
-
 | API | Purpose |
 | --- | --- |
 | `wifi_pushMultiPskKeys` | Sets the new set of multi-PSK keys for an Access Point. |
@@ -762,8 +720,6 @@ A `wifi_key_multi_psk_t` holds a passphrase, so all three of these calls move cr
 | `wifi_getMultiPskClientKey` | Gets the multi-PSK key for a specific client MAC address. |
 
 *Virtual Access Point construction, security and capabilities*
-
-`wifi_setApSecurity` and `wifi_getApSecurity` carry a `wifi_vap_security_t`, and `wifi_setApWpsConfiguration` and `wifi_getApWpsConfiguration` carry a `wifi_wps_t`; each embeds a credential, so the whole structure inherits the handling rules in `Logging and debugging requirements` rather than only the member that holds the secret.
 
 | API | Purpose |
 | --- | --- |
@@ -788,7 +744,7 @@ A `wifi_key_multi_psk_t` holds a passphrase, so all three of these calls move cr
 | `wifi_hal_analytics_callback_register` | Installs the caller's log sink for catastrophic `HAL` failures. |
 | `wifi_wpsEvent_callback_register` | Installs the caller's handler for Wi-Fi Protected Setup result events. |
 
-**Station \- [wifi_hal_sta.h](../../include/wifi_hal_sta.h), 6 declared functions.** The device acting as a client of somebody else's Access Point. Detail: [wifi_hal_sta.h](../../include/wifi_hal_sta.h)
+**Station \- `wifi_hal_sta.h`, 6 declared functions.** The device acting as a client of somebody else's Access Point.
 
 | API | Purpose |
 | --- | --- |
@@ -799,7 +755,7 @@ A `wifi_key_multi_psk_t` holds a passphrase, so all three of these calls move cr
 | `wifi_getStationStats` | Gets station statistics. |
 | `wifi_staConnectionStatus_callback_register` | Registers a callback function for station connection status changes. |
 
-**Client management \- [wifi_hal_client_mgt.h](../../include/wifi_hal_client_mgt.h), 41 declared functions.** Steering a client between bands and Access Points, and the roaming and authentication timing that supports it. Detail: [wifi_hal_client_mgt.h](../../include/wifi_hal_client_mgt.h)
+**Client management \- `wifi_hal_client_mgt.h`, 41 declared functions.** Steering a client between bands and Access Points, and the roaming and authentication timing that supports it.
 
 *Band steering*
 
@@ -862,7 +818,7 @@ A `wifi_key_multi_psk_t` holds a passphrase, so all three of these calls move cr
 | `wifi_setNeighborReportActivation` | Activates or deactivates neighbor reporting on an Access Point. |
 | `wifi_getNeighborReportActivation` | Reads whether neighbor reporting is active on an Access Point. |
 
-**Extender \- [wifi_hal_extender.h](../../include/wifi_hal_extender.h), 25 declared functions.** Per-client measurement and the steering, transition and radio-measurement calls a mesh or extender deployment needs. Detail: [wifi_hal_extender.h](../../include/wifi_hal_extender.h)
+**Extender \- `wifi_hal_extender.h`, 25 declared functions.** Per-client measurement and the steering, transition and radio-measurement calls a mesh or extender deployment needs.
 
 *Per-client and per-channel statistics*
 
@@ -914,7 +870,7 @@ A `wifi_key_multi_psk_t` holds a passphrase, so all three of these calls move cr
 | `wifi_setRMBeaconRequest` | Sends a radio measurement beacon request. |
 | `wifi_getRMCapabilities` | Gets the Radio Measurement capabilities of a peer device. |
 
-**Telemetry \- [wifi_hal_telemetry.h](../../include/wifi_hal_telemetry.h), 11 declared functions.** Counters and diagnostics gathered for reporting rather than for control. Detail: [wifi_hal_telemetry.h](../../include/wifi_hal_telemetry.h)
+**Telemetry \- `wifi_hal_telemetry.h`, 11 declared functions.** Counters and diagnostics gathered for reporting rather than for control.
 
 | API | Purpose |
 | --- | --- |
@@ -932,65 +888,81 @@ A `wifi_key_multi_psk_t` holds a passphrase, so all three of these calls move cr
 
 **Scope note: two headers under `include/` are not part of the documented contract.**
 
-`wifi_hal_deprecated.h` and `wifi_hal_emu.h` are outside the surface tabulated above, and a reader needs to know that explicitly, because both are visible in places where this document's scope decisions are not.
+- `wifi_hal_deprecated.h` is on the compile surface: the umbrella `wifi_hal.h` includes it, so `#include "wifi_hal.h"` also obtains its 173 declarations. The RDK-B HAL inventory that consumes this repository declares it out of scope, and the repository's changelog records a revert of its removal, which is why it remains in the umbrella.
+- `wifi_hal_emu.h` is an emulation surface that no header includes.
+- Both appear in the generated documentation because the generator reads every header under `include/`; a function found there is not part of this interface on that account. Where `wifi_hal_emu.h` declares one of the 94 names it shares with the tables above, the generated entry also carries the emulation header's documentation, so 88 such entries show two `Returns` sections and five `ACL` and channel names appear twice with different argument lists. The entry in the tables above is authoritative.
 
-- `wifi_hal_deprecated.h` is part of the compile surface. The umbrella [wifi_hal.h](../../include/wifi_hal.h) includes it at `include/wifi_hal.h:174`, so a caller that writes `#include "wifi_hal.h"` obtains its declarations as well - 173 in total, of which the twelve named under `Platform or Product Customization` are compiled only where `WIFI_HAL_VERSION_3_PHASE2` is undefined. The workspace inventory nevertheless declares it out of scope, and the repository's changelog records a `Revert` of its removal, which is why a disowned header is still in the umbrella.
-- `wifi_hal_emu.h` is not part of the compile surface at all: no header includes it. It is an emulation surface, not a contract.
-- Both appear in the generated documentation regardless, because the generator recurses over `include/`. Encountering a function there does not make it part of this interface.
-- Because the generator recurses, it also merges the documentation it finds for a given `C` symbol across every file that declares it - and that merging is confined to the emulation header. The 12 names `wifi_hal_deprecated.h` shares with the tables above are its `#ifndef WIFI_HAL_VERSION_3_PHASE2` arm, and the documentation build predefines that flag, as `Platform or Product Customization` sets out, so those 12 declarations are not extracted and none of their documentation reaches the entry above. `wifi_hal_emu.h` is conditioned on no flag, and 94 of the names in the tables above are declared there as well. Of those 94, 88 are published as a single entry carrying both documentation blocks and therefore two `Returns` sections, with the build reporting the overlap for each affected parameter and return value; the five `ACL` and channel names whose emulation declaration takes a different argument list are published as two separate entries side by side, each with its own signature; and `wifi_newApAssociatedDevice_callback_register` returns `void` in both, so it has no return documentation to merge. In total the generated output carries 89 entries with two `Returns` sections - those 88, and `checkLanInterface`, which `wifi_hal_emu.h` declares twice on its own account and which is not part of the surface tabulated here. Those reports are a consequence of the emulation header being present, not a defect in the documented declaration, and clearing them would mean either editing a header this work does not own or removing documentation the contract requires. A reader should therefore read the entry in the tables above as the authoritative one where the two disagree.
-
-Where a caller needs the current equivalent of something in those two headers, there are two cases. Twelve of the deprecated header's declarations and ninety-four of the emulation header's carry the same name as a declaration in the tables above, so for those the entry above *is* the current declaration - and in the deprecated header's case the twelve are the complementary arm of `WIFI_HAL_VERSION_3_PHASE2` described under `Platform or Product Customization`, not a superseded duplicate, which is why the generated reference publishes the form declared above and does not extract that arm at all. For everything else, the functional group above that covers the same subject is where the current surface lives, and `wifi_getHalCapability()` is how a caller establishes what the platform actually supports rather than inferring it from a declaration's existence.
+For a name shared with the tables above - the twelve `WIFI_HAL_VERSION_3_PHASE2` functions of `Platform or Product Customization` in the deprecated header's case - the entry above is the current declaration. For any other deprecated or emulation function, the current surface is the functional group above that covers the same subject, and `wifi_getHalCapability()` establishes what the platform supports.
 
 ### Sequence Diagram
 
-The exchange below is the bring-up path of `Method Sequencing`, with the three participants a `C` `HAL` has: the caller, the interface, and the vendor software behind it. Every function named is a declared identifier: `wifi_init()`, `wifi_getHalCapability()`, `wifi_setRadioOperatingParameters()`, `wifi_createVAP()` and `wifi_down()` are declared in `include/wifi_hal_generic.h`, and `wifi_newApAssociatedDevice_callback_register()` in `include/wifi_hal_ap.h`.
+The exchange below is the bring-up path of `Method Sequencing` between OneWifi, the Wi-Fi HAL and the vendor software behind it.
 
 ```mermaid
 sequenceDiagram
-    participant Caller as RDK-B Caller
-    participant WifiHAL as Wi-Fi HAL
+    participant Caller as OneWifi
+    participant HAL as Wi-Fi HAL
     participant Vendor as Vendor Software
-    Caller->>WifiHAL: wifi_init()
-    WifiHAL->>Vendor: bring up the radios
-    Vendor->>WifiHAL: initialization result
-    WifiHAL->>Caller: WIFI_HAL_SUCCESS
-    Caller->>WifiHAL: wifi_getHalCapability()
-    WifiHAL->>Vendor: read platform capabilities
-    Vendor->>WifiHAL: radio and VAP inventory
-    WifiHAL->>Caller: capability report
-    Caller->>WifiHAL: wifi_setRadioOperatingParameters()
-    WifiHAL->>Vendor: apply radio configuration
-    Vendor->>WifiHAL: applied
-    WifiHAL->>Caller: WIFI_HAL_SUCCESS
-    Caller->>WifiHAL: wifi_createVAP()
-    WifiHAL->>Vendor: create the Virtual Access Points
-    Vendor->>WifiHAL: created
-    WifiHAL->>Caller: WIFI_HAL_SUCCESS
-    Caller->>WifiHAL: wifi_newApAssociatedDevice_callback_register()
-    WifiHAL->>Caller: handler installed
-    note over WifiHAL: System is up and running
-    Vendor->>WifiHAL: a client associates
-    WifiHAL->>Caller: association notification on a HAL thread
-    Caller->>WifiHAL: wifi_down()
-    WifiHAL->>Vendor: stop transmitting
-    WifiHAL->>Caller: WIFI_HAL_SUCCESS
+    Caller->>HAL: wifi_init()
+    HAL->>Vendor: bring up the radios
+    Vendor->>HAL: initialization result
+    HAL->>Caller: WIFI_HAL_SUCCESS
+    Caller->>HAL: wifi_getHalCapability()
+    HAL->>Vendor: read platform capabilities
+    Vendor->>HAL: radio and VAP inventory
+    HAL->>Caller: capability report
+    Caller->>HAL: wifi_setRadioOperatingParameters()
+    HAL->>Vendor: apply radio configuration
+    Vendor->>HAL: applied
+    HAL->>Caller: WIFI_HAL_SUCCESS
+    Caller->>HAL: wifi_createVAP()
+    HAL->>Vendor: create the Virtual Access Points
+    Vendor->>HAL: created
+    HAL->>Caller: WIFI_HAL_SUCCESS
+    Caller->>HAL: wifi_newApAssociatedDevice_callback_register()
+    HAL->>Caller: handler installed
+    note over HAL: System is up and running
+    Vendor->>HAL: a client associates
+    HAL->>Caller: association notification on a HAL thread
+    Caller->>HAL: wifi_down()
+    HAL->>Vendor: stop transmitting
+    HAL->>Caller: WIFI_HAL_SUCCESS
 ```
 
-Every diagram in this document is a fenced `mermaid` block. Such blocks render as diagrams on GitHub, which the repository's `README.md` symlink makes the primary reading surface for this specification; they do **not** render in the `HTML` the documentation generator produces, where the block appears as its source text instead. That limitation is stated here rather than worked around, because the only available workaround would fix the generated site at the cost of the surface most readers use.
+The diagrams in this document are Mermaid blocks: they render on GitHub and appear as source text in the generated Doxygen output.
 
 ### State Diagram
 
-This interface exposes status **values** a caller can read. It does not establish which transitions between those values are legal, or in what order they occur, so no state machine is drawn here: the edges would have to be invented, and a caller must not infer an ordering from the order in which enumerators are declared. Where a lifecycle *is* established - the initialization pre-condition and the teardown calls - it is stated under `Method Sequencing`.
+This interface defines status values but no transitions between them, so no state machine is drawn; the lifecycle it does establish is set out under `Method Sequencing`.
 
-The status enumerations a caller reads are:
+The status enumerations a caller reads are declared in `wifi_hal_generic.h` (`wifi_connection_status_t`), `wifi_hal_radio.h` (`wifi_channelState_t`) and `wifi_hal_ap.h` (the other four):
 
-| Enumeration | Declared in | Members, and what they report |
-| --- | --- | --- |
-| `wifi_connection_status_t` | `wifi_hal_generic.h` | `wifi_connection_status_disabled`, `wifi_connection_status_disconnected`, `wifi_connection_status_connected`, `wifi_connection_status_ap_not_found`. The state of this device acting as a client, reported through the station interface. |
-| `wifi_channelState_t` | `wifi_hal_radio.h` | `CHAN_STATE_AVAILABLE`, which is `1`, then `CHAN_STATE_DFS_NOP_FINISHED`, `CHAN_STATE_DFS_NOP_START`, `CHAN_STATE_DFS_CAC_START` and `CHAN_STATE_DFS_CAC_COMPLETED`. Whether a channel may be used now and, if not, which `DFS` stage is holding it. The declaration states explicitly that the enumeration carries no ordering rule. |
-| `wifi_vapstatus_t` | `wifi_hal_ap.h` | `wifi_vapstatus_down`, `wifi_vapstatus_up`. Whether a Virtual Access Point is on the air; delivered to a handler installed by `wifi_vapstatus_callback_register`. |
-| `wifi_status_code_t` | `wifi_hal_ap.h` | The IEEE 802.11 `WIFI_STATUS_` and `WIFI_REASON_` codes. These report the outcome of a management-frame exchange with a station; they are not states of anything. |
-| `wifi_eap_status_code_t` | `wifi_hal_ap.h` | The `EAP` outcome codes, including `WIFI_EAP_SUCCESS_STATUS` and `WIFI_EAP_FAILURE_STATUS`. The result of an authentication attempt, not a state. |
-| `eapol_status_type_idx_t` | `wifi_hal_ap.h` | The `EAPOL` status type indices, bounded by `EAPOL_STATUS_TYPE_MAX`. Which stage of a handshake a status report concerns. |
+| Enumeration | Members, and what they report |
+| --- | --- |
+| `wifi_connection_status_t` | `wifi_connection_status_disabled`, `wifi_connection_status_disconnected`, `wifi_connection_status_connected`, `wifi_connection_status_ap_not_found`. The state of this device acting as a client, reported through the station interface. |
+| `wifi_channelState_t` | `CHAN_STATE_AVAILABLE`, which is `1`, then `CHAN_STATE_DFS_NOP_FINISHED`, `CHAN_STATE_DFS_NOP_START`, `CHAN_STATE_DFS_CAC_START` and `CHAN_STATE_DFS_CAC_COMPLETED`. Whether a channel may be used now and, if not, which `DFS` stage is holding it. |
+| `wifi_vapstatus_t` | `wifi_vapstatus_down`, `wifi_vapstatus_up`. Whether a Virtual Access Point is on the air; delivered to a handler installed by `wifi_vapstatus_callback_register`. |
+| `wifi_status_code_t` | The IEEE 802.11 `WIFI_STATUS_` and `WIFI_REASON_` codes. These report the outcome of a management-frame exchange with a station; they are not states of anything. |
+| `wifi_eap_status_code_t` | The `EAP` outcome codes, including `WIFI_EAP_SUCCESS_STATUS` and `WIFI_EAP_FAILURE_STATUS`. The result of an authentication attempt, not a state. |
+| `eapol_status_type_idx_t` | The `EAPOL` status type indices, bounded by `EAPOL_STATUS_TYPE_MAX`. Which stage of a handshake a status report concerns. |
 
-The one uniform distinction this interface does make is between the state before `wifi_init()` has completed and the state after it has. It is an ordering requirement rather than a transition, and it is not uniform in its consequence: what a call made before initialization does is stated per function, and for the sixteen functions that return no status it is not stated at all. `State-Dependent Behavior` sets out that split, and `Internal Error Handling` fixes the return-code vocabulary without claiming which code any given function reports.
+## Source References
+
+- [rdkcentral/rdkb-halif-wifi/include/wifi_hal.h](https://github.com/rdkcentral/rdkb-halif-wifi/blob/develop/include/wifi_hal.h) — umbrella header and documentation groups
+- [rdkcentral/rdkb-halif-wifi/include/wifi_hal_generic.h](https://github.com/rdkcentral/rdkb-halif-wifi/blob/develop/include/wifi_hal_generic.h) — lifetime and capability functions, return codes, constants and version macros
+- [rdkcentral/rdkb-halif-wifi/include/wifi_hal_radio.h](https://github.com/rdkcentral/rdkb-halif-wifi/blob/develop/include/wifi_hal_radio.h) — radio functions and types
+- [rdkcentral/rdkb-halif-wifi/include/wifi_hal_ap.h](https://github.com/rdkcentral/rdkb-halif-wifi/blob/develop/include/wifi_hal_ap.h) — Access Point functions, types and handler typedefs
+- [rdkcentral/rdkb-halif-wifi/include/wifi_hal_sta.h](https://github.com/rdkcentral/rdkb-halif-wifi/blob/develop/include/wifi_hal_sta.h) — station functions and types
+- [rdkcentral/rdkb-halif-wifi/include/wifi_hal_client_mgt.h](https://github.com/rdkcentral/rdkb-halif-wifi/blob/develop/include/wifi_hal_client_mgt.h) — client management functions and types
+- [rdkcentral/rdkb-halif-wifi/include/wifi_hal_extender.h](https://github.com/rdkcentral/rdkb-halif-wifi/blob/develop/include/wifi_hal_extender.h) — extender, steering and radio-measurement functions and types
+- [rdkcentral/rdkb-halif-wifi/include/wifi_hal_telemetry.h](https://github.com/rdkcentral/rdkb-halif-wifi/blob/develop/include/wifi_hal_telemetry.h) — telemetry functions and types
+- [rdkcentral/rdkb-halif-wifi/include/wifi_hal_deprecated.h](https://github.com/rdkcentral/rdkb-halif-wifi/blob/develop/include/wifi_hal_deprecated.h) — deprecated declarations outside the documented contract
+- [rdkcentral/rdkb-halif-wifi/include/wifi_hal_emu.h](https://github.com/rdkcentral/rdkb-halif-wifi/blob/develop/include/wifi_hal_emu.h) — emulation declarations outside the documented contract
+- [rdkcentral/rdkb-halif-wifi/CHANGELOG.md](https://github.com/rdkcentral/rdkb-halif-wifi/blob/develop/CHANGELOG.md) — repository release history
+- [rdkcentral/rdkb-halif-wifi/CONTRIBUTING.md](https://github.com/rdkcentral/rdkb-halif-wifi/blob/develop/CONTRIBUTING.md) — contribution and review route
+- [rdkcentral/rdkb-halif-wifi/configure.ac](https://github.com/rdkcentral/rdkb-halif-wifi/blob/develop/configure.ac) — Autoconf build manifest
+- [rdkcentral/rdkb-halif-wifi/build_ut.sh](https://github.com/rdkcentral/rdkb-halif-wifi/blob/develop/build_ut.sh) — unit-test build script
+- [rdkcentral/rdkb-halif-wifi/docs/generate_docs.sh](https://github.com/rdkcentral/rdkb-halif-wifi/blob/develop/docs/generate_docs.sh) — documentation build and its `WIFI_HAL_VERSION_3_PHASE2` predefinition
+- [rdkcentral/rdkb-halif-wifi/LICENSE](https://github.com/rdkcentral/rdkb-halif-wifi/blob/develop/LICENSE) — Apache License, Version 2.0
+- [rdkcentral/rdkb-halif-wifi/NOTICE](https://github.com/rdkcentral/rdkb-halif-wifi/blob/develop/NOTICE) — attribution notice
+- [rdkcentral/rdkb-halif-wifi/COPYING](https://github.com/rdkcentral/rdkb-halif-wifi/blob/develop/COPYING) — copyright statement
