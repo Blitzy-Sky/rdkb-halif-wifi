@@ -32,6 +32,7 @@
 - `EDCA` \- Enhanced Distributed Channel Access
 - `MFP` \- Management Frame Protection
 - `MU` \- Multi User
+- `OFDMA` \- Orthogonal Frequency-Division Multiple Access
 - `PSK` \- Pre-Shared Key
 - `RADIUS` \- Remote Authentication Dial-In User Service
 - `RSSI` \- Received Signal Strength Indicator
@@ -127,9 +128,8 @@ Exceptions to these rules can be specified in the API documentation.
 #### Caller Responsibilities
 
 - Allocate and release every structure and buffer passed to an `API`, including the out-parameters it writes into.
-- Keep that storage valid and unmodified until the call returns, and, where a registration function takes caller-supplied configuration, for as long as the registration stands.
+- Keep that storage valid and unmodified for the lifetime the `API`'s own documentation sets, which can outlast the call: while a registration it configures stands, or while the `HAL` stays initialized, as for `wifi_getHalCapability()`. Release or reuse it sooner only once the platform's implementer confirms the `HAL` does not retain it.
 - Read an out-parameter, including any count that describes an array, only after the call has returned success.
-- Copy callback data before the handler returns, as `Asynchronous Notification Model` requires.
 - Free the `HAL`-allocated arrays returned by `wifi_findNetworks()`, `wifi_getNeighboringWiFiStatus()` and `wifi_getApAssociatedDeviceDiagnosticResult3()`: the caller passes the address of its own pointer, the `HAL` sets it, and the caller frees the array as a whole.
 
 #### Module Responsibilities
@@ -164,13 +164,13 @@ During callbacks the client is responsible for creating a copy of the data, unle
 
 None of the calls in the interface should block.
 
-**Non-Blocking Requirement:** an implementation must not suspend or invoke a blocking system call from any function in this interface. Where an operation cannot be completed immediately, it reports the condition through the return value rather than waiting.
+**Non-Blocking Requirement:** an implementation must not suspend or invoke a blocking system call from any function in this interface. Where an operation cannot be completed immediately, a status-returning function reports the condition through its return value rather than waiting.
 
-Each call returns its status to the caller synchronously; an event that occurs later is reported through a handler registered as `Asynchronous Notification Model` describes.
+A `void` registration function, such as `wifi_newApAssociatedDevice_callback_register()`, returns once its handler is installed, and an event that occurs later reaches that handler asynchronously, as `Asynchronous Notification Model` describes.
 
 ### Internal Error Handling
 
-Each `API` documents its return codes in its own `@retval` list and must be capable of returning every code in that list; the `UT`, where possible, will create cases that exercise each of them.
+Each status-returning `API` documents its return codes in its own `@retval` list and must be capable of returning every code in that list; the `UT`, where possible, will create cases that exercise each of them.
 
 HAL is responsible to handle system errors (e.g., failure of memory allocation, array boundary out of memory, return code check), and returning only the fixed returned codes as defined in the `API` specification.
 
@@ -227,6 +227,8 @@ The vendor should endeavour to:-
 - Have a zero-warning policy with regards to compiling. All warnings should be enabled by default in the makefiles.
 - Use of memory analysis tools like Valgrind are encouraged, to identify leaks/corruptions.
 - `HAL` Tests, run under `HATS`, will endeavour to create worst case scenarios to assist investigations
+
+**Keeping this document accurate:** any change to a file listed under `Source References` obliges the repository's maintainers to review the topics that file informs.
 
 **Review route:** a change to this interface or this document follows the repository's contribution guide - raise an issue, then open a [pull request against this repository](https://github.com/rdkcentral/rdkb-halif-wifi/compare), which the repository's maintainers review before merging.
 
@@ -304,9 +306,9 @@ The interface declares the index constants; `wifi_getHalCapability()` reports wh
 
 #### Object Lifecycles
 
-- **Creation.** The `HAL` is not an object factory. The caller allocates the structures it passes and the structures it reads, the implementation populates them, and the caller releases them. The only exceptions are the three functions named under `Memory Model` that hand back a `HAL`-allocated array.
+- **Creation.** The `HAL` is not an object factory: the implementation populates structures the caller supplies, under the ownership rule and exceptions in `Memory Model`.
 - **Configuration objects.** A radio's configuration travels as a `wifi_radio_operationParam_t` and a radio's set of `VAP`s as a `wifi_vap_info_map_t` of `wifi_vap_info_t` entries. `wifi_createVAP()` applies such a map and `wifi_getRadioVapInfoMap()` reads it back, so the map is the unit in which `VAP` configuration is created and inspected. `wifi_deleteAp()` removes a single Access Point and releases the state held for it.
-- **Destruction.** Releasing a structure the caller allocated is the caller's business, under the ownership rule in `Memory Model`. Three functions take the subsystem out of service, each with its own effect: `wifi_down()` removes transmit power from every radio, `wifi_reset()` discards the subsystem's state including every Access Point's, and `wifi_factoryReset()` restores the implementation's factory default configuration. After any of them the initialization pre-condition applies again: a caller re-initializes with `wifi_init()` and reapplies its configuration before using the interface further.
+- **Destruction.** Three functions take the subsystem out of service, each with its own effect: `wifi_down()` removes transmit power from every radio, `wifi_reset()` discards the subsystem's state including every Access Point's, and `wifi_factoryReset()` restores the implementation's factory default configuration. After any of them the initialization pre-condition applies again: a caller re-initializes with `wifi_init()` and reapplies its configuration before using the interface further.
 - **Identifiers.** A radio index, an `AP` index and a station MAC address are the only identifiers this interface uses to name instances. There is no opaque handle to keep.
 
 #### Method Sequencing
@@ -365,7 +367,7 @@ A caller of this interface constructs or interprets the types below. Every one i
 | `wifi_radio_index_t` | Wi-Fi radio index type. |
 | `wifi_twt_params_t` | Wi-Fi TWT parameters. |
 | `wifi_twt_sessions_t` | Wi-Fi TWT sessions. |
-| `wifi_ul_mu_type_t` | Uplink multi-user scheme a radio is configured for. |
+| `wifi_ul_mu_type_t` | Uplink multi-user scheme a radio is configured for, none or OFDMA, set and read with `wifi_setUplinkMuType()` and `wifi_getUplinkMuType()`; `wifi_ul_mu_stats_t` also reports it as the scheme a station's uplink traffic used. |
 
 *Types in `wifi_hal_radio.h`*
 
@@ -963,6 +965,7 @@ The status enumerations a caller reads are declared in `wifi_hal_generic.h` (`wi
 - [rdkcentral/rdkb-halif-wifi/configure.ac](https://github.com/rdkcentral/rdkb-halif-wifi/blob/develop/configure.ac) — Autoconf build manifest
 - [rdkcentral/rdkb-halif-wifi/build_ut.sh](https://github.com/rdkcentral/rdkb-halif-wifi/blob/develop/build_ut.sh) — unit-test build script
 - [rdkcentral/rdkb-halif-wifi/docs/generate_docs.sh](https://github.com/rdkcentral/rdkb-halif-wifi/blob/develop/docs/generate_docs.sh) — documentation build and its `WIFI_HAL_VERSION_3_PHASE2` predefinition
+- [rdkcentral/rdkb-halif-wifi/docs/pages/images/WifiHALDiagram.PNG](https://github.com/rdkcentral/rdkb-halif-wifi/blob/develop/docs/pages/images/WifiHALDiagram.PNG) — vendor arrangement image shown under `Description`
 - [rdkcentral/rdkb-halif-wifi/LICENSE](https://github.com/rdkcentral/rdkb-halif-wifi/blob/develop/LICENSE) — Apache License, Version 2.0
 - [rdkcentral/rdkb-halif-wifi/NOTICE](https://github.com/rdkcentral/rdkb-halif-wifi/blob/develop/NOTICE) — attribution notice
 - [rdkcentral/rdkb-halif-wifi/COPYING](https://github.com/rdkcentral/rdkb-halif-wifi/blob/develop/COPYING) — copyright statement
