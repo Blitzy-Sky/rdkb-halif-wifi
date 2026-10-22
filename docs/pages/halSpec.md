@@ -891,35 +891,33 @@ sequenceDiagram
     participant Vendor as Vendor Software
     Caller->>HAL: wifi_init()
     HAL->>Vendor: bring up the radios
-    Vendor->>HAL: initialization result
-    HAL->>Caller: WIFI_HAL_SUCCESS
+    Vendor-->>HAL: initialization result
+    HAL-->>Caller: WIFI_HAL_SUCCESS
     Caller->>HAL: wifi_getHalCapability()
     HAL->>Vendor: read platform capabilities
-    Vendor->>HAL: radio and VAP inventory
-    HAL->>Caller: capability report
+    Vendor-->>HAL: radio and VAP inventory
+    HAL-->>Caller: capability report
     Caller->>HAL: wifi_setRadioOperatingParameters()
     HAL->>Vendor: apply radio configuration
-    Vendor->>HAL: applied
-    HAL->>Caller: WIFI_HAL_SUCCESS
+    Vendor-->>HAL: applied
+    HAL-->>Caller: WIFI_HAL_SUCCESS
     Caller->>HAL: wifi_createVAP()
     HAL->>Vendor: create the Virtual Access Points
-    Vendor->>HAL: created
-    HAL->>Caller: WIFI_HAL_SUCCESS
+    Vendor-->>HAL: created
+    HAL-->>Caller: WIFI_HAL_SUCCESS
     Caller->>HAL: wifi_newApAssociatedDevice_callback_register()
-    HAL->>Caller: handler installed
+    HAL-->>Caller: handler installed
     note over HAL: System is up and running
     Vendor->>HAL: a client associates
     HAL->>Caller: association notification on a HAL thread
     Caller->>HAL: wifi_down()
     HAL->>Vendor: stop transmitting
-    HAL->>Caller: WIFI_HAL_SUCCESS
+    HAL-->>Caller: WIFI_HAL_SUCCESS
 ```
-
-The diagrams in this document are Mermaid blocks: they render on GitHub and appear as source text in the generated Doxygen output.
 
 ### State Diagram
 
-This interface defines status values but no transitions between them, so no state machine is drawn; the lifecycle it does establish is set out under `Method Sequencing`.
+This interface defines status values but no transitions between them, so no state diagram is drawn; the lifecycle it does establish is set out under `Method Sequencing`.
 
 The status enumerations a caller reads are declared in `wifi_hal_generic.h` (`wifi_connection_status_t`), `wifi_hal_radio.h` (`wifi_channelState_t`) and `wifi_hal_ap.h` (the other four):
 
