@@ -170,9 +170,7 @@ A `void` registration function, such as `wifi_newApAssociatedDevice_callback_reg
 
 Each status-returning `API` documents its return codes in its own `@retval` list and must be capable of returning every code in that list.
 
-HAL is responsible to handle system errors (e.g., failure of memory allocation, array boundary out of memory, return code check), and returning only the fixed returned codes as defined in the `API` specification.
-
-The fixed codes are declared in `wifi_hal_generic.h`:
+The HAL handles system errors, such as a failed memory allocation, an out-of-bounds array access or a failed internal call, internally and returns only the fixed codes that `wifi_hal_generic.h` declares:
 
 | Code | Value | What it reports, and what a caller does about it |
 | --- | --- | --- |
